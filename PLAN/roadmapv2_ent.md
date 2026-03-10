@@ -29,16 +29,16 @@
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
-| **Windows Agent** | P0 | ⏳ Remaining | Service mode, VSS, system state backup |
-| **Linux Agent** | P0 | ⏳ Remaining | systemd service, LVM snapshots |
-| **File-Level Backup** | P0 | ⏳ Remaining | Selective file/folder backup |
+| **Windows Agent** | P0 | ✅ Completed | Service mode, VSS, system state backup |
+| **Linux Agent** | P0 | ✅ Completed | systemd service, LVM snapshots |
+| **File-Level Backup** | P0 | ✅ Completed | Selective file/folder backup |
 | **Bare-Metal Recovery** | P1 | ⏳ Remaining | Full system restore |
 | **System State Backup** | P1 | ⏳ Remaining | Registry, boot files |
 | **Agent Auto-Deployment** | P2 | ⏳ Remaining | Push installation |
 | **Agent Health Monitoring** | P1 | ⏳ Remaining | Heartbeat, version check |
 | **Bandwidth Throttling** | P2 | ⏳ Remaining | QoS for agent traffic |
 
-**Estimated Time:** 4-6 weeks
+**Estimated Time:** 2-3 weeks remaining
 
 ---
 
