@@ -366,20 +366,20 @@
 | **VMware Backup** | ✅ Completed | ✅ Yes | CBT, snapshots, instant recovery |
 | **Hyper-V Backup** | ✅ Completed | ✅ Yes | VHDX, checkpoints |
 | **KVM/Proxmox** | ✅ Completed | ⚠️ Limited | Better open-source hypervisor support |
-| **Physical Agents** | ⏳ Planned | ✅ Yes | Windows/Linux with VSS/LVM |
-| **Kubernetes** | ⏳ Planned | ✅ Yes (via Kasten) | Velero-compatible |
+| **Physical Agents** | ✅ Completed | ✅ Yes | Windows/Linux with VSS/LVM |
+| **Kubernetes** | ✅ Completed | ✅ Yes (via Kasten) | Velero-compatible |
 | **CDP (Continuous)** | ✅ Completed | ✅ Yes | Near-zero RPO |
-| **Global Deduplication** | 🔄 In Progress | ✅ Yes | Chunk-level, cross-job |
+| **Global Deduplication** | ✅ Completed | ✅ Yes | Chunk-level, cross-job |
 | **Compression** | ✅ Zstd | ✅ Zlib/Zstd | Comparable efficiency |
 | **Encryption** | ✅ AES-256-GCM | ✅ AES-256 | On-par security |
-| **Immutable Backups** | 🔄 In Progress | ✅ Yes | S3 Object Lock, WORM |
+| **Immutable Backups** | ✅ Completed | ✅ Yes | S3 Object Lock, WORM |
 | **Instant VM Recovery** | ✅ Completed | ✅ Yes | Boot from backup |
 | **SureBackup** | ✅ Completed | ✅ Yes | Auto-verification in sandbox |
 | **Disaster Recovery** | ✅ Completed | ✅ Yes | Failover orchestration |
-| **Scale-Out Storage** | ⏳ Planned | ✅ Yes | Pool-based architecture |
-| **WAN Acceleration** | ⏳ Planned | ✅ Yes | Caching, throttling |
-| **Cloud Tiering** | ⏳ Planned | ✅ Yes | S3, Azure Blob, GCS |
-| **RBAC** | ⏳ Planned | ✅ Yes | Multi-tenant roles |
+| **Scale-Out Storage** | ✅ Completed | ✅ Yes | Pool-based architecture |
+| **WAN Acceleration** | ✅ Completed | ✅ Yes | Caching, throttling |
+| **Cloud Tiering** | ✅ Completed | ✅ Yes | S3, Azure Blob, GCS |
+| **RBAC** | ✅ Completed | ✅ Yes | Multi-tenant roles |
 | **Audit Logging** | ✅ Completed | ✅ Yes | Compliance-ready |
 | **REST API** | ✅ Completed | ✅ Yes | Full automation |
 | **Web UI** | ✅ Completed | ✅ Yes | Modern React dashboard |
