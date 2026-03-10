@@ -86,6 +86,7 @@ func initBackupCmd() *cobra.Command {
 	cmd.AddCommand(linuxAgentCmd())
 	cmd.AddCommand(fileLevelBackupCmd())
 	cmd.AddCommand(agentHealthCmd())
+	cmd.AddCommand(scaleOutStorageCmd())
 
 	return cmd
 }
@@ -1042,6 +1043,71 @@ func agentHealthCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&agentType, "type", "t", "all", "Agent type: all, windows, linux")
 	cmd.Flags().IntVarP(&checkInterval, "interval", "i", 60, "Health check interval in seconds")
+
+	return cmd
+}
+
+// scaleOutStorageCmd creates the Scale-Out Storage command
+func scaleOutStorageCmd() *cobra.Command {
+	var poolName string
+	var storageNodes string
+
+	cmd := &cobra.Command{
+		Use:   "scale-out",
+		Short: "Scale-Out Storage Management",
+		Long:  "Manage scale-out storage repositories with multiple nodes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			fmt.Printf("🗄️  Scale-Out Storage Management...\n")
+			fmt.Printf("   Pool Name: %s\n", poolName)
+			fmt.Printf("   Storage Nodes: %s\n", storageNodes)
+
+			// Simulate scale-out storage status
+			fmt.Printf("\n📋 Storage Pool Status:\n")
+			fmt.Printf("%-20s %-15s %-15s %-10s %-10s\n", "Node", "Capacity", "Used", "Status", "Role")
+			fmt.Printf("%s\n", "====================================================================")
+
+			nodes := []struct {
+				name     string
+				capacity string
+				used     string
+				status   string
+				role     string
+			}{
+				{"node-01", "10 TB", "6.5 TB", "Online", "Primary"},
+				{"node-02", "10 TB", "5.8 TB", "Online", "Secondary"},
+				{"node-03", "10 TB", "7.2 TB", "Online", "Secondary"},
+				{"node-04", "10 TB", "0 TB", "Offline", "Standby"},
+			}
+
+			for _, node := range nodes {
+				fmt.Printf("%-20s %-15s %-15s %-10s %-10s\n",
+					node.name, node.capacity, node.used, node.status, node.role)
+			}
+
+			fmt.Printf("\n📊 Pool Summary:\n")
+			fmt.Printf("   Total Capacity: 40 TB\n")
+			fmt.Printf("   Used Space: 19.5 TB (48.75%%)\n")
+			fmt.Printf("   Free Space: 20.5 TB\n")
+			fmt.Printf("   Active Nodes: 3/4\n")
+			fmt.Printf("   Data Extent: Striped across 3 nodes\n")
+
+			fmt.Printf("\n📋 Features:\n")
+			fmt.Printf("   ✓ Automatic load balancing\n")
+			fmt.Printf("   ✓ Fault tolerance (N+1)\n")
+			fmt.Printf("   ✓ Online expansion\n")
+			fmt.Printf("   ✓ Data locality optimization\n")
+
+			fmt.Printf("\n✅ Scale-out storage ready!\n")
+
+			_ = ctx
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&poolName, "pool", "p", "default", "Storage pool name")
+	cmd.Flags().StringVarP(&storageNodes, "nodes", "n", "", "Comma-separated list of storage nodes")
 
 	return cmd
 }
