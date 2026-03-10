@@ -6,6 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// TimeNow returns the current time (helper for testing)
+func TimeNow() time.Time {
+	return time.Now()
+}
+
 type JobType string
 
 const (
@@ -66,6 +71,17 @@ type RestoreConfig struct {
 	Overwrite   bool
 }
 
+type RestorePoint struct {
+	ID              uuid.UUID `json:"id"`
+	JobID           uuid.UUID `json:"job_id"`
+	PointTime       time.Time `json:"point_time"`
+	Status          JobStatus `json:"status"`
+	TotalBytes      int64     `json:"total_bytes"`
+	ProcessedBytes  int64     `json:"processed_bytes"`
+	DurationSeconds int       `json:"duration_seconds"`
+	Metadata        string    `json:"metadata,omitempty"`
+}
+
 type FileInfo struct {
 	Path     string
 	Name     string
@@ -73,4 +89,12 @@ type FileInfo struct {
 	ModTime  time.Time
 	IsDir    bool
 	Checksum string
+}
+
+// ChunkInfo represents a chunk with metadata
+type ChunkInfo struct {
+	Hash           string
+	SizeBytes      int
+	CompressedSize int
+	StoragePath    string
 }
