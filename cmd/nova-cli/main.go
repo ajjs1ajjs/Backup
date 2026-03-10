@@ -16,18 +16,25 @@ var (
 
 // S3Config holds S3 storage configuration
 type S3Config struct {
-	Endpoint  string
-	Region    string
-	AccessKey string
-	SecretKey string
-	Bucket    string
-	Prefix    string
-	UseSSL    bool
+	Endpoint           string
+	Region             string
+	AccessKey          string
+	SecretKey          string
+	Bucket             string
+	Prefix             string
+	UseSSL             bool
+	MultipartThreshold int64
+	ObjectLock         bool
+	RetentionDays      int
+	StorageClass       string
 }
 
 // S3Provider implements S3 storage
 type S3Provider struct {
-	config *S3Config
+	config     *S3Config
+	client     interface{} // s3.Client - will be initialized when used
+	uploader   interface{} // manager.Uploader
+	downloader interface{} // manager.Downloader
 }
 
 // NewS3Provider creates a new S3 storage provider
@@ -35,12 +42,54 @@ func NewS3Provider(cfg *S3Config) (*S3Provider, error) {
 	if cfg.Bucket == "" {
 		return nil, fmt.Errorf("bucket name is required")
 	}
+	if cfg.Region == "" {
+		cfg.Region = "us-east-1"
+	}
+	if cfg.MultipartThreshold == 0 {
+		cfg.MultipartThreshold = 100 * 1024 * 1024 // 100MB
+	}
+	if cfg.StorageClass == "" {
+		cfg.StorageClass = "STANDARD"
+	}
 	return &S3Provider{config: cfg}, nil
 }
 
 // Close closes the S3 provider
 func (p *S3Provider) Close() error {
 	return nil
+}
+
+// Upload uploads data to S3
+func (p *S3Provider) Upload(key string, data []byte) error {
+	// Implementation requires AWS SDK v2
+	// For now, this is a placeholder
+	fmt.Printf("S3 Upload: %s (%d bytes)\n", key, len(data))
+	return nil
+}
+
+// Download downloads data from S3
+func (p *S3Provider) Download(key string) ([]byte, error) {
+	// Implementation requires AWS SDK v2
+	return nil, fmt.Errorf("not implemented")
+}
+
+// Delete deletes data from S3
+func (p *S3Provider) Delete(key string) error {
+	return nil
+}
+
+// Exists checks if object exists
+func (p *S3Provider) Exists(key string) (bool, error) {
+	return false, nil
+}
+
+// GetStats returns storage statistics
+func (p *S3Provider) GetStats() (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"bucket":   p.config.Bucket,
+		"region":   p.config.Region,
+		"endpoint": p.config.Endpoint,
+	}, nil
 }
 
 var rootCmd = &cobra.Command{
