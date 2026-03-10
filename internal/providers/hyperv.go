@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -52,16 +53,18 @@ type VMInfo struct {
 
 // ListVMs lists all VMs on the Hyper-V host
 func (h *HyperVBackupProvider) ListVMs(ctx context.Context) ([]VMInfo, error) {
-	powerShellCmd := `Get-VM | Select-Object Name,VMId,State,ProcessorCount,MemoryStartup,Generation,NetworkAdapters | ConvertTo-Json`
+	powerShellCmd := `Get-VM | Select-Object Name,VMId,State,ProcessorCount,MemoryStartup,Generation,@{Name='NetworkName';Expression={($_.NetworkAdapters | Select-Object -First 1).SwitchName}} | ConvertTo-Json -Depth 3`
 
 	output, err := h.runPowerShell(ctx, powerShellCmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list VMs: %w", err)
 	}
 
-	// Parse JSON output (simplified - in production use proper JSON parser)
+	// Parse JSON output
 	var vms []VMInfo
-	_ = output // TODO: Parse JSON
+	if err := json.Unmarshal([]byte(output), &vms); err != nil {
+		return nil, fmt.Errorf("failed to parse VM list JSON: %w", err)
+	}
 
 	return vms, nil
 }
@@ -77,7 +80,9 @@ func (h *HyperVBackupProvider) GetVMInfo(ctx context.Context, vmName string) (*V
 
 	// Parse JSON output
 	var vm VMInfo
-	_ = output // TODO: Parse JSON
+	if err := json.Unmarshal([]byte(output), &vm); err != nil {
+		return nil, fmt.Errorf("failed to parse VM info JSON: %w", err)
+	}
 
 	return &vm, nil
 }
