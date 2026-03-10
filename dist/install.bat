@@ -1,9 +1,12 @@
-@echo off  
-  
+@echo off 
 echo ========================================  
 echo   NovaBackup v6.0 Installation        
 echo ========================================  
 echo.  
+echo IMPORTANT: Run as Administrator!  
+echo Right-click this file -> Run as Administrator  
+echo.  
+pause  
   
 echo [1/3] Installing to Program Files...  
 mkdir \"C:\Program Files\NovaBackup\"  
@@ -16,12 +19,7 @@ echo [3/3] Starting Service...
 net start NovaBackup  
   
 echo ========================================  
-echo   Installation Complete!                
+echo   Installation Complete!  
 echo ========================================  
 echo.  
-Commands:  
-  nova backup run -s C:\Data -d D:\Backups  
-  nova api start  
-  nova service install  
-  
 pause  
