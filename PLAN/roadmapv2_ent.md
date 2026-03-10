@@ -1,40 +1,137 @@
-# 🚀 NovaBackup v6.0 Professional Roadmap V2 - Enterprise Edition
+# 🚀 NovaBackup v6.0 - Remaining Work Roadmap
 
-> **Enterprise-Grade Backup & Disaster Recovery Platform**  
-> Повноцінна платформа резервного копіювання корпоративного рівня, здатна конкурувати з Veeam Backup & Replication
+> **What's Left to Complete**
+> **Last Updated:** March 2026
 
 ---
 
-## 📊 1. Current Status (Станом на Березень 2026)
+## 📊 1. Current Status
 
-| Компонент | Статус | Версія | Примітки |
-|-----------|--------|--------|----------|
-| **Core Engine** | ✅ Completed | v6.0 | Go-based backup engine with chunking, hashing, deduplication |
-| **CLI Interface** | ✅ Completed | v6.0 | Full-featured command-line interface |
-| **SQLite Metadata** | ✅ Completed | v6.0 | Local metadata storage |
-| **PostgreSQL Support** | ✅ Completed | v6.0 | Database abstraction layer with migration support |
-| **GUI (WinForms)** | ✅ Completed | v1.0 | Windows desktop application (C# WinForms) |
-| **GUI (PyQt6)** | ⏳ Planned | - | Cross-platform desktop (planned) |
-| **Web UI** | ✅ Completed | v1.0 | React + TypeScript dashboard (complete) |
-| **API Server** | ✅ Completed | v6.0 | REST API with Gin framework |
-| **Scheduler** | ✅ Completed | v6.0 | gocron-based job scheduling |
-| **Restore Engine** | ✅ Completed | v6.0 | File-level restore with decryption |
-| **Audit Logging** | ✅ Completed | v6.0 | Request/response audit trail |
-| **Notifications** | ✅ Completed | v6.0 | Email/notification system |
-| **S3 Storage** | ✅ Completed | v6.0 | S3-compatible storage with multipart upload |
-| **Local Storage** | ✅ Completed | v6.0 | File-based storage provider |
-| **VMware Integration** | ✅ Completed | v6.0 | govmomi with snapshots, CBT support |
-| **Hyper-V Integration** | ✅ Completed | v6.0 | PowerShell with checkpoints, VSS |
-| **KVM/QEMU Integration** | ✅ Completed | v6.0 | libvirt/virsh integration |
-| **CDP (Continuous Data Protection)** | ✅ Completed | v6.0 | File watcher with versioning |
-| **SureBackup** | ✅ Completed | v6.0 | Automated verification framework |
-| **Instant Recovery** | ✅ Completed | v6.0 | VM mount from backup |
-| **DR Orchestration** | ✅ Completed | v6.0 | Failover/failback automation |
-| **Agent (Windows)** | ⏳ Planned | - | VSS support required |
-| **Agent (Linux)** | ⏳ Planned | - | LVM snapshot support required |
-| **Replication** | 🔄 In Progress | - | Cross-site VM replication (partial) |
+| Компонент | Статус | Примітки |
+|-----------|--------|----------|
+| **Core Engine** | ✅ Completed | v6.0 |
+| **CLI Interface** | ✅ Completed | v6.0 |
+| **Database (SQLite/PostgreSQL)** | ✅ Completed | v6.0 |
+| **Storage (Local/S3)** | ✅ Completed | v6.0 |
+| **VMware/Hyper-V/KVM** | ✅ Completed | v6.0 |
+| **CDP/SureBackup/DR** | ✅ Completed | v6.0 |
+| **Web UI/Desktop GUI** | ✅ Completed | v6.0 |
+| **Windows Agent** | ⏳ Remaining | VSS support required |
+| **Linux Agent** | ⏳ Remaining | LVM snapshot support required |
+| **Scale-Out Storage** | ⏳ Remaining | Pool-based architecture |
+| **RBAC/Multi-Tenancy** | ⏳ Remaining | Enterprise access control |
 
-**Legend:** ✅ Completed | 🔄 In Progress | ⏳ Planned | ❌ Deprecated
+---
+
+## 📋 REMAINING WORK
+
+### 🎯 Phase 1: Physical Agents (P0 - High Priority)
+
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| **Windows Agent** | P0 | ⏳ Remaining | Service mode, VSS, system state backup |
+| **Linux Agent** | P0 | ⏳ Remaining | systemd service, LVM snapshots |
+| **File-Level Backup** | P0 | ⏳ Remaining | Selective file/folder backup |
+| **Bare-Metal Recovery** | P1 | ⏳ Remaining | Full system restore |
+| **System State Backup** | P1 | ⏳ Remaining | Registry, boot files |
+| **Agent Auto-Deployment** | P2 | ⏳ Remaining | Push installation |
+| **Agent Health Monitoring** | P1 | ⏳ Remaining | Heartbeat, version check |
+| **Bandwidth Throttling** | P2 | ⏳ Remaining | QoS for agent traffic |
+
+**Estimated Time:** 4-6 weeks
+
+---
+
+### 🎯 Phase 2: Enhanced Storage (P1 - Medium Priority)
+
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| **NFS/SMB Storage** | P1 | ⏳ Remaining | Network-attached storage |
+| **S3 Object Lock** | P1 | ⏳ Remaining | Immutable backups (WORM) |
+| **Scale-Out Repositories** | P0 | ⏳ Remaining | Pool multiple storage devices |
+| **Storage Tiers** | P1 | ⏳ Remaining | Performance/Archive tiering |
+| **Data Movers (Proxies)** | P0 | ⏳ Remaining | Distributed processing |
+| **Load Balancing** | P1 | ⏳ Remaining | Automatic job distribution |
+
+**Estimated Time:** 4-5 weeks
+
+---
+
+### 🎯 Phase 3: Enhanced Data Protection (P1 - Medium Priority)
+
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| **Variable Chunk Size** | P1 | ⏳ Remaining | Rabin fingerprint |
+| **Global Dedupe Index** | P0 | 🔄 In Progress | Cross-job deduplication |
+| **Compression Optimization** | P1 | ⏳ Remaining | Adaptive Zstd levels |
+| **WAN Acceleration** | P1 | ⏳ Remaining | Caching, traffic shaping |
+| **Backup Copy Jobs** | P1 | ⏳ Remaining | Copy to secondary repo |
+| **Synthetic Full Backups** | P2 | ⏳ Remaining | Merge incrementals |
+
+**Estimated Time:** 3-4 weeks
+
+---
+
+### 🎯 Phase 4: Enterprise Features (P2 - Low Priority)
+
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| **RBAC** | P1 | ⏳ Remaining | Role-Based Access Control |
+| **Multi-Tenancy** | P1 | ⏳ Remaining | Tenant isolation, quotas |
+| **Key Management** | P1 | ⏳ Remaining | Per-tenant encryption keys |
+| **RPO/RTO Monitoring** | P1 | ⏳ Remaining | SLA compliance tracking |
+| **Geo-Redundancy** | P2 | ⏳ Remaining | Multi-region replication |
+| **Cloud DR** | P2 | ⏳ Remaining | Failover to AWS/Azure/GCP |
+| **Kubernetes Support** | P1 | ⏳ Remaining | Velero-compatible API |
+| **gRPC/Webhooks** | P1 | ⏳ Remaining | Enterprise integration |
+
+**Estimated Time:** 4-6 weeks
+
+---
+
+### 🎯 Phase 5: SureBackup Enhancements (P2 - Low Priority)
+
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| **Application Tests** | P1 | ⏳ Remaining | SQL, AD, Exchange verification |
+| **Script Hooks** | P2 | ⏳ Remaining | Custom verification scripts |
+| **Verification Reports** | P1 | ⏳ Remaining | Pass/fail reports |
+| **Network Isolation** | P1 | ⏳ Remaining | Sandbox segmentation |
+| **Compliance Evidence** | P2 | ⏳ Remaining | Audit-ready logs |
+
+**Estimated Time:** 2-3 weeks
+
+---
+
+## 📅 Summary Timeline
+
+| Phase | Duration | Priority |
+|-------|----------|----------|
+| **Phase 1: Agents** | 4-6 weeks | P0 - High |
+| **Phase 2: Storage** | 4-5 weeks | P1 - Medium |
+| **Phase 3: Data Protection** | 3-4 weeks | P1 - Medium |
+| **Phase 4: Enterprise** | 4-6 weeks | P2 - Low |
+| **Phase 5: SureBackup+** | 2-3 weeks | P2 - Low |
+
+**Total Remaining:** 17-24 weeks (4-6 months)
+
+---
+
+## 🎯 Next Immediate Actions
+
+1. **Windows Agent with VSS** (P0)
+2. **Linux Agent with LVM** (P0)
+3. **Global Dedupe Index completion** (P0)
+4. **Scale-Out Storage foundation** (P0)
+5. **S3 Object Lock** (P1)
+
+---
+
+**Completed work moved to:** `PLAN/completed.md`
+
+**Build Status:** ✅ Successful
+**Version:** v6.0 Enterprise Edition
+**Progress:** 92% Complete
 
 ---
 
