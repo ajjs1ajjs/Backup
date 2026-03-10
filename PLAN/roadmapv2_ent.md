@@ -16,10 +16,15 @@
 | **VMware/Hyper-V/KVM** | ✅ Completed | v6.0 |
 | **CDP/SureBackup/DR** | ✅ Completed | v6.0 |
 | **Web UI/Desktop GUI** | ✅ Completed | v6.0 |
-| **Windows Agent** | ⏳ Remaining | VSS support required |
-| **Linux Agent** | ⏳ Remaining | LVM snapshot support required |
-| **Scale-Out Storage** | ⏳ Remaining | Pool-based architecture |
+| **Windows Agent** | ✅ Completed | VSS support, system state backup |
+| **Linux Agent** | ✅ Completed | LVM snapshot support |
+| **Bare-Metal Recovery** | ✅ Completed | Full system restore |
+| **System State Backup** | ✅ Completed | Registry, boot files |
+| **Agent Health Monitoring** | ✅ Completed | Heartbeat, version check |
+| **Scale-Out Storage** | ✅ Completed | Pool-based architecture |
+| **S3 Object Lock** | ✅ Completed | Immutable backups (WORM) |
 | **RBAC/Multi-Tenancy** | ⏳ Remaining | Enterprise access control |
+| **NFS/SMB Storage** | ⏳ Remaining | Network-attached storage |
 
 ---
 
