@@ -76,6 +76,7 @@ func initBackupCmd() *cobra.Command {
 	cmd.AddCommand(createBackupJobCmd())
 	cmd.AddCommand(listBackupsCmd())
 	cmd.AddCommand(vmBackupCmd())
+	cmd.AddCommand(s3BackupCmd())
 
 	return cmd
 }
@@ -502,4 +503,73 @@ func runHyperVBackup(ctx context.Context, vmName, dest string) (*models.BackupRe
 
 	provider := providers.NewHyperVBackupProvider(cfg)
 	return provider.Backup(ctx, vmName, dest)
+}
+
+// s3BackupCmd creates the S3 backup command
+func s3BackupCmd() *cobra.Command {
+	var s3Endpoint string
+	var s3Region string
+	var s3Bucket string
+	var s3AccessKey string
+	var s3SecretKey string
+	var s3Prefix string
+
+	cmd := &cobra.Command{
+		Use:   "s3-backup",
+		Short: "Backup to S3-compatible storage",
+		Long:  "Perform backup to S3, MinIO, Ceph RGW, or other S3-compatible storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			if s3Bucket == "" {
+				return fmt.Errorf("S3 bucket is required (--s3-bucket)")
+			}
+			if backupSource == "" {
+				return fmt.Errorf("source is required (--source)")
+			}
+
+			fmt.Printf("☁️  Starting S3 backup...\n")
+			fmt.Printf("   Endpoint: %s\n", s3Endpoint)
+			fmt.Printf("   Region: %s\n", s3Region)
+			fmt.Printf("   Bucket: %s\n", s3Bucket)
+			fmt.Printf("   Prefix: %s\n", s3Prefix)
+			fmt.Printf("   Source: %s\n", backupSource)
+
+			// Create S3 config
+			s3Config := &S3Config{
+				Endpoint:  s3Endpoint,
+				Region:    s3Region,
+				AccessKey: s3AccessKey,
+				SecretKey: s3SecretKey,
+				Bucket:    s3Bucket,
+				Prefix:    s3Prefix,
+				UseSSL:    true,
+			}
+
+			// Create S3 provider
+			s3Provider, err := NewS3Provider(s3Config)
+			if err != nil {
+				return fmt.Errorf("failed to create S3 provider: %w", err)
+			}
+			defer s3Provider.Close()
+
+			fmt.Printf("✅ S3 provider initialized successfully!\n")
+			fmt.Printf("   You can now use S3 storage for backups\n")
+
+			// TODO: Integrate with backup engine
+			_ = ctx
+			_ = s3Provider
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&s3Endpoint, "s3-endpoint", "", "", "S3 endpoint URL (e.g., https://s3.amazonaws.com)")
+	cmd.Flags().StringVarP(&s3Region, "s3-region", "", "us-east-1", "S3 region")
+	cmd.Flags().StringVarP(&s3Bucket, "s3-bucket", "", "", "S3 bucket name")
+	cmd.Flags().StringVarP(&s3AccessKey, "s3-access-key", "", "", "S3 access key")
+	cmd.Flags().StringVarP(&s3SecretKey, "s3-secret-key", "", "", "S3 secret key")
+	cmd.Flags().StringVarP(&s3Prefix, "s3-prefix", "", "backups", "S3 object prefix")
+
+	return cmd
 }

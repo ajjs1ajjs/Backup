@@ -11,28 +11,63 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Connection struct {
-	db *sql.DB
+// DatabaseType defines the type of database
+type DatabaseType string
+
+const (
+	DatabaseSQLite   DatabaseType = "sqlite"
+	DatabasePostgres DatabaseType = "postgres"
+)
+
+// Config holds database configuration
+type Config struct {
+	Type     DatabaseType
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+	SSLMode  string
+	DBPath   string // For SQLite
 }
 
-func NewSQLiteConnection(dbPath string) (*Connection, error) {
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+// DefaultSQLiteConfig returns default SQLite configuration
+func DefaultSQLiteConfig(dbPath string) *Config {
+	return &Config{
+		Type:   DatabaseSQLite,
+		DBPath: dbPath,
 	}
+}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Initialize schema
-	if err := initSchema(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+// DefaultPostgresConfig returns default PostgreSQL configuration
+func DefaultPostgresConfig(host, user, password, database string) *Config {
+	return &Config{
+		Type:     DatabasePostgres,
+		Host:     host,
+		Port:     5432,
+		User:     user,
+		Password: password,
+		Database: database,
+		SSLMode:  "disable",
 	}
+}
 
-	return &Connection{db: db}, nil
+// Connection represents a database connection
+type Connection struct {
+	db     *sql.DB
+	config *Config
+}
+
+// NewConnection creates a new database connection based on config
+func NewConnection(config *Config) (*Connection, error) {
+	switch config.Type {
+	case DatabaseSQLite:
+		return NewSQLiteConnection(config.DBPath)
+	case DatabasePostgres:
+		return NewPostgresConnection(config)
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
+	}
 }
 
 func initSchema(db *sql.DB) error {
@@ -295,4 +330,132 @@ func (c *Connection) DeleteChunk(hash string) error {
 	query := `DELETE FROM chunks WHERE hash = ?`
 	_, err := c.db.Exec(query, hash)
 	return err
+}
+
+// NewSQLiteConnection creates a new SQLite connection
+func NewSQLiteConnection(dbPath string) (*Connection, error) {
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	// Initialize schema
+	if err := initSchema(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+	}
+
+	return &Connection{db: db, config: DefaultSQLiteConfig(dbPath)}, nil
+}
+
+// NewPostgresConnection creates a new PostgreSQL connection
+func NewPostgresConnection(config *Config) (*Connection, error) {
+	if config.Host == "" || config.Database == "" || config.User == "" {
+		return nil, fmt.Errorf("host, database, and user are required for PostgreSQL")
+	}
+
+	// Build connection string
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		config.Host, config.Port, config.User, config.Password, config.Database, config.SSLMode,
+	)
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open PostgreSQL database: %w", err)
+	}
+
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	// Test connection
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping PostgreSQL database: %w", err)
+	}
+
+	// Initialize schema
+	if err := initPostgresSchema(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+	}
+
+	return &Connection{db: db, config: config}, nil
+}
+
+// initPostgresSchema initializes PostgreSQL database schema
+func initPostgresSchema(db *sql.DB) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS backup_jobs (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			job_type TEXT NOT NULL,
+			source TEXT NOT NULL,
+			destination TEXT NOT NULL,
+			schedule TEXT,
+			enabled BOOLEAN DEFAULT true,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS chunks (
+			hash TEXT PRIMARY KEY,
+			size_bytes BIGINT NOT NULL,
+			compressed_size BIGINT,
+			storage_path TEXT NOT NULL,
+			ref_count INTEGER DEFAULT 1,
+			first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS restore_points (
+			id TEXT PRIMARY KEY,
+			job_id TEXT NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
+			point_time TIMESTAMP NOT NULL,
+			status TEXT DEFAULT 'pending',
+			total_bytes BIGINT DEFAULT 0,
+			processed_bytes BIGINT DEFAULT 0,
+			duration_seconds INTEGER DEFAULT 0,
+			metadata JSONB
+		)`,
+		`CREATE TABLE IF NOT EXISTS restore_point_chunks (
+			restore_point_id TEXT NOT NULL REFERENCES restore_points(id) ON DELETE CASCADE,
+			chunk_hash TEXT NOT NULL REFERENCES chunks(hash),
+			sequence_order INTEGER NOT NULL,
+			original_path TEXT,
+			PRIMARY KEY (restore_point_id, sequence_order)
+		)`,
+		`CREATE TABLE IF NOT EXISTS backup_results (
+			id TEXT PRIMARY KEY,
+			job_id TEXT NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
+			status TEXT NOT NULL,
+			start_time TIMESTAMP NOT NULL,
+			end_time TIMESTAMP,
+			bytes_read BIGINT DEFAULT 0,
+			bytes_written BIGINT DEFAULT 0,
+			files_total INTEGER DEFAULT 0,
+			files_success INTEGER DEFAULT 0,
+			files_failed INTEGER DEFAULT 0,
+			error_message TEXT
+		)`,
+		// Create indexes for better performance
+		`CREATE INDEX IF NOT EXISTS idx_chunks_ref_count ON chunks(ref_count)`,
+		`CREATE INDEX IF NOT EXISTS idx_restore_points_job_id ON restore_points(job_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_backup_results_job_id ON backup_results(job_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_backup_results_status ON backup_results(status)`,
+	}
+
+	for _, query := range queries {
+		if _, err := db.Exec(query); err != nil {
+			return fmt.Errorf("failed to execute query: %w", err)
+		}
+	}
+
+	return nil
 }

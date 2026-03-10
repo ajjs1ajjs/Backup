@@ -21,10 +21,10 @@ type Engine struct {
 }
 
 // NewEngine creates a new restore engine
-func NewEngine(db *database.Connection, storagePath string) *Engine {
+func NewEngine(db *database.Connection) *Engine {
 	return &Engine{
 		db:      db,
-		storage: storage.NewEngine(storagePath),
+		storage: storage.NewEngine(),
 	}
 }
 

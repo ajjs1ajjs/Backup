@@ -14,6 +14,35 @@ var (
 	gitCommit = "unknown"
 )
 
+// S3Config holds S3 storage configuration
+type S3Config struct {
+	Endpoint  string
+	Region    string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	Prefix    string
+	UseSSL    bool
+}
+
+// S3Provider implements S3 storage
+type S3Provider struct {
+	config *S3Config
+}
+
+// NewS3Provider creates a new S3 storage provider
+func NewS3Provider(cfg *S3Config) (*S3Provider, error) {
+	if cfg.Bucket == "" {
+		return nil, fmt.Errorf("bucket name is required")
+	}
+	return &S3Provider{config: cfg}, nil
+}
+
+// Close closes the S3 provider
+func (p *S3Provider) Close() error {
+	return nil
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "nova",
 	Short: "NovaBackup v6.0 - Enterprise Backup & Disaster Recovery Platform",

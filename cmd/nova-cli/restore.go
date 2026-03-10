@@ -94,8 +94,7 @@ func runFileRestore() error {
 		return fmt.Errorf("invalid backup ID: %w", err)
 	}
 
-	storagePath := "./backups"
-	engine := restore.NewEngine(db, storagePath)
+	engine := restore.NewEngine(db)
 
 	ctx := context.Background()
 	result, err := engine.RestoreFiles(ctx, backupID.String(), restoreDest, nil)
@@ -183,8 +182,7 @@ func verifyBackup() error {
 		return fmt.Errorf("invalid backup ID: %w", err)
 	}
 
-	storagePath := "./backups"
-	engine := restore.NewEngine(db, storagePath)
+	engine := restore.NewEngine(db)
 
 	ctx := context.Background()
 	result, err := engine.VerifyBackup(ctx, backupID.String())

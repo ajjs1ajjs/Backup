@@ -33,7 +33,7 @@ func NewBackupEngine(db *database.Connection, config *models.BackupConfig) *Back
 	return &BackupEngine{
 		db:        db,
 		config:    config,
-		storage:   storage.NewEngine(config.Destination),
+		storage:   storage.NewEngine(),
 		dedupeMap: make(map[string]bool),
 	}
 }
