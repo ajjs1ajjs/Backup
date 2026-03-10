@@ -35,10 +35,10 @@
 | **Bare-Metal Recovery** | P1 | ⏳ Remaining | Full system restore |
 | **System State Backup** | P1 | ⏳ Remaining | Registry, boot files |
 | **Agent Auto-Deployment** | P2 | ⏳ Remaining | Push installation |
-| **Agent Health Monitoring** | P1 | ⏳ Remaining | Heartbeat, version check |
+| **Agent Health Monitoring** | P1 | ✅ Completed | Heartbeat, version check |
 | **Bandwidth Throttling** | P2 | ⏳ Remaining | QoS for agent traffic |
 
-**Estimated Time:** 2-3 weeks remaining
+**Estimated Time:** 1-2 weeks remaining
 
 ---
 
