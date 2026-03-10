@@ -77,6 +77,7 @@ func initBackupCmd() *cobra.Command {
 	cmd.AddCommand(listBackupsCmd())
 	cmd.AddCommand(vmBackupCmd())
 	cmd.AddCommand(s3BackupCmd())
+	cmd.AddCommand(kvmBackupCmd())
 
 	return cmd
 }
@@ -570,6 +571,54 @@ func s3BackupCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&s3AccessKey, "s3-access-key", "", "", "S3 access key")
 	cmd.Flags().StringVarP(&s3SecretKey, "s3-secret-key", "", "", "S3 secret key")
 	cmd.Flags().StringVarP(&s3Prefix, "s3-prefix", "", "backups", "S3 object prefix")
+
+	return cmd
+}
+
+// kvmBackupCmd creates the KVM backup command
+func kvmBackupCmd() *cobra.Command {
+	var kvmURI string
+
+	cmd := &cobra.Command{
+		Use:   "kvm-backup",
+		Short: "Backup a KVM/QEMU virtual machine",
+		Long:  "Perform KVM VM backup using libvirt/virsh",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			if vmName == "" {
+				return fmt.Errorf("VM name is required (--vm-name)")
+			}
+			if backupDest == "" {
+				return fmt.Errorf("destination is required (--destination)")
+			}
+
+			fmt.Printf("🔷 Starting KVM backup...\n")
+			fmt.Printf("   URI: %s\n", kvmURI)
+			fmt.Printf("   VM: %s\n", vmName)
+			fmt.Printf("   Destination: %s\n", backupDest)
+
+			cfg := providers.KVMConfig{URI: kvmURI}
+			provider := providers.NewKVMBackupProvider(cfg)
+			result, err := provider.Backup(ctx, vmName, backupDest)
+			if err != nil {
+				return fmt.Errorf("KVM backup failed: %w", err)
+			}
+
+			fmt.Printf("✅ KVM backup completed!\n")
+			fmt.Printf("   Bytes Written: %d\n", result.BytesWritten)
+			fmt.Printf("   Duration: %v\n", result.EndTime.Sub(result.StartTime))
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&kvmURI, "kvm-uri", "", "qemu:///system", "Libvirt URI")
+	cmd.Flags().StringVarP(&vmName, "vm-name", "", "", "VM name")
+	cmd.Flags().StringVarP(&backupDest, "destination", "d", "", "Destination path")
+
+	cmd.MarkFlagRequired("vm-name")
+	cmd.MarkFlagRequired("destination")
 
 	return cmd
 }

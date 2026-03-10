@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"novabackup/pkg/models"
@@ -393,4 +394,99 @@ func (v *VMwareBackupProvider) GetCBTChangedBlocks(ctx context.Context, vmName s
 	// Simple implementation - return nil for now
 	// Full CBT implementation requires proper snapshot chain tracking
 	return nil, fmt.Errorf("CBT requires full snapshot chain implementation")
+}
+
+// KVM Backup Provider
+
+// KVMBackupProvider handles KVM/QEMU VM backups
+type KVMBackupProvider struct {
+	uri string
+}
+
+// KVMConfig contains KVM connection configuration
+type KVMConfig struct {
+	URI string
+}
+
+// KVMVMInfo contains KVM VM information
+type KVMVMInfo struct {
+	Name      string
+	UUID      string
+	State     string
+	CPU       int
+	Memory    int64
+	DiskPaths []string
+}
+
+// NewKVMBackupProvider creates a new KVM backup provider
+func NewKVMBackupProvider(cfg KVMConfig) *KVMBackupProvider {
+	if cfg.URI == "" {
+		cfg.URI = "qemu:///system"
+	}
+	return &KVMBackupProvider{uri: cfg.URI}
+}
+
+// ListVMs lists all VMs
+func (k *KVMBackupProvider) ListVMs(ctx context.Context) ([]KVMVMInfo, error) {
+	output, err := k.runVirsh(ctx, "list", "--all", "--name")
+	if err != nil {
+		return nil, err
+	}
+	var vms []KVMVMInfo
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			if info, err := k.GetVMInfo(ctx, line); err == nil {
+				vms = append(vms, *info)
+			}
+		}
+	}
+	return vms, nil
+}
+
+// GetVMInfo gets VM info
+func (k *KVMBackupProvider) GetVMInfo(ctx context.Context, vmName string) (*KVMVMInfo, error) {
+	state, _ := k.runVirsh(ctx, "domstate", vmName)
+	return &KVMVMInfo{Name: vmName, State: strings.TrimSpace(state)}, nil
+}
+
+// Backup performs VM backup
+func (k *KVMBackupProvider) Backup(ctx context.Context, vmName, dest string) (*models.BackupResult, error) {
+	result := &models.BackupResult{StartTime: time.Now(), Status: models.JobStatusRunning}
+	os.MkdirAll(dest, 0755)
+
+	// Export VM config
+	configPath := filepath.Join(dest, vmName+".xml")
+	if _, err := k.runVirsh(ctx, "dumpxml", vmName, ">", configPath); err != nil {
+		result.Status = models.JobStatusFailed
+		result.ErrorMessage = err.Error()
+		result.EndTime = time.Now()
+		return result, err
+	}
+
+	result.Status = models.JobStatusCompleted
+	result.EndTime = time.Now()
+	return result, nil
+}
+
+// PowerOn starts VM
+func (k *KVMBackupProvider) PowerOn(ctx context.Context, vmName string) error {
+	_, err := k.runVirsh(ctx, "start", vmName)
+	return err
+}
+
+// PowerOff stops VM
+func (k *KVMBackupProvider) PowerOff(ctx context.Context, vmName string) error {
+	_, err := k.runVirsh(ctx, "shutdown", vmName)
+	return err
+}
+
+// runVirsh runs virsh command
+func (k *KVMBackupProvider) runVirsh(ctx context.Context, args ...string) (string, error) {
+	allArgs := append([]string{"-c", k.uri}, args...)
+	cmd := exec.CommandContext(ctx, "virsh", allArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("virsh: %w, output: %s", err, output)
+	}
+	return string(output), nil
 }
