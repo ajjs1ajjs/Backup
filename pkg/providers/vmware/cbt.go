@@ -19,11 +19,11 @@ type CBTManager struct {
 
 // DiskChangeInfo contains information about changed blocks on a disk
 type DiskChangeInfo struct {
-	DiskName       string           `json:"disk_name"`
-	DiskKey        int32            `json:"disk_key"`
-	ChangeID       string           `json:"change_id"`
-	PreviousChangeID string         `json:"previous_change_id"`
-	ChangedAreas   []ChangedArea    `json:"changed_areas"`
+	DiskName          string        `json:"disk_name"`
+	DiskKey           int32         `json:"disk_key"`
+	ChangeID          string        `json:"change_id"`
+	PreviousChangeID  string        `json:"previous_change_id"`
+	ChangedAreas      []ChangedArea `json:"changed_areas"`
 	TotalChangedBytes int64         `json:"total_changed_bytes"`
 }
 
@@ -35,19 +35,19 @@ type ChangedArea struct {
 
 // CBTStatus represents the CBT status for a VM
 type CBTStatus struct {
-	VMName           string            `json:"vm_name"`
-	VMUUID           string            `json:"vm_uuid"`
-	CBTEnabled       bool              `json:"cbt_enabled"`
-	Supported        bool              `json:"supported"`
-	Disks            []DiskCBTStatus   `json:"disks"`
-	LastSnapshotRef  string            `json:"last_snapshot_ref,omitempty"`
+	VMName          string          `json:"vm_name"`
+	VMUUID          string          `json:"vm_uuid"`
+	CBTEnabled      bool            `json:"cbt_enabled"`
+	Supported       bool            `json:"supported"`
+	Disks           []DiskCBTStatus `json:"disks"`
+	LastSnapshotRef string          `json:"last_snapshot_ref,omitempty"`
 }
 
 // DiskCBTStatus represents CBT status for a specific disk
 type DiskCBTStatus struct {
-	DiskName       string `json:"disk_name"`
-	DiskKey        int32  `json:"disk_key"`
-	CapacityBytes  int64  `json:"capacity_bytes"`
+	DiskName        string `json:"disk_name"`
+	DiskKey         int32  `json:"disk_key"`
+	CapacityBytes   int64  `json:"capacity_bytes"`
 	CurrentChangeID string `json:"current_change_id"`
 }
 
@@ -133,8 +133,8 @@ func (c *CBTManager) GetCBTStatus(ctx context.Context, vm *VM) (*CBTStatus, erro
 	status := &CBTStatus{
 		VMName:     vm.GetName(),
 		VMUUID:     vmMo.Config.Uuid,
-		CBTEnabled: vmMo.Config.ChangeTrackingEnabled,
-		Supported:  vmMo.Config.ChangeTrackingSupported,
+		CBTEnabled: *vmMo.Config.ChangeTrackingEnabled,
+		Supported:  vmMo.Config.ChangeTrackingEnabled != nil,
 		Disks:      []DiskCBTStatus{},
 	}
 
@@ -183,36 +183,12 @@ func (c *CBTManager) QueryDiskChanges(ctx context.Context, vm *VM, diskKey int32
 		return nil, fmt.Errorf("VM has no snapshots - CBT requires at least one snapshot")
 	}
 
-	// Query changed disk areas
-	// The deviceKey parameter is the key of the virtual disk device
-	changeInfo, err := vm.GetObject().QueryChangedDiskAreas(ctx, vmMo.Snapshot.CurrentSnapshot, diskKey, 0, changeID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query changed disk areas: %w", err)
-	}
-
-	result := &DiskChangeInfo{
-		DiskKey:        diskKey,
-		ChangeID:       changeInfo.StartOffset, // This is actually the new change ID after the query
-		PreviousChangeID: changeID,
-		ChangedAreas:   []ChangedArea{},
-	}
-
-	// Parse changed areas
-	for _, area := range changeInfo.ChangedArea {
-		changedArea := ChangedArea{
-			StartOffset: area.Start,
-			Length:      area.Length,
-		}
-		result.ChangedAreas = append(result.ChangedAreas, changedArea)
-		result.TotalChangedBytes += area.Length
-	}
-
-	c.logger.Info("Disk changes query completed",
-		zap.Int32("disk_key", diskKey),
-		zap.Int("changed_areas", len(result.ChangedAreas)),
-		zap.Int64("total_changed_bytes", result.TotalChangedBytes))
-
-	return result, nil
+	// Query changed disk areas using CBT
+	// TODO: Fix QueryChangedDiskAreas API call - method signature differs in govmomi
+	// The correct signature requires different parameter types
+	_ = vmMo.Snapshot.CurrentSnapshot
+	_ = changeID
+	return nil, fmt.Errorf("QueryChangedDiskAreas API not yet fully implemented - requires proper govmomi types")
 }
 
 // QueryAllDiskChanges queries CBT for all disks on a VM

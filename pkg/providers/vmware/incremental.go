@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"go.uber.org/zap"
 )
 
@@ -25,14 +23,14 @@ type IncrementalBackupEngine struct {
 
 // BackupState tracks the backup state for incremental operations
 type BackupState struct {
-	VMName           string                `json:"vm_name"`
-	VMUUID           string                `json:"vm_uuid"`
-	BackupID         string                `json:"backup_id"`
-	BackupType       string                `json:"backup_type"` // full, incremental
-	Timestamp        time.Time             `json:"timestamp"`
-	DiskChangeIDs    map[int32]string      `json:"disk_change_ids"`
-	SnapshotName     string                `json:"snapshot_name"`
-	BaseBackupID     string                `json:"base_backup_id,omitempty"` // For incremental
+	VMName        string           `json:"vm_name"`
+	VMUUID        string           `json:"vm_uuid"`
+	BackupID      string           `json:"backup_id"`
+	BackupType    string           `json:"backup_type"` // full, incremental
+	Timestamp     time.Time        `json:"timestamp"`
+	DiskChangeIDs map[int32]string `json:"disk_change_ids"`
+	SnapshotName  string           `json:"snapshot_name"`
+	BaseBackupID  string           `json:"base_backup_id,omitempty"` // For incremental
 }
 
 // NewIncrementalBackupEngine creates a new incremental backup engine
@@ -157,9 +155,9 @@ func (i *IncrementalBackupEngine) PerformIncrementalBackup(ctx context.Context, 
 	// Phase 5: Export changed blocks
 	if callback != nil {
 		callback(BackupProgress{
-			Phase:       "exporting",
-			Percent:   25,
-			BytesTotal:  totalChangedBytes,
+			Phase:      "exporting",
+			Percent:    25,
+			BytesTotal: totalChangedBytes,
 			Message:    fmt.Sprintf("Exporting %d changed blocks...", len(changeInfos)),
 		})
 	}
@@ -294,7 +292,7 @@ func (i *IncrementalBackupEngine) exportChangedBlocks(ctx context.Context, vm *V
 		if callback != nil {
 			callback(BackupProgress{
 				Phase:          "exporting",
-				Percent:       25 + (float64(diskCount) / float64(totalDisks) * 70),
+				Percent:        25 + (float64(diskCount) / float64(totalDisks) * 70),
 				BytesProcessed: result.ProcessedBytes,
 				BytesTotal:     result.TotalBytes,
 				CurrentDisk:    changeInfo.DiskName,
@@ -315,9 +313,9 @@ func (i *IncrementalBackupEngine) exportChangedBlocks(ctx context.Context, vm *V
 		}
 
 		diskInfo := DiskBackupInfo{
-			DiskName:         changeInfo.DiskName,
-			ChangedBlocks:    len(changeInfo.ChangedAreas),
-			ProcessedGB:     float64(changeInfo.TotalChangedBytes) / (1024 * 1024 * 1024),
+			DiskName:      changeInfo.DiskName,
+			ChangedBlocks: len(changeInfo.ChangedAreas),
+			ProcessedGB:   float64(changeInfo.TotalChangedBytes) / (1024 * 1024 * 1024),
 		}
 
 		result.Disks = append(result.Disks, diskInfo)
@@ -342,11 +340,11 @@ func (i *IncrementalBackupEngine) exportDiskChanges(ctx context.Context, vm *VM,
 
 	// Write changed areas info header
 	header := map[string]interface{}{
-		"disk_key":        diskKey,
-		"disk_name":       changeInfo.DiskName,
-		"change_id":       changeInfo.ChangeID,
-		"previous_change_id": changeInfo.PreviousChangeID,
-		"changed_areas":   changeInfo.ChangedAreas,
+		"disk_key":            diskKey,
+		"disk_name":           changeInfo.DiskName,
+		"change_id":           changeInfo.ChangeID,
+		"previous_change_id":  changeInfo.PreviousChangeID,
+		"changed_areas":       changeInfo.ChangedAreas,
 		"total_changed_bytes": changeInfo.TotalChangedBytes,
 	}
 

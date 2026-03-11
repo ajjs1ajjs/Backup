@@ -3,9 +3,7 @@ package vss
 
 import (
 	"fmt"
-	"syscall"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -16,20 +14,20 @@ type VSSManager struct {
 
 // VSSSnapshot represents a VSS snapshot
 type VSSSnapshot struct {
-	SnapshotSetID     string
-	SnapshotID        string
-	VolumeName        string
-	SnapshotDevice    string
-	CreateTime        time.Time
+	SnapshotSetID  string
+	SnapshotID     string
+	VolumeName     string
+	SnapshotDevice string
+	CreateTime     time.Time
 }
 
 // VSSWriter represents a VSS writer
 type VSSWriter struct {
-	Name              string
-	WriterID          string
-	Version           uint32
-	WriterClassID     string
-	InstanceID        string
+	Name          string
+	WriterID      string
+	Version       uint32
+	WriterClassID string
+	InstanceID    string
 }
 
 // NewVSSManager creates a new VSS manager
@@ -110,7 +108,7 @@ func (v *VSSManager) ListWriters() ([]*VSSWriter, error) {
 			WriterClassID: "6e6b6e65-2488-40f0-bd1c-7a47fd7e6c99",
 		},
 	}
-	
+
 	return writers, nil
 }
 
@@ -128,13 +126,13 @@ type VSSApplicationBackup struct {
 type ApplicationType string
 
 const (
-	ApplicationSQLServer     ApplicationType = "SQLServer"
-	ApplicationExchange      ApplicationType = "Exchange"
+	ApplicationSQLServer       ApplicationType = "SQLServer"
+	ApplicationExchange        ApplicationType = "Exchange"
 	ApplicationActiveDirectory ApplicationType = "ActiveDirectory"
-	ApplicationSharePoint    ApplicationType = "SharePoint"
-	ApplicationOracle        ApplicationType = "Oracle"
-	ApplicationMySQL         ApplicationType = "MySQL"
-	ApplicationPostgreSQL   ApplicationType = "PostgreSQL"
+	ApplicationSharePoint      ApplicationType = "SharePoint"
+	ApplicationOracle          ApplicationType = "Oracle"
+	ApplicationMySQL           ApplicationType = "MySQL"
+	ApplicationPostgreSQL      ApplicationType = "PostgreSQL"
 )
 
 // NewVSSApplicationBackup creates a new application-aware backup manager
@@ -233,33 +231,33 @@ func (v *VSSApplicationBackup) finalizeADBackup(success bool) error {
 
 // SQLServerBackupOptions contains options for SQL Server backup
 type SQLServerBackupOptions struct {
-	InstanceName      string   // SQL Server instance name
-	Databases         []string // Specific databases to backup (empty = all)
-	BackupType        string   // full, differential, log
-	TruncateLog       bool     // Truncate transaction log after backup
-	VerifyBackup      bool     // Verify backup integrity
-	Compression       bool     // Use SQL Server backup compression
+	InstanceName string   // SQL Server instance name
+	Databases    []string // Specific databases to backup (empty = all)
+	BackupType   string   // full, differential, log
+	TruncateLog  bool     // Truncate transaction log after backup
+	VerifyBackup bool     // Verify backup integrity
+	Compression  bool     // Use SQL Server backup compression
 }
 
 // ExchangeBackupOptions contains options for Exchange backup
 type ExchangeBackupOptions struct {
-	ServerName        string   // Exchange server name
-	StorageGroups     []string // Storage groups to backup
-	Databases         []string // Specific databases
-	BackupType        string   // full, copy, incremental, differential
-	CircularLogging   bool     // Handle circular logging
+	ServerName      string   // Exchange server name
+	StorageGroups   []string // Storage groups to backup
+	Databases       []string // Specific databases
+	BackupType      string   // full, copy, incremental, differential
+	CircularLogging bool     // Handle circular logging
 }
 
 // ADBackupOptions contains options for Active Directory backup
 type ADBackupOptions struct {
-	DomainController  string   // Target DC
-	BackupType        string   // critical or full
-	IncludeSYSVOL     bool     // Include SYSVOL
+	DomainController string // Target DC
+	BackupType       string // critical or full
+	IncludeSYSVOL    bool   // Include SYSVOL
 }
 
 // Export for package access
 var (
-	SQLServerWriterID     = "a65faa63-5ea8-4ebf-9e16-1edcd2213c4c"
-	ExchangeWriterID    = "76fe1ac4-15f7-4bcd-987e-8e1acbd1c5f8"
-	ADWriterID          = "b2019c45-7d01-4f06-b406-2d19f44dd2a1"
+	SQLServerWriterID = "a65faa63-5ea8-4ebf-9e16-1edcd2213c4c"
+	ExchangeWriterID  = "76fe1ac4-15f7-4bcd-987e-8e1acbd1c5f8"
+	ADWriterID        = "b2019c45-7d01-4f06-b406-2d19f44dd2a1"
 )

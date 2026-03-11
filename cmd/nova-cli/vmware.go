@@ -9,7 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"nova/pkg/providers/vmware"
+	"novabackup/pkg/providers/vmware"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -155,7 +155,7 @@ var vmwareInfoCmd = &cobra.Command{
 		fmt.Printf("CBT Enabled: %v\n", info.CBTEnabled)
 		fmt.Printf("\nDisks:\n")
 		for i, disk := range info.Disks {
-			fmt.Printf("  %d. %s - %d GB (%s)\n", i+1, disk.Label, disk.CapacityGB, disk.Provisioning)
+			fmt.Printf("  %d. %s - %d GB\n", i+1, disk.Label, disk.CapacityGB)
 		}
 		fmt.Printf("\nNetworks:\n")
 		for i, net := range info.Networks {

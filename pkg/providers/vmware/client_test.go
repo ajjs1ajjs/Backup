@@ -98,11 +98,10 @@ func TestVMInfoStructure(t *testing.T) {
 		MemoryMB:      8192,
 		Disks: []DiskInfo{
 			{
-				Name:         "Hard disk 1",
-				Label:        "Hard disk 1",
-				CapacityGB:   100,
-				Datastore:    "datastore1",
-				Provisioning: "thin",
+				Name:       "Hard disk 1",
+				Label:      "Hard disk 1",
+				CapacityGB: 100,
+				Datastore:  "datastore1",
 			},
 		},
 		Networks: []NetworkInfo{

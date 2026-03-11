@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
-	"time"
 
-	"nova/pkg/providers/hyperv"
+	"novabackup/pkg/providers/hyperv"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -38,13 +37,13 @@ var hypervListCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tSTATE\tCPU\tMEMORY\tUPTIME")
 		fmt.Fprintln(w, "----\t-----\t---\t------\t------")
-		
+
 		for _, vm := range vms {
 			fmt.Fprintf(w, "%s\t%s\t%d%%\t%d MB\t%s\n",
 				vm.Name, vm.State, vm.CPUUsage, vm.MemoryAssigned/1024/1024, vm.Uptime)
 		}
 		w.Flush()
-		
+
 		fmt.Printf("\nTotal: %d virtual machines\n", len(vms))
 		return nil
 	},
@@ -57,7 +56,7 @@ var hypervBackupCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		vmName := args[0]
 		backupPath, _ := cmd.Flags().GetString("destination")
-		
+
 		logger, _ := zap.NewDevelopment()
 		client, err := hyperv.NewClient(logger, &hyperv.ConnectionConfig{})
 		if err != nil {
@@ -66,7 +65,7 @@ var hypervBackupCmd = &cobra.Command{
 
 		ctx := context.Background()
 		fmt.Printf("Backing up VM '%s' to '%s'...\n", vmName, backupPath)
-		
+
 		if err := client.BackupVM(ctx, vmName, backupPath, false); err != nil {
 			return fmt.Errorf("backup failed: %w", err)
 		}
@@ -80,6 +79,6 @@ func init() {
 	rootCmd.AddCommand(hypervCmd)
 	hypervCmd.AddCommand(hypervListCmd)
 	hypervCmd.AddCommand(hypervBackupCmd)
-	
+
 	hypervBackupCmd.Flags().String("destination", "./backups/hyperv", "Backup destination path")
 }

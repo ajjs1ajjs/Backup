@@ -175,7 +175,7 @@ func (s *S3Provider) GetBucketStats(ctx context.Context) (*BucketStats, error) {
 	}
 
 	stats := &BucketStats{
-		ObjectCount: int64(resp.KeyCount),
+		ObjectCount: int64(*resp.KeyCount),
 	}
 
 	for _, obj := range resp.Contents {
@@ -197,9 +197,9 @@ func (s *S3Provider) ArchiveTier(ctx context.Context, key string) error {
 	s.logger.Info("Archiving to Glacier", zap.String("key", fullKey))
 
 	_, err := s.client.CopyObject(ctx, &s3.CopyObjectInput{
-		Bucket:     aws.String(s.bucket),
-		CopySource: aws.String(fmt.Sprintf("%s/%s", s.bucket, fullKey)),
-		Key:        aws.String(fullKey),
+		Bucket:       aws.String(s.bucket),
+		CopySource:   aws.String(fmt.Sprintf("%s/%s", s.bucket, fullKey)),
+		Key:          aws.String(fullKey),
 		StorageClass: types.StorageClassGlacier,
 	})
 

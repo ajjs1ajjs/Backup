@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -23,47 +22,47 @@ type RestoreEngine struct {
 
 // RestoreConfig holds restore configuration
 type RestoreConfig struct {
-	BackupID          string            // Source backup ID
-	DestinationHost     string            // Target ESXi host
+	BackupID             string            // Source backup ID
+	DestinationHost      string            // Target ESXi host
 	DestinationDatastore string            // Target datastore
-	DestinationFolder   string            // Target VM folder
-	NewName             string            // New VM name (optional)
-	ResourcePool        string            // Target resource pool
-	PowerOn             bool              // Power on after restore
-	NetworkMapping      map[string]string // Source->Target network mapping
-	DiskProvisioning    string            // thin/thick eagerZeroedThick
-	KeepBackupID        bool              // Keep original backup ID
-	Tags                map[string]string // Custom tags
+	DestinationFolder    string            // Target VM folder
+	NewName              string            // New VM name (optional)
+	ResourcePool         string            // Target resource pool
+	PowerOn              bool              // Power on after restore
+	NetworkMapping       map[string]string // Source->Target network mapping
+	DiskProvisioning     string            // thin/thick eagerZeroedThick
+	KeepBackupID         bool              // Keep original backup ID
+	Tags                 map[string]string // Custom tags
 }
 
 // RestoreResult contains restore operation results
 type RestoreResult struct {
-	RestoreID      string            `json:"restore_id"`
-	BackupID       string            `json:"backup_id"`
-	VMName         string            `json:"vm_name"`
-	VMUUID         string            `json:"vm_uuid"`
-	StartTime      time.Time         `json:"start_time"`
-	EndTime        time.Time         `json:"end_time"`
-	Duration       time.Duration     `json:"duration"`
-	Status         string            `json:"status"` // success, failed, partial
-	Error          string            `json:"error,omitempty"`
-	TotalBytes     int64             `json:"total_bytes"`
-	RestoredBytes  int64             `json:"restored_bytes"`
-	Disks          []DiskRestoreInfo `json:"disks"`
-	Host           string            `json:"host"`
-	Datastore      string            `json:"datastore"`
-	ResourcePool   string            `json:"resource_pool"`
-	PowerState     string            `json:"power_state"`
+	RestoreID     string            `json:"restore_id"`
+	BackupID      string            `json:"backup_id"`
+	VMName        string            `json:"vm_name"`
+	VMUUID        string            `json:"vm_uuid"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	Duration      time.Duration     `json:"duration"`
+	Status        string            `json:"status"` // success, failed, partial
+	Error         string            `json:"error,omitempty"`
+	TotalBytes    int64             `json:"total_bytes"`
+	RestoredBytes int64             `json:"restored_bytes"`
+	Disks         []DiskRestoreInfo `json:"disks"`
+	Host          string            `json:"host"`
+	Datastore     string            `json:"datastore"`
+	ResourcePool  string            `json:"resource_pool"`
+	PowerState    string            `json:"power_state"`
 }
 
 // DiskRestoreInfo contains per-disk restore information
 type DiskRestoreInfo struct {
-	DiskName     string  `json:"disk_name"`
-	SourcePath   string  `json:"source_path"`
-	TargetPath   string  `json:"target_path"`
-	SizeBytes    int64   `json:"size_bytes"`
+	DiskName      string `json:"disk_name"`
+	SourcePath    string `json:"source_path"`
+	TargetPath    string `json:"target_path"`
+	SizeBytes     int64  `json:"size_bytes"`
 	RestoredBytes int64  `json:"restored_bytes"`
-	Provisioning string  `json:"provisioning"`
+	Provisioning  string `json:"provisioning"`
 }
 
 // RestoreProgressCallback is called during restore progress
@@ -71,50 +70,50 @@ type RestoreProgressCallback func(progress RestoreProgress)
 
 // RestoreProgress contains current restore progress
 type RestoreProgress struct {
-	Phase           string  // validating, preparing, restoring, registering, powering_on, completed
-	Percent         float64 // 0-100
-	BytesRestored   int64
-	BytesTotal      int64
-	CurrentDisk     string
-	DiskNumber      int
-	TotalDisks      int
-	ETA             time.Duration
-	Message         string
+	Phase         string  // validating, preparing, restoring, registering, powering_on, completed
+	Percent       float64 // 0-100
+	BytesRestored int64
+	BytesTotal    int64
+	CurrentDisk   string
+	DiskNumber    int
+	TotalDisks    int
+	ETA           time.Duration
+	Message       string
 }
 
 // BackupMetadata contains backup metadata stored with backup
 type BackupMetadata struct {
-	BackupID       string            `json:"backup_id"`
-	BackupType     string            `json:"backup_type"` // full, incremental
-	VMName         string            `json:"vm_name"`
-	VMUUID         string            `json:"vm_uuid"`
-	CreateTime     time.Time         `json:"create_time"`
-	VMSpec         VMSpec            `json:"vm_spec"`
-	Disks          []DiskSpec        `json:"disks"`
-	Networks       []NetworkSpec     `json:"networks"`
-	CustomValues   map[string]string `json:"custom_values"`
-	Compression    bool              `json:"compression"`
-	Encryption     bool              `json:"encryption"`
+	BackupID     string            `json:"backup_id"`
+	BackupType   string            `json:"backup_type"` // full, incremental
+	VMName       string            `json:"vm_name"`
+	VMUUID       string            `json:"vm_uuid"`
+	CreateTime   time.Time         `json:"create_time"`
+	VMSpec       VMSpec            `json:"vm_spec"`
+	Disks        []DiskSpec        `json:"disks"`
+	Networks     []NetworkSpec     `json:"networks"`
+	CustomValues map[string]string `json:"custom_values"`
+	Compression  bool              `json:"compression"`
+	Encryption   bool              `json:"encryption"`
 }
 
 // VMSpec contains VM configuration
 type VMSpec struct {
-	Name            string `json:"name"`
-	GuestID         string `json:"guest_id"`
-	NumCPU          int32  `json:"num_cpu"`
-	NumCoresPerSocket int32 `json:"num_cores_per_socket"`
-	MemoryMB        int32  `json:"memory_mb"`
-	Firmware        string `json:"firmware"` // bios or efi
+	Name              string `json:"name"`
+	GuestID           string `json:"guest_id"`
+	NumCPU            int32  `json:"num_cpu"`
+	NumCoresPerSocket int32  `json:"num_cores_per_socket"`
+	MemoryMB          int32  `json:"memory_mb"`
+	Firmware          string `json:"firmware"` // bios or efi
 }
 
 // DiskSpec contains disk configuration
 type DiskSpec struct {
-	Name        string `json:"name"`
-	Label       string `json:"label"`
-	CapacityGB  int64  `json:"capacity_gb"`
-	Datastore   string `json:"datastore"`
-	Controller  string `json:"controller"`
-	UnitNumber  int32  `json:"unit_number"`
+	Name         string `json:"name"`
+	Label        string `json:"label"`
+	CapacityGB   int64  `json:"capacity_gb"`
+	Datastore    string `json:"datastore"`
+	Controller   string `json:"controller"`
+	UnitNumber   int32  `json:"unit_number"`
 	Provisioning string `json:"provisioning"`
 }
 
@@ -171,7 +170,7 @@ func (r *RestoreEngine) FullRestore(ctx context.Context, config *RestoreConfig, 
 	if callback != nil {
 		callback(RestoreProgress{
 			Phase:      "preparing",
-			Percent:   10,
+			Percent:    10,
 			TotalDisks: len(metadata.Disks),
 			Message:    "Preparing target resources...",
 		})
@@ -213,7 +212,7 @@ func (r *RestoreEngine) FullRestore(ctx context.Context, config *RestoreConfig, 
 	if callback != nil {
 		callback(RestoreProgress{
 			Phase:      "restoring",
-			Percent:   20,
+			Percent:    20,
 			TotalDisks: len(metadata.Disks),
 			Message:    fmt.Sprintf("Restoring %d disks...", len(metadata.Disks)),
 		})
@@ -227,7 +226,7 @@ func (r *RestoreEngine) FullRestore(ctx context.Context, config *RestoreConfig, 
 		if callback != nil {
 			callback(RestoreProgress{
 				Phase:       "restoring",
-				Percent:   20 + (float64(diskCount) / float64(len(metadata.Disks)) * 60),
+				Percent:     20 + (float64(diskCount) / float64(len(metadata.Disks)) * 60),
 				CurrentDisk: disk.Name,
 				DiskNumber:  diskCount,
 				TotalDisks:  len(metadata.Disks),
@@ -271,7 +270,7 @@ func (r *RestoreEngine) FullRestore(ctx context.Context, config *RestoreConfig, 
 		vmName = metadata.VMName
 	}
 
-	spec := r.buildVMConfigSpec(metadata, config)
+	_ = r.buildVMConfigSpec(metadata, config) // spec will be used when reconfiguring VM
 
 	registerTask, err := folder.RegisterVM(ctx, r.buildVMConfigPath(datastore.Name(), vmName), vmName, false, pool, host)
 	if err != nil {
@@ -405,7 +404,7 @@ func (r *RestoreEngine) findDatastore(ctx context.Context, name string) (*object
 func (r *RestoreEngine) findFolder(ctx context.Context, path string) (*object.Folder, error) {
 	if path == "" {
 		// Use default VM folder
-		dc, err := r.client.GetFinder().DefaultDatacenter()
+		dc, err := r.client.GetFinder().DefaultDatacenter(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -454,10 +453,10 @@ func (r *RestoreEngine) restoreDisk(sourcePath, targetPath string, datastore *ob
 // buildVMConfigSpec builds VM configuration spec
 func (r *RestoreEngine) buildVMConfigSpec(metadata *BackupMetadata, config *RestoreConfig) types.VirtualMachineConfigSpec {
 	spec := types.VirtualMachineConfigSpec{
-		Name:       config.NewName,
-		GuestId:    metadata.VMSpec.GuestID,
-		NumCPUs:    metadata.VMSpec.NumCPU,
-		MemoryMB:   metadata.VMSpec.MemoryMB,
+		Name:     config.NewName,
+		GuestId:  metadata.VMSpec.GuestID,
+		NumCPUs:  metadata.VMSpec.NumCPU,
+		MemoryMB: int64(metadata.VMSpec.MemoryMB),
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: r.buildVMConfigPath(config.DestinationDatastore, config.NewName),
 		},
