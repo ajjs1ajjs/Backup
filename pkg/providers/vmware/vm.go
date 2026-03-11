@@ -1,7 +1,6 @@
 package vmware
 
 import (
-	"context"
 	"fmt"
 	"path"
 
@@ -24,41 +23,41 @@ type VM struct {
 
 // VMInfo holds information about a virtual machine
 type VMInfo struct {
-	Name              string            `json:"name"`
-	UUID              string            `json:"uuid"`
-	InstanceUUID      string            `json:"instance_uuid"`
-	GuestName         string            `json:"guest_name"`
-	GuestFullName     string            `json:"guest_full_name"`
-	PowerState        string            `json:"power_state"`
-	NumCPU            int32             `json:"num_cpu"`
-	MemoryMB          int32             `json:"memory_mb"`
-	Disks             []DiskInfo        `json:"disks"`
-	Networks          []NetworkInfo     `json:"networks"`
-	Datastore         string            `json:"datastore"`
-	Host              string            `json:"host"`
-	ResourcePool      string            `json:"resource_pool"`
-	Folder            string            `json:"folder"`
-	CustomValues      map[string]string `json:"custom_values"`
-	CBTEnabled        bool              `json:"cbt_enabled"`
-	ChangeTrackingSupported bool        `json:"change_tracking_supported"`
+	Name                    string            `json:"name"`
+	UUID                    string            `json:"uuid"`
+	InstanceUUID            string            `json:"instance_uuid"`
+	GuestName               string            `json:"guest_name"`
+	GuestFullName           string            `json:"guest_full_name"`
+	PowerState              string            `json:"power_state"`
+	NumCPU                  int32             `json:"num_cpu"`
+	MemoryMB                int32             `json:"memory_mb"`
+	Disks                   []DiskInfo        `json:"disks"`
+	Networks                []NetworkInfo     `json:"networks"`
+	Datastore               string            `json:"datastore"`
+	Host                    string            `json:"host"`
+	ResourcePool            string            `json:"resource_pool"`
+	Folder                  string            `json:"folder"`
+	CustomValues            map[string]string `json:"custom_values"`
+	CBTEnabled              bool              `json:"cbt_enabled"`
+	ChangeTrackingSupported bool              `json:"change_tracking_supported"`
 }
 
 // DiskInfo represents a virtual disk
 type DiskInfo struct {
-	Name        string `json:"name"`
-	Label       string `json:"label"`
-	CapacityGB  int64  `json:"capacity_gb"`
-	Datastore   string `json:"datastore"`
-	DiskMode    string `json:"disk_mode"`
-	ThinProvisioned bool `json:"thin_provisioned"`
+	Name            string `json:"name"`
+	Label           string `json:"label"`
+	CapacityGB      int64  `json:"capacity_gb"`
+	Datastore       string `json:"datastore"`
+	DiskMode        string `json:"disk_mode"`
+	ThinProvisioned bool   `json:"thin_provisioned"`
 	DiskObjectId    string `json:"disk_object_id"`
 }
 
 // NetworkInfo represents a network adapter
 type NetworkInfo struct {
-	Name    string `json:"name"`
-	Label   string `json:"label"`
-	Type    string `json:"type"`
+	Name       string `json:"name"`
+	Label      string `json:"label"`
+	Type       string `json:"type"`
 	MacAddress string `json:"mac_address"`
 }
 
@@ -76,58 +75,59 @@ func NewVM(client *Client, ref types.ManagedObjectReference, name string) *VM {
 // GetInfo retrieves comprehensive VM information
 func (v *VM) GetInfo() (*VMInfo, error) {
 	ctx := v.client.GetContext()
-	
+
 	var vm mo.VirtualMachine
 	err := v.client.GetClient().RetrieveOne(ctx, v.ref, nil, &vm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve VM info: %w", err)
 	}
-	
+
 	v.mo = vm
 	v.uuid = vm.Config.Uuid
-	
+
 	info := &VMInfo{
-		Name:              vm.Config.Name,
-		UUID:              vm.Config.Uuid,
-		InstanceUUID:      vm.Config.InstanceUuid,
-		GuestName:         vm.Guest.GuestFamily,
-		GuestFullName:     vm.Guest.GuestFullName,
-		PowerState:        string(vm.Runtime.PowerState),
-		NumCPU:            vm.Config.Hardware.NumCPU,
-		MemoryMB:          vm.Config.Hardware.MemoryMB,
-		CBTEnabled:        vm.Config.ChangeTrackingEnabled,
-		ChangeTrackingSupported: vm.Config.ChangeTrackingSupported,
-		CustomValues:      make(map[string]string),
+		Name:          vm.Config.Name,
+		UUID:          vm.Config.Uuid,
+		InstanceUUID:  vm.Config.InstanceUuid,
+		GuestName:     vm.Guest.GuestFamily,
+		GuestFullName: vm.Guest.GuestFullName,
+		PowerState:    string(vm.Runtime.PowerState),
+		NumCPU:        vm.Config.Hardware.NumCPU,
+		MemoryMB:      vm.Config.Hardware.MemoryMB,
+		CBTEnabled:    *vm.Config.ChangeTrackingEnabled,
+		CustomValues:  make(map[string]string),
 	}
-	
+
 	// Get disks
 	for _, device := range vm.Config.Hardware.Device {
 		switch d := device.(type) {
 		case *types.VirtualDisk:
 			diskInfo := DiskInfo{
-				Name:       d.DeviceInfo.Label,
-				Label:      d.DeviceInfo.Label,
 				CapacityGB: d.CapacityInBytes / (1024 * 1024 * 1024),
 			}
-			
+			if d.DeviceInfo != nil {
+				diskInfo.Name = d.DeviceInfo.GetDescription().Label
+				diskInfo.Label = d.DeviceInfo.GetDescription().Label
+			}
+
 			if backing, ok := d.Backing.(*types.VirtualDiskFlatVer2BackingInfo); ok {
 				diskInfo.Datastore = backing.Datastore.Value
-				diskInfo.DiskMode = backing.DiskMode
-				diskInfo.ThinProvisioned = backing.ThinProvisioned
-				diskInfo.DiskObjectId = backing.DiskObjectId
+				if backing.ThinProvisioned != nil {
+					diskInfo.ThinProvisioned = *backing.ThinProvisioned
+				}
 			}
-			
+
 			info.Disks = append(info.Disks, diskInfo)
 		}
 	}
-	
+
 	// Get networks
 	for _, device := range vm.Config.Hardware.Device {
 		switch d := device.(type) {
-		case *types.VirtualE1000, *types.VirtualE1000e, *types.VirtualVmxnet, 
+		case *types.VirtualE1000, *types.VirtualE1000e, *types.VirtualVmxnet,
 			*types.VirtualVmxnet2, *types.VirtualVmxnet3, *types.VirtualPcnet32,
 			*types.VirtualSriovEthernetCard:
-			
+
 			var nic types.BaseVirtualEthernetCard
 			switch n := d.(type) {
 			case *types.VirtualE1000:
@@ -137,7 +137,7 @@ func (v *VM) GetInfo() (*VMInfo, error) {
 			case *types.VirtualVmxnet3:
 				nic = n
 			}
-			
+
 			if nic != nil {
 				networkInfo := NetworkInfo{
 					Name:       nic.GetVirtualEthernetCard().DeviceInfo.Label,
@@ -148,7 +148,7 @@ func (v *VM) GetInfo() (*VMInfo, error) {
 			}
 		}
 	}
-	
+
 	// Get custom values (annotations/notes)
 	for _, val := range vm.Config.ExtraConfig {
 		if optionValue, ok := val.(*types.OptionValue); ok {
@@ -157,7 +157,7 @@ func (v *VM) GetInfo() (*VMInfo, error) {
 			}
 		}
 	}
-	
+
 	return info, nil
 }
 
@@ -192,63 +192,63 @@ func (v *VM) CreateSnapshot(name string, description string, memory bool, quiesc
 		zap.String("description", description),
 		zap.Bool("memory", memory),
 		zap.Bool("quiesce", quiesce))
-	
+
 	return v.obj.CreateSnapshot(v.client.GetContext(), name, description, memory, quiesce)
 }
 
 // RemoveSnapshot removes a snapshot by name
 func (v *VM) RemoveSnapshot(name string, consolidate bool) (*object.Task, error) {
 	v.logger.Info("Removing snapshot", zap.String("name", name))
-	
+
 	snapshot, err := v.findSnapshot(name)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return snapshot.Remove(v.client.GetContext(), consolidate)
 }
 
 // RevertToSnapshot reverts to a snapshot
 func (v *VM) RevertToSnapshot(name string, suppressPowerOn bool) (*object.Task, error) {
 	v.logger.Info("Reverting to snapshot", zap.String("name", name))
-	
+
 	snapshot, err := v.findSnapshot(name)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return snapshot.Revert(v.client.GetContext(), suppressPowerOn)
 }
 
 // EnableCBT enables Changed Block Tracking
 func (v *VM) EnableCBT() error {
 	v.logger.Info("Enabling CBT")
-	
+
 	spec := types.VirtualMachineConfigSpec{
 		ChangeTrackingEnabled: types.NewBool(true),
 	}
-	
+
 	task, err := v.obj.Reconfigure(v.client.GetContext(), spec)
 	if err != nil {
 		return fmt.Errorf("failed to enable CBT: %w", err)
 	}
-	
+
 	return task.Wait(v.client.GetContext())
 }
 
 // DisableCBT disables Changed Block Tracking
 func (v *VM) DisableCBT() error {
 	v.logger.Info("Disabling CBT")
-	
+
 	spec := types.VirtualMachineConfigSpec{
 		ChangeTrackingEnabled: types.NewBool(false),
 	}
-	
+
 	task, err := v.obj.Reconfigure(v.client.GetContext(), spec)
 	if err != nil {
 		return fmt.Errorf("failed to disable CBT: %w", err)
 	}
-	
+
 	return task.Wait(v.client.GetContext())
 }
 
@@ -257,7 +257,7 @@ func (v *VM) QueryChangedDiskAreas(disk *DiskInfo, changeId string, startOffset 
 	if !v.mo.Config.ChangeTrackingEnabled {
 		return nil, fmt.Errorf("CBT is not enabled on this VM")
 	}
-	
+
 	deviceKey := int32(-1)
 	for _, dev := range v.mo.Config.Hardware.Device {
 		if diskDev, ok := dev.(*types.VirtualDisk); ok {
@@ -267,18 +267,18 @@ func (v *VM) QueryChangedDiskAreas(disk *DiskInfo, changeId string, startOffset 
 			}
 		}
 	}
-	
+
 	if deviceKey == -1 {
 		return nil, fmt.Errorf("disk not found: %s", disk.Label)
 	}
-	
+
 	return v.obj.QueryChangedDiskAreas(v.client.GetContext(), v.mo.Snapshot.CurrentSnapshot, deviceKey, startOffset, changeId)
 }
 
 // Export exports the VM to OVF/OVA
 func (v *VM) Export(destination string) error {
 	v.logger.Info("Exporting VM", zap.String("destination", destination))
-	
+
 	// Get VM properties
 	ctx := v.client.GetContext()
 	var vm mo.VirtualMachine
@@ -286,7 +286,7 @@ func (v *VM) Export(destination string) error {
 	if err != nil {
 		return fmt.Errorf("failed to retrieve VM: %w", err)
 	}
-	
+
 	// Power off VM if running
 	if vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 		task, err := v.PowerOff()
@@ -297,18 +297,18 @@ func (v *VM) Export(destination string) error {
 			return fmt.Errorf("failed to wait for power off: %w", err)
 		}
 	}
-	
+
 	// Export disks
 	lease, err := v.obj.Export(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start export: %w", err)
 	}
-	
+
 	info, err := lease.Wait(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to wait for lease: %w", err)
 	}
-	
+
 	// Process disks
 	for _, disk := range info.Objects {
 		for _, dev := range disk.DeviceUrl {
@@ -319,26 +319,26 @@ func (v *VM) Export(destination string) error {
 			}
 		}
 	}
-	
+
 	return lease.Complete(ctx)
 }
 
 // Clone creates a clone of the VM
 func (v *VM) Clone(name string, folder *object.Folder, pool *object.ResourcePool, host *object.HostSystem) (*object.Task, error) {
 	v.logger.Info("Cloning VM", zap.String("new_name", name))
-	
+
 	relocateSpec := types.VirtualMachineRelocateSpec{
-		Pool:      &pool.Reference(),
-		Host:      &host.Reference(),
+		Pool:         &pool.Reference(),
+		Host:         &host.Reference(),
 		DiskMoveType: string(types.VirtualMachineRelocateDiskMoveOptionsMoveAllDiskBackingsAndConsolidate),
 	}
-	
+
 	cloneSpec := types.VirtualMachineCloneSpec{
 		Location: relocateSpec,
 		PowerOn:  false,
 		Template: false,
 	}
-	
+
 	return v.obj.Clone(v.client.GetContext(), folder, name, cloneSpec)
 }
 
@@ -360,22 +360,22 @@ func (v *VM) GetName() string {
 // findSnapshot finds a snapshot by name
 func (v *VM) findSnapshot(name string) (*object.VirtualMachineSnapshot, error) {
 	ctx := v.client.GetContext()
-	
+
 	var vm mo.VirtualMachine
 	err := v.client.GetClient().RetrieveOne(ctx, v.ref, []string{"snapshot"}, &vm)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if vm.Snapshot == nil {
 		return nil, fmt.Errorf("no snapshots found")
 	}
-	
+
 	snapshotRef := v.findSnapshotInTree(vm.Snapshot.RootSnapshotList, name)
 	if snapshotRef == nil {
 		return nil, fmt.Errorf("snapshot not found: %s", name)
 	}
-	
+
 	return object.NewVirtualMachineSnapshot(v.client.GetClient().Client, *snapshotRef), nil
 }
 

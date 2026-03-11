@@ -1,14 +1,16 @@
-package cmd
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 	"time"
 
-	"github.com/ajjs1ajjs/Backup/pkg/providers/vmware"
+	"nova/pkg/providers/vmware"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -62,7 +64,7 @@ var vmwareListCmd = &cobra.Command{
 	Short: "List all virtual machines",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger, _ := zap.NewDevelopment()
-		
+
 		// Load connection from config or flags
 		config := loadVMwareConfig(cmd)
 		client, err := vmware.NewClient(logger, config)
@@ -84,7 +86,7 @@ var vmwareListCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "NAME\tPOWER STATE\tGUEST OS\tIP ADDRESS\tCPU\tMEMORY\tDISKS")
 		fmt.Fprintln(w, "----\t-----------\t--------\t----------\t---\t------\t-----")
-		
+
 		for _, vm := range vms {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d MB\t%d\n",
 				vm.Name,
@@ -97,7 +99,7 @@ var vmwareListCmd = &cobra.Command{
 			)
 		}
 		w.Flush()
-		
+
 		fmt.Printf("\nTotal: %d virtual machines\n", len(vms))
 		return nil
 	},
@@ -111,7 +113,7 @@ var vmwareInfoCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		vmName := args[0]
 		logger, _ := zap.NewDevelopment()
-		
+
 		config := loadVMwareConfig(cmd)
 		client, err := vmware.NewClient(logger, config)
 		if err != nil {
@@ -177,7 +179,7 @@ var vmwareSnapshotCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		vmName := args[0]
 		snapshotName := args[1]
-		
+
 		memory, _ := cmd.Flags().GetBool("memory")
 		quiesce, _ := cmd.Flags().GetBool("quiesce")
 		description, _ := cmd.Flags().GetString("description")
@@ -192,7 +194,7 @@ var vmwareSnapshotCreateCmd = &cobra.Command{
 
 		inventory := vmware.NewInventory(client)
 		ctx := context.Background()
-		
+
 		vm, err := inventory.GetVirtualMachine(ctx, vmName)
 		if err != nil {
 			return err
@@ -239,7 +241,7 @@ var vmwareBackupCmd = &cobra.Command{
 
 		inventory := vmware.NewInventory(client)
 		ctx := context.Background()
-		
+
 		vm, err := inventory.GetVirtualMachine(ctx, vmName)
 		if err != nil {
 			return err
@@ -301,7 +303,7 @@ var vmwareCBTEnableCmd = &cobra.Command{
 
 		inventory := vmware.NewInventory(client)
 		ctx := context.Background()
-		
+
 		vm, err := inventory.GetVirtualMachine(ctx, vmName)
 		if err != nil {
 			return err
@@ -333,7 +335,7 @@ var vmwareCBTStatusCmd = &cobra.Command{
 
 		inventory := vmware.NewInventory(client)
 		ctx := context.Background()
-		
+
 		vm, err := inventory.GetVirtualMachine(ctx, vmName)
 		if err != nil {
 			return err
@@ -380,7 +382,7 @@ func loadVMwareConfig(cmd *cobra.Command) *vmware.ConnectionConfig {
 
 func init() {
 	rootCmd.AddCommand(vmwareCmd)
-	
+
 	// Add subcommands
 	vmwareCmd.AddCommand(vmwareConnectCmd)
 	vmwareCmd.AddCommand(vmwareListCmd)

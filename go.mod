@@ -12,12 +12,12 @@ require (
 	github.com/go-co-op/gocron/v2 v2.19.1
 	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.18.4
-	github.com/lxn/walk v0.0.0-20210112085537-c389d55a35ca
-	github.com/lxn/win v0.0.0-20210218163916-5a78e4187b3a
 	github.com/spf13/cobra v1.8.0
+	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/vmware/govmomi v0.53.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.48.0
 	golang.org/x/sys v0.41.0
 	modernc.org/sqlite v1.46.1

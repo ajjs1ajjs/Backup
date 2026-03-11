@@ -78,15 +78,15 @@ func (c *Client) connect(config *ConnectionConfig) error {
 		return fmt.Errorf("failed to create vim client: %w", err)
 	}
 
-	// Authenticate
-	sessionManager := object.NewSessionManager(vimClient)
-	if err := sessionManager.Login(c.ctx, u.User); err != nil {
-		return fmt.Errorf("authentication failed: %w", err)
+	// Create govmomi client
+	c.client = &govmomi.Client{
+		Client: vimClient,
 	}
 
-	c.client = &govmomi.Client{
-		Client:         vimClient,
-		SessionManager: sessionManager,
+	// Authenticate using session manager
+	userInfo := url.UserPassword(config.Username, config.Password)
+	if err := c.client.Login(c.ctx, userInfo); err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
 	}
 
 	c.logger.Info("Successfully connected to vSphere",
