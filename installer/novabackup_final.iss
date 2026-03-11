@@ -18,16 +18,23 @@ Name: ukrainian; MessagesFile: compiler:Languages\Ukrainian.isl
 Name: desktopicon; Description: Create desktop shortcut; GroupDescription: Additional icons; Flags: unchecked 
  
 [Files] 
-Source: ..\dist\nova.exe; DestDir: {app} 
+Source: ..\nova.exe; DestDir: {app} 
 Source: ..\dist\menu.bat; DestDir: {app} 
 Source: ..\dist\README.md; DestDir: {app} 
 Source: ..\dist\INSTALL.md; DestDir: {app} 
+Source: ..\web-ui\*; DestDir: {app}\web-ui; Flags: recursesubdirs 
+Source: ..\launcher.bat; DestDir: {app} 
+Source: ..\NovaBackupAgent.ps1; DestDir: {app} 
+Source: ..\nova-gui-manager.ps1; DestDir: {app} 
+Source: ..\NovaBackup-Manager.bat; DestDir: {app} 
  
 [Icons] 
+Name: {group}\NovaBackup Manager; Filename: {app}\nova-gui-manager.ps1 
+Name: {group}\NovaBackup Web GUI; Filename: {app}\launcher.bat 
 Name: {group}\NovaBackup Menu; Filename: {app}\menu.bat 
 Name: {group}\NovaBackup CMD; Filename: {cmd}; WorkingDir: {app} 
 Name: {group}\Uninstall; Filename: {uninstallexe} 
-Name: {autodesktop}\NovaBackup; Filename: {app}\menu.bat; Tasks: desktopicon 
+Name: {autodesktop}\NovaBackup Manager; Filename: {app}\nova-gui-manager.ps1; Tasks: desktopicon 
  
 [Run] 
 Filename: {app}\nova.exe; Parameters: service install; Flags: runhidden 

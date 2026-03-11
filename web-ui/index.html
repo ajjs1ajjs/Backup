@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaBackup v6.0 - Enterprise Backup & Recovery</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .status-online { color: #10b981; }
+        .status-warning { color: #f59e0b; }
+        .status-error { color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass-effect shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-shield-alt text-3xl text-blue-400"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">NovaBackup v6.0</h1>
+                        <p class="text-sm text-gray-300">Enterprise Backup & Recovery Platform</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-300">System Status</p>
+                        <p class="text-lg font-semibold status-online">
+                            <i class="fas fa-circle text-xs animate-pulse-slow"></i> Online
+                        </p>
+                    </div>
+                    <button onclick="showSettings()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Quick Actions -->
+        <section class="mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="glass-effect rounded-xl p-6 hover:scale-105 transition cursor-pointer" onclick="createBackupJob()">
+                    <div class="text-center">
+                        <i class="fas fa-plus-circle text-4xl text-green-400 mb-3"></i>
+                        <h3 class="text-lg font-semibold">Create Backup Job</h3>
+                        <p class="text-sm text-gray-300">Set up new backup task</p>
+                    </div>
+                </div>
+                <div class="glass-effect rounded-xl p-6 hover:scale-105 transition cursor-pointer" onclick="runBackupNow()">
+                    <div class="text-center">
+                        <i class="fas fa-play-circle text-4xl text-blue-400 mb-3"></i>
+                        <h3 class="text-lg font-semibold">Run Backup Now</h3>
+                        <p class="text-sm text-gray-300">Start immediate backup</p>
+                    </div>
+                </div>
+                <div class="glass-effect rounded-xl p-6 hover:scale-105 transition cursor-pointer" onclick="restoreFiles()">
+                    <div class="text-center">
+                        <i class="fas fa-undo text-4xl text-purple-400 mb-3"></i>
+                        <h3 class="text-lg font-semibold">Restore Files</h3>
+                        <p class="text-sm text-gray-300">Recover from backup</p>
+                    </div>
+                </div>
+                <div class="glass-effect rounded-xl p-6 hover:scale-105 transition cursor-pointer" onclick="viewReports()">
+                    <div class="text-center">
+                        <i class="fas fa-chart-bar text-4xl text-orange-400 mb-3"></i>
+                        <h3 class="text-lg font-semibold">Reports</h3>
+                        <p class="text-sm text-gray-300">View analytics</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Backup Jobs -->
+            <section class="lg:col-span-2">
+                <div class="glass-effect rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold flex items-center">
+                            <i class="fas fa-tasks mr-2 text-blue-400"></i>
+                            Backup Jobs
+                        </h2>
+                        <button onclick="refreshJobs()" class="text-blue-400 hover:text-blue-300">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-600">
+                                    <th class="text-left py-3 px-4">Job Name</th>
+                                    <th class="text-left py-3 px-4">Type</th>
+                                    <th class="text-left py-3 px-4">Status</th>
+                                    <th class="text-left py-3 px-4">Last Run</th>
+                                    <th class="text-left py-3 px-4">Next Run</th>
+                                    <th class="text-left py-3 px-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jobsTable">
+                                <tr class="border-b border-gray-700 hover:bg-gray-800">
+                                    <td class="py-3 px-4">Daily Documents Backup</td>
+                                    <td class="py-3 px-4">
+                                        <span class="bg-green-600 px-2 py-1 rounded text-xs">File</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="status-online">
+                                            <i class="fas fa-check-circle"></i> Active
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">2026-03-11 02:00</td>
+                                    <td class="py-3 px-4">2026-03-12 02:00</td>
+                                    <td class="py-3 px-4">
+                                        <button onclick="editJob('1')" class="text-blue-400 hover:text-blue-300 mr-2">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="runJob('1')" class="text-green-400 hover:text-green-300 mr-2">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button onclick="deleteJob('1')" class="text-red-400 hover:text-red-300">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-700 hover:bg-gray-800">
+                                    <td class="py-3 px-4">Weekly System Backup</td>
+                                    <td class="py-3 px-4">
+                                        <span class="bg-purple-600 px-2 py-1 rounded text-xs">System</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="status-online">
+                                            <i class="fas fa-check-circle"></i> Active
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">2026-03-08 22:00</td>
+                                    <td class="py-3 px-4">2026-03-15 22:00</td>
+                                    <td class="py-3 px-4">
+                                        <button onclick="editJob('2')" class="text-blue-400 hover:text-blue-300 mr-2">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="runJob('2')" class="text-green-400 hover:text-green-300 mr-2">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button onclick="deleteJob('2')" class="text-red-400 hover:text-red-300">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Status -->
+            <section>
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-heartbeat mr-2 text-red-400"></i>
+                        System Status
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span>Current Backup Progress</span>
+                                <span id="progressText">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-400">Total Backups</p>
+                                <p class="text-xl font-bold">24</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400">Storage Used</p>
+                                <p class="text-xl font-bold">156 GB</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400">Deduplication</p>
+                                <p class="text-xl font-bold">8.5:1</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400">Compression</p>
+                                <p class="text-xl font-bold">3.2:1</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="glass-effect rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-list-alt mr-2 text-yellow-400"></i>
+                        Activity Log
+                    </h2>
+                    
+                    <div id="activityLog" class="space-y-2 max-h-64 overflow-y-auto text-sm">
+                        <div class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+                            <div>
+                                <p class="font-semibold">Backup completed successfully</p>
+                                <p class="text-gray-400 text-xs">2026-03-11 12:45:23</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-info-circle text-blue-400 mt-1 mr-2"></i>
+                            <div>
+                                <p class="font-semibold">System monitoring started</p>
+                                <p class="text-gray-400 text-xs">2026-03-11 12:40:15</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-exclamation-triangle text-yellow-400 mt-1 mr-2"></i>
+                            <div>
+                                <p class="font-semibold">Storage space warning (85% used)</p>
+                                <p class="text-gray-400 text-xs">2026-03-11 11:30:10</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Charts Section -->
+        <section class="mt-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="glass-effect rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-chart-line mr-2 text-green-400"></i>
+                        Backup History
+                    </h2>
+                    <canvas id="backupChart" width="400" height="200"></canvas>
+                </div>
+                
+                <div class="glass-effect rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-chart-pie mr-2 text-purple-400"></i>
+                        Storage Usage
+                    </h2>
+                    <canvas id="storageChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <div id="createJobModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6">Create Backup Job</h3>
+            <form onsubmit="saveJob(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Job Name</label>
+                        <input type="text" id="jobName" class="w-full px-3 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Source Path</label>
+                        <input type="text" id="sourcePath" class="w-full px-3 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Destination Path</label>
+                        <input type="text" id="destPath" class="w-full px-3 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Schedule</label>
+                        <select id="schedule" class="w-full px-3 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Manual only</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="closeModal('createJobModal')" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                        Create Job
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        const backupCtx = document.getElementById('backupChart').getContext('2d');
+        const backupChart = new Chart(backupCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Backup Size (GB)',
+                    data: [12, 19, 15, 25, 22, 30, 28],
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: 'white' }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: { color: 'white' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    x: {
+                        ticks: { color: 'white' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    }
+                }
+            }
+        });
+
+        const storageCtx = document.getElementById('storageChart').getContext('2d');
+        const storageChart = new Chart(storageCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Documents', 'Media', 'System', 'Database', 'Other'],
+                datasets: [{
+                    data: [30, 25, 20, 15, 10],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(251, 146, 60, 0.8)',
+                        'rgba(147, 51, 234, 0.8)',
+                        'rgba(107, 114, 128, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: 'white' }
+                    }
+                }
+            }
+        });
+
+        // Simulate progress updates
+        let progress = 0;
+        setInterval(() => {
+            progress = (progress + 1) % 101;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = progress + '%';
+            
+            if (progress === 100) {
+                addLogEntry('Backup completed successfully', 'success');
+                setTimeout(() => {
+                    progress = 0;
+                }, 2000);
+            }
+        }, 200);
+
+        // Functions
+        function createBackupJob() {
+            document.getElementById('createJobModal').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function saveJob(event) {
+            event.preventDefault();
+            const jobName = document.getElementById('jobName').value;
+            addLogEntry(`Created new backup job: ${jobName}`, 'success');
+            closeModal('createJobModal');
+            event.target.reset();
+        }
+
+        function runBackupNow() {
+            addLogEntry('Started immediate backup', 'info');
+        }
+
+        function restoreFiles() {
+            addLogEntry('Opened restore wizard', 'info');
+        }
+
+        function viewReports() {
+            addLogEntry('Generated backup reports', 'info');
+        }
+
+        function showSettings() {
+            addLogEntry('Opened settings panel', 'info');
+        }
+
+        function refreshJobs() {
+            addLogEntry('Refreshed job list', 'info');
+        }
+
+        function editJob(jobId) {
+            addLogEntry(`Editing job ${jobId}`, 'info');
+        }
+
+        function runJob(jobId) {
+            addLogEntry(`Started job ${jobId}`, 'success');
+        }
+
+        function deleteJob(jobId) {
+            if (confirm('Are you sure you want to delete this job?')) {
+                addLogEntry(`Deleted job ${jobId}`, 'warning');
+            }
+        }
+
+        function addLogEntry(message, type) {
+            const log = document.getElementById('activityLog');
+            const time = new Date().toLocaleString();
+            const icons = {
+                success: 'fa-check-circle text-green-400',
+                info: 'fa-info-circle text-blue-400',
+                warning: 'fa-exclamation-triangle text-yellow-400',
+                error: 'fa-times-circle text-red-400'
+            };
+            
+            const entry = document.createElement('div');
+            entry.className = 'flex items-start';
+            entry.innerHTML = `
+                <i class="fas ${icons[type]} mt-1 mr-2"></i>
+                <div>
+                    <p class="font-semibold">${message}</p>
+                    <p class="text-gray-400 text-xs">${time}</p>
+                </div>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 10 entries
+            while (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // Simulate real-time updates
+        setInterval(() => {
+            const messages = [
+                'System health check passed',
+                'Database optimization completed',
+                'Storage space available: 45GB',
+                'Network connection stable'
+            ];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            if (Math.random() > 0.7) {
+                addLogEntry(randomMessage, 'info');
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

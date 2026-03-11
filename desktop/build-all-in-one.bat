@@ -2,6 +2,9 @@
 echo Building NOVA Backup All-in-One executable...
 echo.
 
+REM Change to the correct directory
+cd /d "%~dp0app"
+
 REM Check if .NET 6.0 is installed
 dotnet --version >nul 2>&1
 if %errorlevel% neq 0 (
@@ -22,7 +25,7 @@ dotnet publish NovaBackup.AllInOne.csproj ^
     --configuration Release ^
     --runtime win-x64 ^
     --self-contained true ^
-    --output "publish" ^
+    --output "..\publish" ^
     --verbosity normal
 
 if %errorlevel% neq 0 (
@@ -34,18 +37,18 @@ if %errorlevel% neq 0 (
 echo.
 echo Build completed successfully!
 echo.
-echo Output location: publish\NovaBackup.Desktop.exe
+echo Output location: ..\publish\NovaBackup.Desktop.exe
 echo File size:
-dir "publish\NovaBackup.Desktop.exe" | findstr NovaBackup.Desktop.exe
+dir "..\publish\NovaBackup.Desktop.exe" | findstr NovaBackup.Desktop.exe
 echo.
 
 REM Create installer directory
-if not exist "installer" mkdir installer
+if not exist "..\installer" mkdir "..\installer"
 
 REM Copy the single executable to installer directory
-copy "publish\NovaBackup.Desktop.exe" "installer\NovaBackup.exe" >nul
+copy "..\publish\NovaBackup.Desktop.exe" "..\installer\NovaBackup.exe" >nul
 
-echo All-in-One executable created: installer\NovaBackup.exe
+echo All-in-One executable created: ..\installer\NovaBackup.exe
 echo.
 echo This single file contains:
 echo - Complete desktop application

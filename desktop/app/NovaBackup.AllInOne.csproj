@@ -27,6 +27,9 @@
     <!-- Trim unused assemblies for smaller size -->
     <PublishTrimmed>false</PublishTrimmed>
     
+    <!-- Disable default compile items -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    
     <!-- Output settings -->
     <OutputPath>bin\Release\net6.0-windows\win-x64\publish\</OutputPath>
   </PropertyGroup>
@@ -56,12 +59,11 @@
     <PackageReference Include="System.Management" Version="6.0.0" />
   </ItemGroup>
 
-  <!-- Include all source files -->
+  <!-- Include all source files explicitly -->
   <ItemGroup>
-    <Compile Include="Services\NovaBackupService.cs" />
-    <Compile Include="Services\SystemTrayManager.cs" />
-    <Compile Include="Services\WebApiService.cs" />
-    <Compile Include="Services\WindowsService.cs" />
+    <Compile Include="IRefreshable.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="MainForm.cs" />
     <Compile Include="Controls\DashboardControl.cs" />
     <Compile Include="Controls\BackupsControl.cs" />
     <Compile Include="Controls\SchedulesControl.cs" />
@@ -72,8 +74,6 @@
     <Compile Include="Forms\RestoreBackupForm.cs" />
     <Compile Include="Forms\ServiceManagerForm.cs" />
     <Compile Include="Forms\AboutForm.cs" />
-    <Compile Include="MainForm.cs" />
-    <Compile Include="Program.cs" />
   </ItemGroup>
 
   <!-- Embedded resources -->
