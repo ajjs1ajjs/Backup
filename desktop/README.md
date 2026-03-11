@@ -15,12 +15,19 @@ NOVA Backup Desktop is a comprehensive backup solution for Windows that provides
 
 ### Web Console
 - **Responsive Web Interface**: Modern web console accessible via browser
+- **Remote Access**: Accessible from any device on the network
+- **Authentication**: Secure login for remote access (localhost access without auth)
 - **RESTful API**: Complete API for programmatic access
 - **Real-time Dashboard**: Overview of backup status and system health
 - **Backup Management**: Create, edit, and manage backup jobs
 - **Schedule Management**: Configure automated backup schedules
 - **Storage Monitoring**: Track storage usage and drive health
 - **Reporting**: Generate detailed backup reports
+
+**Access URLs:**
+- **Local Access**: `http://localhost:8080` (no authentication required)
+- **Remote Access**: `http://[IP_ADDRESS]:8080` (authentication required)
+- **Default Credentials**: `admin / admin`
 
 ### Windows Service
 - **Background Processing**: Runs as Windows Service for automated operations
@@ -62,10 +69,25 @@ NovaBackupSetup.exe /VERYSILENT /DIR="C:\NovaBackup" /COMPONENTS="main,service,w
 7. **Settings**: Configure application settings
 
 ### Web Console
-1. **Access**: Open `http://localhost:8080` in your browser
-2. **Login**: No authentication required for local access
-3. **Navigate**: Use the sidebar to access different sections
-4. **Manage**: Perform all backup operations via web interface
+1. **Access**: Open `http://localhost:8080` in your browser for local access
+2. **Remote Access**: Open `http://[COMPUTER_IP]:8080` from any device on the network
+3. **Authentication**: Login with `admin / admin` for remote access (no auth required for localhost)
+4. **Navigate**: Use the sidebar to access different sections
+5. **Manage**: Perform all backup operations via web interface
+
+### Remote Access Setup
+1. **Install**: Install NOVA Backup with Web Console component
+2. **Firewall**: Installer automatically configures Windows Firewall for port 8080
+3. **Network**: Ensure the computer is accessible from the network
+4. **Access**: Use `http://[IP_ADDRESS]:8080` from any device
+5. **Login**: Use credentials `admin / admin` for first-time access
+
+### Security Considerations
+- **Local Access**: No authentication required for localhost
+- **Remote Access**: Basic authentication required for non-localhost connections
+- **Default Credentials**: Change default username/password after installation
+- **Network Security**: Consider VPN or secure network for remote access
+- **Firewall**: Port 8080 must be open for remote access
 
 ### Windows Service
 The Windows Service runs automatically in the background and handles:

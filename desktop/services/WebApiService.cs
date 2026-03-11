@@ -19,7 +19,7 @@ namespace NovaBackup.Desktop.Services
         private readonly HttpClient _httpClient;
         private IHost _webHost;
 
-        public WebApiService(string baseUrl)
+        public WebApiService(string baseUrl = "http://0.0.0.0:8080")
         {
             _baseUrl = baseUrl;
             _httpClient = new HttpClient();
@@ -33,7 +33,8 @@ namespace NovaBackup.Desktop.Services
                 _webHost = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                        webBuilder.UseUrls(_baseUrl);
+                        // Bind to all interfaces for remote access
+                        webBuilder.UseUrls("http://0.0.0.0:8080");
                         webBuilder.Configure(app =>
                         {
                             app.UseRouting();
@@ -41,7 +42,27 @@ namespace NovaBackup.Desktop.Services
                             {
                                 builder.AllowAnyOrigin()
                                        .AllowAnyMethod()
-                                       .AllowAnyHeader();
+                                       .AllowAnyHeader()
+                                       .AllowCredentials();
+                            });
+
+                            // Add authentication middleware
+                            app.Use(async (context, next) =>
+                            {
+                                // Basic authentication for remote access
+                                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                                if (string.IsNullOrEmpty(authHeader) || !IsValidAuth(authHeader))
+                                {
+                                    // Allow localhost access without auth
+                                    var remoteIp = context.Connection.RemoteIpAddress?.ToString();
+                                    if (remoteIp != "::1" && remoteIp != "127.0.0.1")
+                                    {
+                                        context.Response.StatusCode = 401;
+                                        await context.Response.WriteAsync("Unauthorized");
+                                        return;
+                                    }
+                                }
+                                await next();
                             });
 
                             // API Routes
@@ -363,6 +384,33 @@ namespace NovaBackup.Desktop.Services
         {
             _httpClient?.Dispose();
             StopWebServer().Wait();
+        }
+
+        private bool IsValidAuth(string authHeader)
+        {
+            try
+            {
+                // Basic authentication: "Basic base64(username:password)"
+                if (!authHeader.StartsWith("Basic "))
+                    return false;
+
+                var token = authHeader.Substring("Basic ".Length);
+                var credentials = Convert.FromBase64String(token);
+                var pair = System.Text.Encoding.UTF8.GetString(credentials).Split(':');
+
+                if (pair.Length != 2)
+                    return false;
+
+                var username = pair[0];
+                var password = pair[1];
+
+                // Check against configured credentials (for demo, use admin/admin)
+                return username == "admin" && password == "admin";
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

@@ -42,6 +42,7 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\NOVA Backup"; File
 Filename: "{app}\NovaBackup.exe"; Description: "Launch NOVA Backup"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\services\NovaBackupService.exe"; Parameters: "install"; Description: "Install Windows Service"; Tasks: service; Flags: runhidden
 Filename: "{app}\services\NovaBackupService.exe"; Parameters: "start"; Description: "Start Windows Service"; Tasks: service; Flags: runhidden
+Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""NOVA Backup Web Console"" dir=in action=allow protocol=TCP localport=8080"; Description: "Configure firewall for web console"; Tasks: webconsole; Flags: runhidden
 
 [UninstallRun]
 Filename: "{app}\services\NovaBackupService.exe"; Parameters: "stop"; RunOnceId: "StopService"; Flags: runhidden
