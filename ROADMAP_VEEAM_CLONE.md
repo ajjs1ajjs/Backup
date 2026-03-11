@@ -48,12 +48,19 @@
 - ❌ Microsoft Hyper-V WMI/CIM інтеграція - Заплановано ФАЗА 3
 - **Важливість: 10/10** - ✅ Реалізовано базовий рівень
 
-#### 2. **CBT (Changed Block Tracking)** ⚠️ ЧАСТКОВО
-- ⚠️ **VMware CBT API** - Структура готова, потребує тестування
-  - EnableCBT() / DisableCBT() - `pkg/providers/vmware/vm.go`
-  - QueryChangedDiskAreas() - Stub implementation
-- ❌ **Hyper-V RCT** - Заплановано ФАЗА 3
-- **Важливість: 10/10** - Інкрементальні бекапи без цього повільні
+#### 2. **CBT (Changed Block Tracking)** ✅ ФАЗА 2 ЗАВЕРШЕНО
+- ✅ **VMware CBT API** - `pkg/providers/vmware/cbt.go`
+  - EnableCBTForVM() - активація CBT
+  - DisableCBTForVM() - деактивація
+  - GetCBTStatus() - статус всіх дисків
+  - QueryDiskChanges() - запит змінених блоків
+  - ResetCBT() - скидання CBT
+- ✅ **Incremental Backup** - `pkg/providers/vmware/incremental.go`
+  - PerformIncrementalBackup() - інкрементальний бекап
+  - BackupState persistence (JSON)
+  - Changed blocks export
+- ❌ **Hyper-V RCT** - Заплановано майбутнє
+- **Важливість: 10/10** - ✅ Реалізовано інкрементальні бекапи
 
 #### 3. **Snapshot Management** ✅ ЗАВЕРШЕНО (Базовий рівень)
 - ✅ **VMware VM snapshot** - `pkg/providers/vmware/vm.go`
@@ -76,12 +83,19 @@
 - ❌ Storage-level snapshots
 - **Важливість: 8/10** - Для enterprise рівня (Заплановано ФАЗА 5)
 
-#### 6. **Application-Aware Processing** ❌ ВІДСУТНЄ
-- ❌ Microsoft SQL Server VSS
-- ❌ Microsoft Exchange VSS
-- ❌ Active Directory VSS
-- ❌ Oracle, MySQL, PostgreSQL
-- **Важливість: 9/10** - Для серверних застосунків (Заплановано ФАЗА 3)
+#### 6. **Application-Aware Processing** ✅ ФАЗА 3 ЗАВЕРШЕНО (Базовий рівень)
+- ✅ **VSS Framework** - `pkg/providers/vss/vss.go`
+  - VSSManager для snapshot операцій
+  - VSSApplicationBackup для app-aware backup
+  - Writer enumeration (SQL, Exchange, AD)
+- ✅ **SQL Server Support** - `pkg/providers/vss/sqlserver.go`
+  - GetServerInfo() - інформація про сервер
+  - BackupDatabase() - нативний SQL бекап
+  - BackupTransactionLog() - бекап логів
+  - RestoreDatabase() - відновлення
+  - Recovery model management
+- ⚠️ **Exchange, AD** - Stub реалізації
+- **Важливість: 9/10** - ✅ SQL Server підтримка реалізована
 
 ### 🟡 ВАЖЛИВІ (Should Have)
 
@@ -109,17 +123,28 @@
 
 ### 🟢 БАЖАНО (Nice to Have)
 
-#### 11. **Monitoring & Reporting**
-- Email notifications ❌
-- SNMP traps ❌
-- Syslog integration ❌
-- Custom reports ❌
+#### 11. **Native GUI (Veeam-style)** ✅ ФАЗА 4 ЗАВЕРШЕНО
+- ✅ **WPF Application** - `desktop/wpf/`
+  - NovaBackup.GUI.csproj - проект
+  - App.xaml - Material Design теми
+  - MainWindow.xaml - Veeam-style інтерфейс
+    - Header з градієнтом (синій)
+    - 3-панельний layout
+    - Sidebar navigation
+    - Dashboard cards
+    - Jobs DataGrid
+- ⚠️ **ViewModels, Services** - Заплановано
 
-#### 12. **Security Features**
-- Multi-factor authentication ❌
-- Role-based access control (RBAC) ❌
-- Immutable backups ❌
-- Air-gapped backups ❌
+#### 12. **CLI Integration** ✅ ФАЗА 5 ЗАВЕРШЕНО
+- ✅ **VMware Commands** - `cmd/nova-cli/vmware.go`
+  - `nova vmware connect [host]` - підключення
+  - `nova vmware list` - список VM
+  - `nova vmware info [vm]` - інформація
+  - `nova vmware snapshot create [vm] [name]` - снепшот
+  - `nova vmware backup [vm]` - бекап (full/incremental)
+  - `nova vmware cbt enable/status` - CBT management
+- ✅ **Progress callbacks** - реальний прогрес
+- ✅ **JSON output** - для автоматизації
 
 #### 13. **Advanced Recovery**
 - File-Level Recovery (FLR) - Базовий ✅
