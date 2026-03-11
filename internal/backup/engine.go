@@ -144,13 +144,13 @@ func (e *BackupEngine) processFile(ctx context.Context, path string) (*FileResul
 				}
 
 				// Store chunk
-				storagePath, err := e.storage.StoreChunk(hashStr, finalData)
+				storagePath, repoID, tier, err := e.storage.StoreChunk(hashStr, finalData)
 				if err != nil {
 					return nil, err
 				}
 
 				// Update database
-				e.db.AddChunk(hashStr, len(chunkData), len(finalData), storagePath)
+				e.db.AddChunk(hashStr, int64(len(chunkData)), len(finalData), storagePath, repoID, tier)
 				totalWritten += int64(len(finalData))
 			}
 		}

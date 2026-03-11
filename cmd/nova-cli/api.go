@@ -10,6 +10,8 @@ import (
 	"novabackup/internal/api"
 	"novabackup/internal/database"
 	"novabackup/internal/scheduler"
+	"novabackup/internal/storage"
+	"novabackup/internal/storage/factory"
 
 	"github.com/spf13/cobra"
 )
@@ -69,8 +71,14 @@ func startAPIServer() error {
 		log.Printf("Warning: failed to start scheduler: %v", err)
 	}
 
+	// Initialize storage engine
+	storageMgr := storage.NewEngine()
+	if err := factory.InitializeRepos(db, storageMgr); err != nil {
+		log.Printf("Warning: failed to initialize some repositories: %v", err)
+	}
+
 	// Create API server
-	server, err := api.NewServer(db, sched)
+	server, err := api.NewServer(db, sched, storageMgr)
 	if err != nil {
 		return fmt.Errorf("failed to create API server: %w", err)
 	}

@@ -32,6 +32,31 @@ const (
 	JobTypeVM       JobType = "vm"
 )
 
+type RepositoryType string
+
+const (
+	RepositoryTypeLocal  RepositoryType = "local"
+	RepositoryTypeS3     RepositoryType = "s3"
+	RepositoryTypeSOBR   RepositoryType = "sobr"
+)
+
+type Repository struct {
+	ID          uuid.UUID      `json:"id"`
+	Name        string         `json:"name"`
+	Type        RepositoryType `json:"type"`
+	Path        string         `json:"path"`      // For local
+	Endpoint    string         `json:"endpoint"`  // For S3
+	Bucket      string         `json:"bucket"`    // For S3
+	Region      string         `json:"region"`    // For S3
+	AccessKey   string         `json:"access_key"`
+	SecretKey   string         `json:"secret_key"`
+	IsSOBR      bool           `json:"is_sobr"`
+	ParentSOBR  uuid.UUID      `json:"parent_sobr"`
+	Tier        string         `json:"tier"`      // Performance, Capacity
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
 type JobStatus string
 
 const (
@@ -49,9 +74,12 @@ type Job struct {
 	Source      string    `json:"source"`
 	Destination string    `json:"destination"`
 	Schedule    string    `json:"schedule"`
-	Enabled     bool      `json:"enabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Enabled       bool      `json:"enabled"`
+	RetentionDays int       `json:"retention_days"`
+	EnableGuestProcessing bool   `json:"enable_guest_processing"`
+	GuestCredentialsID    string `json:"guest_credentials_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type BackupResult struct {
@@ -78,6 +106,8 @@ type BackupConfig struct {
 	BufferSize    int
 	ParallelJobs  int `json:"parallel_jobs"`
 	RetentionDays int `json:"retention_days"`
+	EnableGuestProcessing bool   `json:"enable_guest_processing"`
+	GuestCredentialsID    string `json:"guest_credentials_id"`
 }
 
 type RestoreConfig struct {
@@ -109,7 +139,13 @@ type FileInfo struct {
 // ChunkInfo represents a chunk with metadata
 type ChunkInfo struct {
 	Hash           string
-	SizeBytes      int
-	CompressedSize int
+	SizeBytes      int64
+	CompressedSize int64
 	StoragePath    string
+}
+
+type ChunkMapping struct {
+	ChunkHash    string
+	Sequence     int
+	OriginalPath string
 }

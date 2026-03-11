@@ -1,0 +1,89 @@
+<UserControl x:Class="NovaBackup.GUI.Views.RecoverySessionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:viewmodels="clr-namespace:NovaBackup.GUI.ViewModels"
+             d:DataContext="{d:DesignInstance Type=viewmodels:RecoverySessionsViewModel}"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="1100">
+
+    <Grid Background="#FF1E1E1E">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="30,20">
+            <materialDesign:PackIcon Kind="LightningBolt" Width="32" Height="32" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="#FF00A8E6"/>
+            <TextBlock Text="Instant Recovery Sessions" FontSize="28" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+            
+            <Button Command="{Binding RefreshSessionsCommand}" Style="{StaticResource MaterialDesignFlatButton}" Margin="20,0,0,0">
+                <materialDesign:PackIcon Kind="Refresh" />
+            </Button>
+        </StackPanel>
+
+        <!-- Sessions List -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Sessions}" AutoGenerateColumns="False" 
+                  IsReadOnly="True" Background="Transparent" BorderThickness="0" Margin="30,0"
+                  RowBackground="#FF2D2D2D" AlternatingRowBackground="#FF353535"
+                  Foreground="White" SelectionMode="Single" CanUserAddRows="False">
+            <DataGrid.Resources>
+                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource MaterialDesignDataGridColumnHeader}">
+                    <Setter Property="Background" Value="#FF1E1E1E"/>
+                    <Setter Property="Foreground" Value="#FFAAAAAA"/>
+                    <Setter Property="Padding" Value="10,5"/>
+                </Style>
+            </DataGrid.Resources>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Session ID" Binding="{Binding SessionID}" Width="150"/>
+                <DataGridTemplateColumn Header="VM Name" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Server" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding VMName}" VerticalAlignment="Center" FontWeight="Bold"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Target Host" Binding="{Binding TargetHost}" Width="150"/>
+                <DataGridTextColumn Header="Start Time" Binding="{Binding StartTime, StringFormat='\{0:yyyy-MM-dd HH:mm\}'}" Width="150"/>
+                <DataGridTemplateColumn Header="Status" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="#FF00A8E6" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding Status}" FontSize="11" Foreground="White" FontWeight="Bold"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Actions" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource MaterialDesignFlatButton}" 
+                                    Command="{Binding DataContext.StopSessionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                    CommandParameter="{Binding}"
+                                    Foreground="#FFDC3545" Padding="0">
+                                <materialDesign:PackIcon Kind="Stop" />
+                            </Button>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Footer / Status -->
+        <Border Grid.Row="2" Background="#FF2D2D2D" Padding="15" Margin="0,20,0,0">
+            <StackPanel Orientation="Horizontal">
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}" 
+                             IsIndeterminate="True" Width="20" Height="20" Margin="0,0,15,0"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#FFAAAAAA" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

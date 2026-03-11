@@ -95,7 +95,7 @@ func (m *MockTenantManager) ValidateTenantAccess(ctx context.Context, tenantID s
 // TestRecoveryPlanManager tests recovery plan management functionality
 func TestRecoveryPlanManager(t *testing.T) {
 	mockTenantMgr := &MockTenantManager{}
-	mockStorageMgr := *storage.NewEngine()
+	mockStorageMgr := storage.NewEngine()
 	manager := NewInMemoryRecoveryPlanManager(mockTenantMgr, mockStorageMgr)
 
 	t.Run("CreateRecoveryPlan", func(t *testing.T) {

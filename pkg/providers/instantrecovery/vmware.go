@@ -13,7 +13,7 @@ import (
 // VMwareInstantRecovery provides VMware-specific instant recovery
 type VMwareInstantRecovery struct {
 	logger       *zap.Logger
-	nfsManager   *InstantRecoveryManager
+	nfsManager   *ProviderInstantRecoveryManager
 	vmwareClient VMwareClientInterface
 }
 
@@ -35,7 +35,7 @@ type VMwareFinder interface {
 // NewVMwareInstantRecovery creates a new VMware instant recovery manager
 func NewVMwareInstantRecovery(logger *zap.Logger, vmwareClient VMwareClientInterface, nfsConfig *NFSConfig) (*VMwareInstantRecovery, error) {
 	// Initialize NFS manager
-	nfsManager := NewInstantRecoveryManager(logger)
+	nfsManager := NewProviderInstantRecoveryManager(logger)
 	if err := nfsManager.InitializeNFS(nfsConfig); err != nil {
 		return nil, fmt.Errorf("failed to initialize NFS: %w", err)
 	}
@@ -149,31 +149,30 @@ func (v *VMwareInstantRecovery) mountNFSDatastore(ctx context.Context, hostName,
 		zap.String("datastore", datastoreName),
 		zap.String("nfs_path", nfsPath))
 
-	// Get host system
-	_, err := v.vmwareClient.GetHost(ctx, hostName)
+	host, err := v.vmwareClient.GetHost(ctx, hostName)
 	if err != nil {
 		return fmt.Errorf("host not found: %w", err)
 	}
 
-	// Create datastore spec
+	datastoreSystem, err := host.ConfigManager().DatastoreSystem(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get datastore system: %w", err)
+	}
+
+	// For NFS, the remote host is typically the machine running NovaBackup
+	// In this context, we assume the machine's IP is reachable by ESXi
 	spec := types.HostNasVolumeSpec{
-		RemoteHost: hostName, // NFS server is this machine
+		RemoteHost: "127.0.0.1", // TODO: Get actual local IP reachable by ESXi
 		RemotePath: nfsPath,
 		LocalPath:  datastoreName,
 		AccessMode: string(types.HostMountModeReadOnly),
 		Type:       "NFS",
 	}
 
-	// Use spec in production implementation
-	_ = spec
-
-	// Mount datastore to host
-	// Note: In production, use host.ConfigManager.StorageSystem to create NAS datastore
-	v.logger.Debug("Datastore mount spec created", zap.Any("spec", spec))
-
-	// This is a stub - in production would call:
-	// storageSystem := object.NewHostStorageSystem(client, host.Reference())
-	// storageSystem.AddNasVolume(ctx, &spec)
+	_, err = datastoreSystem.CreateNasDatastore(ctx, spec)
+	if err != nil {
+		return fmt.Errorf("failed to create NAS datastore: %w", err)
+	}
 
 	return nil
 }
@@ -184,10 +183,19 @@ func (v *VMwareInstantRecovery) unmountNFSDatastore(ctx context.Context, hostNam
 		zap.String("host", hostName),
 		zap.String("datastore", datastoreName))
 
-	// In production:
-	// storageSystem.RemoveDatastore(ctx, datastore.Reference())
+	// Find the datastore to unmount
+	ds, err := v.vmwareClient.GetDatastore(ctx, datastoreName)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	// Unmount / Destroy the datastore
+	task, err := ds.Destroy(ctx)
+	if err != nil {
+		return err
+	}
+
+	return task.Wait(ctx)
 }
 
 // registerVMFromDatastore registers VM from NFS datastore
@@ -196,32 +204,34 @@ func (v *VMwareInstantRecovery) registerVMFromDatastore(ctx context.Context, con
 		zap.String("vm", config.VMName),
 		zap.String("datastore", datastoreName))
 
-	// Build VMX path on NFS datastore
 	vmxPath := fmt.Sprintf("[%s] %s/%s.vmx", datastoreName, config.VMName, config.VMName)
 
-	// Get target folder
-	datacenter, err := v.vmwareClient.GetFinder().Datacenter(ctx, config.TargetFolder)
-	if err != nil {
-		// Use default datacenter
-		datacenter, _ = v.vmwareClient.GetFinder().Datacenter(ctx, "ha-datacenter")
-	}
-
-	// Get host
 	host, err := v.vmwareClient.GetHost(ctx, config.TargetHost)
 	if err != nil {
-		return "", fmt.Errorf("target host not found: %w", err)
+		return "", err
 	}
 
-	// Register VM
-	// In production:
-	// folder := datacenter.VmFolder(ctx)
-	// task, err := folder.RegisterVM(ctx, vmxPath, config.VMName, false, pool, host)
-	_ = host // host використовується в логуванні нижче
+	// Use the host's datacenter and its VM folder
+	dc, err := v.vmwareClient.GetDatacenter(ctx, "") // Get default datacenter
+	if err != nil {
+		return "", err
+	}
 
-	v.logger.Debug("VM registration parameters",
-		zap.String("vmx_path", vmxPath),
-		zap.String("datacenter", datacenter.String()),
-		zap.String("host", host.String()))
+	folders, err := dc.Folders(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	// Register the VM
+	task, err := folders.VmFolder.RegisterVM(ctx, vmxPath, config.VMName, false, nil, host)
+	if err != nil {
+		return "", fmt.Errorf("failed to register VM: %w", err)
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		return "", fmt.Errorf("wait for VM registration failed: %w", err)
+	}
 
 	return vmxPath, nil
 }

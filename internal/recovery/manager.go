@@ -1003,14 +1003,14 @@ type InMemoryRecoveryPlanManager struct {
 	planStats      map[string]*PlanStats
 	globalStats    *GlobalRecoveryStats
 	tenantManager  multitenancy.TenantManager
-	storageManager storage.Engine
+	storageManager *storage.Engine
 	mutex          sync.RWMutex
 }
 
 // NewInMemoryRecoveryPlanManager creates a new in-memory recovery plan manager
 func NewInMemoryRecoveryPlanManager(
 	tenantMgr multitenancy.TenantManager,
-	storageMgr storage.Engine,
+	storageMgr *storage.Engine,
 ) *InMemoryRecoveryPlanManager {
 	return &InMemoryRecoveryPlanManager{
 		plans:          make(map[string]*RecoveryPlan),

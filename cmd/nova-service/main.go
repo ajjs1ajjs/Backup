@@ -19,6 +19,8 @@ import (
 	"novabackup/internal/api"
 	"novabackup/internal/database"
 	"novabackup/internal/scheduler"
+	"novabackup/internal/storage"
+	"novabackup/internal/storage/factory"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -44,6 +46,7 @@ type Service struct {
 	db        *database.Connection
 	scheduler *scheduler.Scheduler
 	apiServer *api.Server
+	storage   *storage.Engine
 	eventLog  debug.Log
 	stopChan  chan struct{}
 }
@@ -149,8 +152,14 @@ func (s *Service) startComponents() error {
 	}
 	s.logEvent(eventLogInfo, "Scheduler started successfully")
 
+	s.logEvent(eventLogInfo, "Initializing storage engine...")
+	s.storage = storage.NewEngine()
+	if err := factory.InitializeRepos(s.db, s.storage); err != nil {
+		s.logEvent(eventLogWarning, fmt.Sprintf("Failed to initialize some repositories: %v", err))
+	}
+
 	s.logEvent(eventLogInfo, fmt.Sprintf("Starting API server on port %d...", defaultPort))
-	s.apiServer, err = api.NewServer(s.db, s.scheduler)
+	s.apiServer, err = api.NewServer(s.db, s.scheduler, s.storage)
 	if err != nil {
 		s.scheduler.Stop()
 		s.db.Close()

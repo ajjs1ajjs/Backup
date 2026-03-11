@@ -7,8 +7,10 @@ import (
 	"io"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"go.uber.org/zap"
 )
 
@@ -38,19 +40,20 @@ func NewAzureBlobProvider(logger *zap.Logger, config *AzureBlobConfig) (*AzureBl
 
 	var client *azblob.Client
 	var err error
+	var cred azcore.TokenCredential
 
 	accountURL := fmt.Sprintf("https://%s.blob.core.windows.net", config.AccountName)
 
 	if config.UseManagedIdentity {
 		// Use managed identity (for Azure VMs, AKS, etc.)
-		cred, err := azidentity.NewDefaultAzureCredential(nil)
+		cred, err = azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Azure credential: %w", err)
 		}
 		client, err = azblob.NewClient(accountURL, cred, nil)
 	} else {
 		// Use service principal
-		cred, err := azidentity.NewClientSecretCredential(
+		cred, err = azidentity.NewClientSecretCredential(
 			config.TenantID,
 			config.ClientID,
 			config.ClientSecret,
@@ -167,7 +170,7 @@ func (a *AzureBlobProvider) List(ctx context.Context, prefix string) ([]BlobInfo
 				Key:          *blob.Name,
 				Size:         *blob.Properties.ContentLength,
 				LastModified: *blob.Properties.LastModified,
-				ETag:         string(*blob.Properties.Etag),
+				ETag:         string(*blob.Properties.ETag),
 			})
 		}
 	}
@@ -202,8 +205,8 @@ func (a *AzureBlobProvider) ArchiveToArchiveTier(ctx context.Context, key string
 		NewContainerClient(a.containerName).
 		NewBlockBlobClient(key)
 
-	accessTier := azblob.AccessTierArchive
-	_, err := blockBlobClient.SetAccessTier(ctx, accessTier, nil)
+	accessTier := blob.AccessTierArchive
+	_, err := blockBlobClient.SetTier(ctx, accessTier, nil)
 	if err != nil {
 		return fmt.Errorf("failed to archive blob: %w", err)
 	}
@@ -212,7 +215,7 @@ func (a *AzureBlobProvider) ArchiveToArchiveTier(ctx context.Context, key string
 }
 
 // RestoreFromArchiveTier rehydrates blob from Archive tier
-func (a *AzureBlobProvider) RestoreFromArchiveTier(ctx context.Context, key string, tier azblob.AccessTier, rehydratePriority azblob.RehydratePriority) error {
+func (a *AzureBlobProvider) RestoreFromArchiveTier(ctx context.Context, key string, tier blob.AccessTier, rehydratePriority blob.RehydratePriority) error {
 	a.logger.Info("Restoring blob from Archive",
 		zap.String("blob", key),
 		zap.String("tier", string(tier)))
@@ -221,7 +224,7 @@ func (a *AzureBlobProvider) RestoreFromArchiveTier(ctx context.Context, key stri
 		NewContainerClient(a.containerName).
 		NewBlockBlobClient(key)
 
-	_, err := blockBlobClient.SetAccessTier(ctx, tier, &azblob.SetAccessTierOptions{
+	_, err := blockBlobClient.SetTier(ctx, tier, &blob.SetTierOptions{
 		RehydratePriority: &rehydratePriority,
 	})
 	if err != nil {
@@ -260,7 +263,7 @@ func (a *AzureBlobProvider) CopyBlob(ctx context.Context, sourceKey, destKey str
 		NewBlockBlobClient(destKey)
 
 	sourceURL := sourceBlobClient.URL()
-	copyOptions := &azblob.StartCopyFromURLOptions{}
+	copyOptions := &blob.StartCopyFromURLOptions{}
 	
 	_, err := destBlobClient.StartCopyFromURL(ctx, sourceURL, copyOptions)
 	if err != nil {

@@ -36,7 +36,7 @@
    - Відмова від викликів PowerShell з гуя.
 3. **Wizards (Майстри)**:
    - *Backup Job Wizard* (Name -> Virtual Machines -> Storage -> Guest Processing -> Schedule -> Summary).
-   - *Restore Wizard* (Instant VM Recovery, Entire VM Restore, Guest files).
+   - [x] *Restore Wizard* (Instant VM Recovery, Entire VM Restore, Guest files).
 
 ### ФАЗА 2: Enterprise Data Movers (Proxy Architecture)
 **Мета**: Відокремити логіку читання з гіпервізорів від Backup Server для досягнення швидкості Veeam (Transport Services).
@@ -65,11 +65,11 @@
 **Мета**: Флагманська фіча Veeam — запуск ВМ прямо з бекап-файлу за лічені секунди.
 
 **Спринти**:
-1. **Нативний NFS v3 Сервер (Go)**:
-   - Оновлення `pkg/providers/instantrecovery/nfs.go`.
+1. **[x] Нативний NFS v3 Сервер (Go)**:
+   - Реалізовано в `internal/recovery/instant_manager.go` та `pkg/providers/instantrecovery/nfs.go`.
    - Реєстрація нашого сховища дедуплікованих блоків як датастору NFS у VMware vSphere.
-2. **Synthetic Disk Presentation**:
-   - Трансляція бекап-чанків NovaBackup у сиквенційний потік `flat.vmdk` на льоту (без відновлення на диск).
+2. **[x] Synthetic Disk Presentation**:
+   - Трансляція бекап-чанків NovaBackup у сиквенційний потік `.vhdx` / `.vmdk` на льоту через `ChunkVFS`.
 3. **Storage vMotion Trigger**: 
    - Автоматичний перенос ВМ з нашого NFS на продуктивний датастор в фоновому режимі після Instant Recovery.
 
@@ -77,9 +77,9 @@
 **Мета**: Розширити варіанти зберігання даних на рівень Enterprise.
 
 **Спринти**:
-1. **Scale-Out Backup Repository (SOBR)**:
-   - Об'єднання кількох локальних папок/серверів в єдиний пул.
-   - Tiering: локальні диски (Performance) + S3 / Azure (Capacity).
+1. **[/] Scale-Out Backup Repository (SOBR)**:
+   - Об'єднання кількох локальних папок/серверів в єдиний пул (Реалізовано `RepositoryPool`).
+   - Tiering: локальні диски (Performance) + S3 (Capacity - Реалізовано `S3Engine`).
 2. **Immutable Backups (Hardened Repository)**:
    - Захист від Ransomware.
    - Використання Linux `chattr +i` (XFS Fast Clone / reflink) для Windows-заснованої системи (розгортання Linux-агента).

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"github.com/google/uuid"
 )
 
 // Provider defines the interface for storage backends
@@ -30,6 +31,7 @@ type Stats struct {
 // Engine manages storage providers
 type Engine struct {
 	providers map[string]Provider
+	sobr      *RepositoryPool
 	mu        sync.RWMutex
 	basePath  string
 }
@@ -38,6 +40,7 @@ type Engine struct {
 func NewEngine() *Engine {
 	return &Engine{
 		providers: make(map[string]Provider),
+		sobr:      NewRepositoryPool(),
 	}
 }
 
@@ -64,22 +67,40 @@ func (e *Engine) GetProvider(name string) (Provider, error) {
 	return provider, nil
 }
 
-// StoreChunk stores a chunk to storage
-func (e *Engine) StoreChunk(hash string, data []byte) (string, error) {
+func (e *Engine) AddPerformanceExtent(p Provider) {
+	e.sobr.AddPerformanceExtent(p)
+}
+
+func (e *Engine) AddCapacityExtent(p Provider) {
+	e.sobr.AddCapacityExtent(p)
+}
+
+// StoreChunk stores a chunk to storage and returns path, repoID and tier
+func (e *Engine) StoreChunk(hash string, data []byte) (string, uuid.UUID, string, error) {
 	ctx := context.Background()
 	reader := bytes.NewReader(data)
 
+	// In SOBR mode, use the pool
+	if len(e.sobr.performanceTier) > 0 {
+		err := e.sobr.Store(ctx, hash, reader, int64(len(data)))
+		if err != nil {
+			return "", uuid.Nil, "", err
+		}
+		return hash, uuid.Nil, "performance", nil // TODO: map back to actual repo ID
+	}
+
+	// Fallback to "local" provider
 	provider, err := e.GetProvider("local")
 	if err != nil {
-		return "", fmt.Errorf("no storage provider available: %w", err)
+		return "", uuid.Nil, "", fmt.Errorf("no storage provider available: %w", err)
 	}
 
 	err = provider.Store(ctx, hash, reader, int64(len(data)))
 	if err != nil {
-		return "", err
+		return "", uuid.Nil, "", err
 	}
 
-	return hash, nil
+	return hash, uuid.Nil, "performance", nil
 }
 
 // GetChunk retrieves a chunk from storage

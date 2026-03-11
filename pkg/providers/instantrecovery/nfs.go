@@ -195,23 +195,23 @@ type InstantRecoverySession struct {
 	Status       string
 }
 
-// InstantRecoveryManager manages instant recovery sessions
-type InstantRecoveryManager struct {
+// ProviderInstantRecoveryManager manages instant recovery sessions (provider specific)
+type ProviderInstantRecoveryManager struct {
 	logger    *zap.Logger
 	nfsServer *NFSServer
 	sessions  map[string]*InstantRecoverySession
 }
 
-// NewInstantRecoveryManager creates a new instant recovery manager
-func NewInstantRecoveryManager(logger *zap.Logger) *InstantRecoveryManager {
-	return &InstantRecoveryManager{
+// NewProviderInstantRecoveryManager creates a new instant recovery manager
+func NewProviderInstantRecoveryManager(logger *zap.Logger) *ProviderInstantRecoveryManager {
+	return &ProviderInstantRecoveryManager{
 		logger:   logger.With(zap.String("component", "instant-recovery")),
 		sessions: make(map[string]*InstantRecoverySession),
 	}
 }
 
 // InitializeNFS initializes the NFS server
-func (m *InstantRecoveryManager) InitializeNFS(config *NFSConfig) error {
+func (m *ProviderInstantRecoveryManager) InitializeNFS(config *NFSConfig) error {
 	nfsServer, err := NewNFSServer(m.logger, config)
 	if err != nil {
 		return err
@@ -222,7 +222,7 @@ func (m *InstantRecoveryManager) InitializeNFS(config *NFSConfig) error {
 }
 
 // StartInstantRecovery starts instant recovery for a VM
-func (m *InstantRecoveryManager) StartInstantRecovery(ctx context.Context, vmName, backupPath string) (*InstantRecoverySession, error) {
+func (m *ProviderInstantRecoveryManager) StartInstantRecovery(ctx context.Context, vmName, backupPath string) (*InstantRecoverySession, error) {
 	m.logger.Info("Starting instant recovery",
 		zap.String("vm", vmName),
 		zap.String("backup", backupPath))
@@ -262,7 +262,7 @@ func (m *InstantRecoveryManager) StartInstantRecovery(ctx context.Context, vmNam
 }
 
 // StopInstantRecovery stops an instant recovery session
-func (m *InstantRecoveryManager) StopInstantRecovery(sessionID string) error {
+func (m *ProviderInstantRecoveryManager) StopInstantRecovery(sessionID string) error {
 	m.logger.Info("Stopping instant recovery", zap.String("session", sessionID))
 
 	session, exists := m.sessions[sessionID]
@@ -282,7 +282,7 @@ func (m *InstantRecoveryManager) StopInstantRecovery(sessionID string) error {
 }
 
 // ListSessions lists all active instant recovery sessions
-func (m *InstantRecoveryManager) ListSessions() []*InstantRecoverySession {
+func (m *ProviderInstantRecoveryManager) ListSessions() []*InstantRecoverySession {
 	sessions := make([]*InstantRecoverySession, 0, len(m.sessions))
 	for _, session := range m.sessions {
 		sessions = append(sessions, session)
@@ -291,7 +291,7 @@ func (m *InstantRecoveryManager) ListSessions() []*InstantRecoverySession {
 }
 
 // GetSession returns a specific session
-func (m *InstantRecoveryManager) GetSession(sessionID string) (*InstantRecoverySession, error) {
+func (m *ProviderInstantRecoveryManager) GetSession(sessionID string) (*InstantRecoverySession, error) {
 	session, exists := m.sessions[sessionID]
 	if !exists {
 		return nil, fmt.Errorf("session not found: %s", sessionID)

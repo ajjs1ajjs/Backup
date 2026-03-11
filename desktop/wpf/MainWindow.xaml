@@ -10,9 +10,28 @@
         Height="900" Width="1400"
         WindowStartupLocation="CenterScreen"
         Background="#FF1E1E1E"
-        Foreground="White">
+        Foreground="White"
+        xmlns:viewmodels="clr-namespace:NovaBackup.GUI.ViewModels"
+        xmlns:views="clr-namespace:NovaBackup.GUI.Views">
     
     <Window.Resources>
+        <!-- DataTemplates for MVVM Routing -->
+        <DataTemplate DataType="{x:Type viewmodels:HomeViewModel}">
+            <views:HomeView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:JobsViewModel}">
+            <views:JobsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:InfrastructureViewModel}">
+            <views:InfrastructureView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:StorageViewModel}">
+            <views:StorageView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:RecoverySessionsViewModel}">
+            <views:RecoverySessionsView/>
+        </DataTemplate>
+
         <!-- Navigation Button Style (Veeam-like) -->
         <Style x:Key="NavButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -89,7 +108,7 @@
                 <!-- Action Buttons -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,20,0" VerticalAlignment="Center">
                     <Button x:Name="btnStartBackup" Style="{StaticResource ActionButtonStyle}" 
-                            Background="#FF28A745" BorderBrush="#FF28A745" Click="BtnStartBackup_Click">
+                            Background="#FF28A745" BorderBrush="#FF28A745">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="Play" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="START BACKUP"/>
@@ -97,7 +116,7 @@
                     </Button>
                     
                     <Button x:Name="btnCreateJob" Style="{StaticResource ActionButtonStyle}" 
-                            Background="#FF0078D4" BorderBrush="#FF0078D4" Margin="10,0,0,0" Click="BtnCreateJob_Click">
+                            Background="#FF0078D4" BorderBrush="#FF0078D4" Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="Plus" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="CREATE JOB"/>
@@ -105,7 +124,7 @@
                     </Button>
                     
                     <Button x:Name="btnSettings" Style="{StaticResource ActionButtonStyle}" 
-                            Background="#FF6C757D" BorderBrush="#FF6C757D" Margin="10,0,0,0" Click="BtnSettings_Click">
+                            Background="#FF6C757D" BorderBrush="#FF6C757D" Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="Cog" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="SETTINGS"/>
@@ -126,7 +145,7 @@
             <Border Grid.Column="0" Background="#FF2D2D2D">
                 <StackPanel>
                     <!-- Dashboard Button -->
-                    <Button x:Name="btnDashboard" Style="{StaticResource NavButtonStyle}" Tag="Selected" Click="NavButton_Click">
+                    <Button x:Name="btnDashboard" Style="{StaticResource NavButtonStyle}" Command="{Binding NavigateHomeCommand}">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="ViewDashboard" Width="20" Height="20" VerticalAlignment="Center"/>
                             <TextBlock Text="Dashboard" Margin="10,0,0,0" VerticalAlignment="Center"/>
@@ -134,44 +153,36 @@
                     </Button>
 
                     <!-- Backup Jobs -->
-                    <Button x:Name="btnJobs" Style="{StaticResource NavButtonStyle}" Click="NavButton_Click">
+                    <Button x:Name="btnJobs" Style="{StaticResource NavButtonStyle}" Command="{Binding NavigateJobsCommand}">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="BackupRestore" Width="20" Height="20" VerticalAlignment="Center"/>
                             <TextBlock Text="Backup Jobs" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <!-- Storage -->
-                    <Button x:Name="btnStorage" Style="{StaticResource NavButtonStyle}" Click="NavButton_Click">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Harddisk" Width="20" Height="20" VerticalAlignment="Center"/>
-                            <TextBlock Text="Storage" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Reports -->
-                    <Button x:Name="btnReports" Style="{StaticResource NavButtonStyle}" Click="NavButton_Click">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="ChartBar" Width="20" Height="20" VerticalAlignment="Center"/>
-                            <TextBlock Text="Reports" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
                     <Separator Background="#FF3D3D3D" Margin="10,10" Height="1"/>
 
                     <!-- Infrastructure -->
-                    <Button x:Name="btnInfrastructure" Style="{StaticResource NavButtonStyle}" Click="NavButton_Click">
+                    <Button x:Name="btnInfrastructure" Style="{StaticResource NavButtonStyle}" Command="{Binding NavigateInfrastructureCommand}">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="Server" Width="20" Height="20" VerticalAlignment="Center"/>
                             <TextBlock Text="Infrastructure" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <!-- History -->
-                    <Button x:Name="btnHistory" Style="{StaticResource NavButtonStyle}" Click="NavButton_Click">
+                    <!-- Backup Repositories -->
+                    <Button x:Name="btnStorage" Style="{StaticResource NavButtonStyle}" Command="{Binding NavigateStorageCommand}">
                         <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="History" Width="20" Height="20" VerticalAlignment="Center"/>
-                            <TextBlock Text="History" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <materialDesign:PackIcon Kind="DatabaseOutline" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Backup Repositories" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Instant Recovery Sessions -->
+                    <Button x:Name="btnRecovery" Style="{StaticResource NavButtonStyle}" Command="{Binding NavigateRecoveryCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="LightningBolt" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Instant Recovery" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -179,81 +190,7 @@
 
             <!-- CONTENT AREA -->
             <Grid Grid.Column="1" Background="#FF1E1E1E">
-                <Grid x:Name="DashboardContent" Visibility="Visible">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- Dashboard Header -->
-                    <TextBlock Grid.Row="0" Text="Dashboard" FontSize="28" FontWeight="Bold" 
-                              Margin="30,20" Foreground="White"/>
-                    
-                    <!-- Dashboard Cards -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <Grid Margin="30,0,30,30">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Status Card -->
-                            <Border Grid.Column="0" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
-                                <StackPanel>
-                                    <TextBlock Text="System Status" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                    <TextBlock Text="All Systems Operational" FontSize="14" Foreground="#FF28A745" Margin="0,10,0,0"/>
-                                    <TextBlock Text="Active Jobs: 3" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                    <TextBlock Text="Storage Used: 69.7 GB" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Activity Card -->
-                            <Border Grid.Column="1" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
-                                <StackPanel>
-                                    <TextBlock Text="Recent Activity" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                    <ItemsControl Margin="0,10,0,0">
-                                        <TextBlock Text="● Daily Backup - Completed - 2h ago" FontSize="12" Foreground="#FFAAAAAA"/>
-                                        <TextBlock Text="● System Backup - Running - 45%" FontSize="12" Foreground="#FFFFA500" Margin="0,5,0,0"/>
-                                        <TextBlock Text="● Database Backup - Scheduled - 1h" FontSize="12" Foreground="#FF00A8E6" Margin="0,5,0,0"/>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Storage Card -->
-                            <Border Grid.Column="2" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock Text="Storage Overview" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                    <ProgressBar Value="69.7" Maximum="100" Height="20" Margin="0,10,0,0" Background="#FF3D3D3D" Foreground="#FF00A8E6"/>
-                                    <TextBlock Text="69.7 GB / 1 TB used (69.7%)" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                    <TextBlock Text="Compression: 3.2:1 | Dedup: 5.1:1" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Jobs Table -->
-                            <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#FF2D2D2D" CornerRadius="4" Padding="20">
-                                <StackPanel>
-                                    <TextBlock Text="Backup Jobs" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,15"/>
-                                    <DataGrid x:Name="dgJobs" AutoGenerateColumns="False" IsReadOnly="True" 
-                                             Background="Transparent" BorderThickness="0" HeadersVisibility="Column"
-                                             GridLinesVisibility="Horizontal">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
-                                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120"/>
-                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
-                                            <DataGridTextColumn Header="Last Run" Binding="{Binding LastRun}" Width="150"/>
-                                            <DataGridTextColumn Header="Next Run" Binding="{Binding NextRun}" Width="150"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </ScrollViewer>
-                </Grid>
+                <ContentControl Content="{Binding CurrentViewModel}" />
             </Grid>
         </Grid>
 

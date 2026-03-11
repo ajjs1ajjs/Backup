@@ -193,9 +193,9 @@ func (g *GCSProvider) ArchiveToColdline(ctx context.Context, key string) error {
 	obj := bucket.Object(key)
 
 	// Copy to same location with Coldline storage class
-	_, err := obj.CopyTo(ctx, obj, &storage.ObjectAttrs{
-		StorageClass: "COLDLINE",
-	})
+	copier := obj.CopierFrom(obj)
+	copier.StorageClass = "COLDLINE"
+	_, err := copier.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to archive to Coldline: %w", err)
 	}
@@ -211,9 +211,9 @@ func (g *GCSProvider) ArchiveToArchive(ctx context.Context, key string) error {
 	obj := bucket.Object(key)
 
 	// Copy to same location with Archive storage class
-	_, err := obj.CopyTo(ctx, obj, &storage.ObjectAttrs{
-		StorageClass: "ARCHIVE",
-	})
+	copier := obj.CopierFrom(obj)
+	copier.StorageClass = "ARCHIVE"
+	_, err := copier.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to archive to Archive: %w", err)
 	}
@@ -229,9 +229,9 @@ func (g *GCSProvider) RestoreFromArchive(ctx context.Context, key string) error 
 	obj := bucket.Object(key)
 
 	// Copy to same location with Standard storage class
-	_, err := obj.CopyTo(ctx, obj, &storage.ObjectAttrs{
-		StorageClass: "STANDARD",
-	})
+	copier := obj.CopierFrom(obj)
+	copier.StorageClass = "STANDARD"
+	_, err := copier.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to restore from Archive: %w", err)
 	}
@@ -301,16 +301,13 @@ func (g *GCSProvider) GenerateSignedURL(ctx context.Context, key string, method 
 		zap.String("method", method),
 		zap.Duration("expiry", expiry))
 
-	bucket := g.client.Bucket(g.bucketName)
-	obj := bucket.Object(key)
-
 	opts := &storage.SignedURLOptions{
 		Scheme:  storage.SigningSchemeV4,
 		Method:  method,
 		Expires: time.Now().Add(expiry),
 	}
 
-	url, err := obj.SignedURL(opts)
+	url, err := storage.SignedURL(g.bucketName, key, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %w", err)
 	}

@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"novabackup/internal/storage"
 )
 
 // S3Engine handles S3-compatible storage operations
@@ -377,4 +379,65 @@ func (e *S3Engine) Cleanup(ctx context.Context, olderThan time.Time) error {
 func (e *S3Engine) Close() error {
 	// S3 client doesn't need explicit cleanup
 	return nil
+}
+// Provider Implementation
+
+func (e *S3Engine) Store(ctx context.Context, key string, data io.Reader, size int64) error {
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(key),
+		Body:   data,
+	}
+	_, err := e.uploader.Upload(ctx, input)
+	return err
+}
+
+func (e *S3Engine) Retrieve(ctx context.Context, key string) (io.ReadCloser, error) {
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(key),
+	}
+	output, err := e.client.GetObject(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return output.Body, nil
+}
+
+func (e *S3Engine) Delete(ctx context.Context, key string) error {
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(key),
+	}
+	_, err := e.client.DeleteObject(ctx, input)
+	return err
+}
+
+func (e *S3Engine) Exists(ctx context.Context, key string) (bool, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(key),
+	}
+	_, err := e.client.HeadObject(ctx, input)
+	if err != nil {
+		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "404") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (e *S3Engine) GetStats(ctx context.Context) (*storage.Stats, error) {
+	info, err := e.GetStorageInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &storage.Stats{
+		TotalSize:   info.TotalSize,
+		UsedSize:    info.UsedSize,
+		ObjectCount: info.ObjectCount,
+		Bucket:      info.Bucket,
+		Provider:    "s3",
+	}, nil
 }
