@@ -206,10 +206,6 @@ func (v *VMwareInstantRecovery) registerVMFromDatastore(ctx context.Context, con
 		datacenter, _ = v.vmwareClient.GetFinder().Datacenter(ctx, "ha-datacenter")
 	}
 
-	// Get resource pool
-	// In production: pool, _ := finder.ResourcePool(ctx, config.ResourcePool)
-	_ = config.ResourcePool // Placeholder to avoid unused import
-
 	// Get host
 	host, err := v.vmwareClient.GetHost(ctx, config.TargetHost)
 	if err != nil {
@@ -220,6 +216,7 @@ func (v *VMwareInstantRecovery) registerVMFromDatastore(ctx context.Context, con
 	// In production:
 	// folder := datacenter.VmFolder(ctx)
 	// task, err := folder.RegisterVM(ctx, vmxPath, config.VMName, false, pool, host)
+	_ = host // host використовується в логуванні нижче
 
 	v.logger.Debug("VM registration parameters",
 		zap.String("vmx_path", vmxPath),
