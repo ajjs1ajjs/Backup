@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
 
 namespace NovaBackup.Desktop.Services
@@ -30,11 +31,18 @@ namespace NovaBackup.Desktop.Services
         {
             try
             {
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                var contentRoot = Path.GetDirectoryName(assembly.Location);
+                
                 _webHost = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
                         // Bind to all interfaces for remote access
                         webBuilder.UseUrls("http://0.0.0.0:8080");
+                        webBuilder.ConfigureServices(services =>
+                        {
+                            services.AddCors();
+                        });
                         webBuilder.Configure(app =>
                         {
                             app.UseRouting();
@@ -74,9 +82,25 @@ namespace NovaBackup.Desktop.Services
                             app.MapGet("/api/storage", GetStorage);
                             app.MapGet("/api/reports", GetReports);
                             
-                            // Static files for web UI
-                            app.UseStaticFiles();
-                            app.MapFallbackToFile("index.html");
+                            // Static files for web UI - use embedded resources
+                            app.UseStaticFiles(new StaticFileOptions
+                            {
+                                FileProvider = new EmbeddedFileProvider(assembly, "NovaBackup.Desktop.web-ui"),
+                                RequestPath = ""
+                            });
+                            
+                            // Fallback to index.html for SPA
+                            app.MapFallback(async context =>
+                            {
+                                context.Response.ContentType = "text/html";
+                                var indexStream = assembly.GetManifestResourceStream("NovaBackup.Desktop.web-ui.index.html");
+                                if (indexStream != null)
+                                {
+                                    using var reader = new StreamReader(indexStream);
+                                    var content = await reader.ReadToEndAsync();
+                                    await context.Response.WriteAsync(content);
+                                }
+                            });
                         });
                     })
                     .Build();

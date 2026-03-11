@@ -1,0 +1,103 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyTitle>NOVA Backup</AssemblyTitle>
+    <AssemblyDescription>Enterprise backup solution with all-in-one deployment</AssemblyDescription>
+    <AssemblyCompany>NOVA Backup</AssemblyCompany>
+    <AssemblyProduct>NOVA Backup</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2024 NOVA Backup</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationIcon>icons\NovaBackup.ico</ApplicationIcon>
+    <StartupObject>NovaBackup.Desktop.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    
+    <!-- Self-contained deployment settings -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    
+    <!-- Trim unused assemblies for smaller size -->
+    <PublishTrimmed>false</PublishTrimmed>
+    
+    <!-- Output settings -->
+    <OutputPath>bin\Release\net6.0-windows\win-x64\publish\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <TrimUnusedDependencies>true</TrimUnusedDependencies>
+  </PropertyGroup>
+
+  <!-- Include all necessary packages -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Management" Version="6.0.0" />
+  </ItemGroup>
+
+  <!-- Include all source files -->
+  <ItemGroup>
+    <Compile Include="Services\NovaBackupService.cs" />
+    <Compile Include="Services\SystemTrayManager.cs" />
+    <Compile Include="Services\WebApiService.cs" />
+    <Compile Include="Services\WindowsService.cs" />
+    <Compile Include="Controls\DashboardControl.cs" />
+    <Compile Include="Controls\BackupsControl.cs" />
+    <Compile Include="Controls\SchedulesControl.cs" />
+    <Compile Include="Controls\StorageControl.cs" />
+    <Compile Include="Controls\ReportsControl.cs" />
+    <Compile Include="Controls\SettingsControl.cs" />
+    <Compile Include="Forms\NewBackupForm.cs" />
+    <Compile Include="Forms\RestoreBackupForm.cs" />
+    <Compile Include="Forms\ServiceManagerForm.cs" />
+    <Compile Include="Forms\AboutForm.cs" />
+    <Compile Include="MainForm.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <!-- Embedded resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\NovaBackup.ico" />
+    <EmbeddedResource Include="Resources\app.ico" />
+    <EmbeddedResource Include="web-ui\**">
+      <LogicalName>web-ui/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Content files that will be included in the single file -->
+  <ItemGroup>
+    <Content Include="web-ui\**">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Manifest file -->
+  <ItemGroup>
+    <None Include="app.manifest" />
+    <None Include="README.md" />
+    <None Include="LICENSE" />
+  </ItemGroup>
+
+</Project>
