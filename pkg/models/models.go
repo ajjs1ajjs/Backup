@@ -11,6 +11,19 @@ func TimeNow() time.Time {
 	return time.Now()
 }
 
+// StorageInfo contains storage backend information
+type StorageInfo struct {
+	Type        string    `json:"type"`
+	TotalSize   int64     `json:"total_size"`
+	UsedSize    int64     `json:"used_size"`
+	FreeSize    int64     `json:"free_size"`
+	ObjectCount int64     `json:"object_count"`
+	Endpoint    string    `json:"endpoint"`
+	Bucket      string    `json:"bucket"`
+	Region      string    `json:"region"`
+	LastUpdated time.Time `json:"last_updated"`
+}
+
 type JobType string
 
 const (
@@ -63,6 +76,8 @@ type BackupConfig struct {
 	EncryptionKey []byte
 	ChunkSize     int64
 	BufferSize    int
+	ParallelJobs  int `json:"parallel_jobs"`
+	RetentionDays int `json:"retention_days"`
 }
 
 type RestoreConfig struct {

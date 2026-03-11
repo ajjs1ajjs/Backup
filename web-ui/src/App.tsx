@@ -68,7 +68,7 @@ const Navigation: React.FC = () => {
 };
 
 // Placeholder Components
-const Backups: React.FC = () => {
+const BackupsPage: React.FC = () => {
   return (
     <div className="page">
       <div className="page-header">
@@ -94,7 +94,7 @@ const Restore: React.FC = () => {
   );
 };
 
-const Storage: React.FC = () => {
+const StoragePage: React.FC = () => {
   return (
     <div className="page">
       <div className="page-header">
@@ -132,9 +132,9 @@ const App: React.FC = () => {
             <Route path="/jobs" element={<JobList />} />
             <Route path="/jobs/new" element={<JobForm />} />
             <Route path="/jobs/edit/:id" element={<JobForm />} />
-            <Route path="/backups" element={<Backups />} />
+            <Route path="/backups" element={<BackupsPage />} />
             <Route path="/restore" element={<Restore />} />
-            <Route path="/storage" element={<Storage />} />
+            <Route path="/storage" element={<StoragePage />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
