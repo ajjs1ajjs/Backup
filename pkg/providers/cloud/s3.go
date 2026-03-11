@@ -34,6 +34,15 @@ type S3Config struct {
 	UseSSL          bool
 }
 
+// BlobInfo contains information about a cloud storage object
+type BlobInfo struct {
+	Key          string
+	Size         int64
+	LastModified time.Time
+	ETag         string
+	StorageClass string
+}
+
 // NewS3Provider creates a new S3 provider
 func NewS3Provider(logger *zap.Logger, cfg *S3Config) (*S3Provider, error) {
 	ctx := context.Background()
