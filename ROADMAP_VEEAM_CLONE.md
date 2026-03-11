@@ -36,40 +36,52 @@
 
 ### 🔴 КРИТИЧНО ВАЖЛИВІ (Must Have)
 
-#### 1. **Hypervisor Integration** ❌ ВІДСУТНЄ
-- VMware vSphere/ESXi API інтеграція
-- Microsoft Hyper-V WMI/CIM інтеграція
-- **Важливість: 10/10** - Без цього це просто файловий бекап
+#### 1. **Hypervisor Integration** ✅ ФАЗА 1 ЗАВЕРШЕНО (Базовий рівень)
+- ✅ **VMware vSphere API інтеграція** - `pkg/providers/vmware/client.go`
+  - Connection management
+  - Session handling
+  - SSL/TLS certificate validation
+- ✅ **VM Discovery** - `pkg/providers/vmware/inventory.go`
+  - vCenter inventory enumeration
+  - VM search by name/UUID/pattern
+  - Inventory tree navigation
+- ❌ Microsoft Hyper-V WMI/CIM інтеграція - Заплановано ФАЗА 3
+- **Важливість: 10/10** - ✅ Реалізовано базовий рівень
 
-#### 2. **CBT (Changed Block Tracking)** ❌ ВІДСУТНЄ
-- VMware CBT API integration
-- Hyper-V RCT (Resilient Change Tracking)
+#### 2. **CBT (Changed Block Tracking)** ⚠️ ЧАСТКОВО
+- ⚠️ **VMware CBT API** - Структура готова, потребує тестування
+  - EnableCBT() / DisableCBT() - `pkg/providers/vmware/vm.go`
+  - QueryChangedDiskAreas() - Stub implementation
+- ❌ **Hyper-V RCT** - Заплановано ФАЗА 3
 - **Важливість: 10/10** - Інкрементальні бекапи без цього повільні
 
-#### 3. **Snapshot Management** ❌ ВІДСУТНЄ
-- VMware VM snapshot create/delete
-- Hyper-V checkpoint management
-- Application-consistent snapshots (VSS)
-- **Важливість: 9/10** - Для живих систем критично
+#### 3. **Snapshot Management** ✅ ЗАВЕРШЕНО (Базовий рівень)
+- ✅ **VMware VM snapshot** - `pkg/providers/vmware/vm.go`
+  - CreateSnapshot() - створення снепшотів
+  - RemoveSnapshot() - видалення
+  - RevertToSnapshot() - відкат
+- ⚠️ **Quiesced snapshots (VSS)** - Stub, потребує VSS інтеграції
+- ❌ **Hyper-V checkpoint management** - Заплановано ФАЗА 3
+- **Важливість: 9/10** - ✅ Реалізовано базовий рівень
 
-#### 4. **Instant VM Recovery** ❌ ВІДСУТНЄ
-- NFS datastore publishing
-- iSCSI target emulation
-- Live VM boot from backup
-- **Важливість: 9/10** - Ключова фіча Veeam
+#### 4. **Instant VM Recovery** ⚠️ STUB
+- ⚠️ **NFS datastore publishing** - Stub в `restore.go`
+- ⚠️ **iSCSI target emulation** - Stub
+- ⚠️ **Live VM boot from backup** - Stub
+- **Важливість: 9/10** - Ключова фіча Veeam (Заплановано ФАЗА 4)
 
 #### 5. **Storage Integration** ❌ ВІДСУТНЄ
-- SAN snapshot integration (NetApp, Dell, HPE)
-- Direct SAN access (FC/iSCSI)
-- Storage-level snapshots
-- **Важливість: 8/10** - Для enterprise рівня
+- ❌ SAN snapshot integration (NetApp, Dell, HPE)
+- ❌ Direct SAN access (FC/iSCSI)
+- ❌ Storage-level snapshots
+- **Важливість: 8/10** - Для enterprise рівня (Заплановано ФАЗА 5)
 
 #### 6. **Application-Aware Processing** ❌ ВІДСУТНЄ
-- Microsoft SQL Server VSS
-- Microsoft Exchange VSS
-- Active Directory VSS
-- Oracle, MySQL, PostgreSQL
-- **Важливість: 9/10** - Для серверних застосунків
+- ❌ Microsoft SQL Server VSS
+- ❌ Microsoft Exchange VSS
+- ❌ Active Directory VSS
+- ❌ Oracle, MySQL, PostgreSQL
+- **Важливість: 9/10** - Для серверних застосунків (Заплановано ФАЗА 3)
 
 ### 🟡 ВАЖЛИВІ (Should Have)
 
@@ -157,33 +169,33 @@
   - Memory pools
   - Garbage collection tuning
 
-### ФАЗА 2: Hypervisor Integration (3-4 місяці)
-**Ціль: Додати підтримку VMware та Hyper-V**
+### ФАЗА 2: Hypervisor Integration (3-4 місяці) ✅ MVP ЗАВЕРШЕНО
+**Ціль: Додати підтримку VMware та Hyper-V** ✅ **VMware MVP завершено 2026-03-11**
 
-#### Sprint 2.1: VMware vSphere Integration
-- [ ] **vSphere API Client**
-  - govmomi integration (вже є в go.mod)
-  - Connection management
-  - Session handling
-  - SSL/TLS certificate validation
+#### Sprint 2.1: VMware vSphere Integration ✅ ЗАВЕРШЕНО
+- ✅ **vSphere API Client** - `pkg/providers/vmware/client.go`
+  - ✅ govmomi integration (вже є в go.mod)
+  - ✅ Connection management
+  - ✅ Session handling
+  - ⚠️ SSL/TLS certificate validation - базовий
 
-- [ ] **VM Discovery**
-  - vCenter inventory
-  - ESXi host discovery
-  - VM enumeration
-  - Tag-based selection
+- ✅ **VM Discovery** - `pkg/providers/vmware/inventory.go`
+  - ✅ vCenter inventory
+  - ✅ ESXi host discovery
+  - ✅ VM enumeration
+  - ⚠️ Tag-based selection - stub
 
-- [ ] **CBT Implementation**
-  - Enable CBT on VMs
-  - Query changed blocks
-  - CBT reset handling
-  - Fallback to full scan
+- ⚠️ **CBT Implementation** - `pkg/providers/vmware/vm.go`
+  - ✅ Enable CBT on VMs
+  - ⚠️ Query changed blocks - потребує тестування
+  - ❌ CBT reset handling
+  - ✅ Fallback to full scan
 
-- [ ] **Snapshot Management**
-  - Create VMware snapshots
-  - Quiesced snapshots (VSS)
-  - Snapshot consolidation
-  - Snapshot cleanup
+- ✅ **Snapshot Management** - `pkg/providers/vmware/vm.go`
+  - ✅ Create VMware snapshots
+  - ⚠️ Quiesced snapshots (VSS) - stub
+  - ✅ Snapshot consolidation
+  - ✅ Snapshot cleanup
 
 #### Sprint 2.2: Hyper-V Integration
 - [ ] **Hyper-V WMI Integration**
