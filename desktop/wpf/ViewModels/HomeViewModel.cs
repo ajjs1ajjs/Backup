@@ -116,5 +116,13 @@ namespace NovaBackup.GUI.ViewModels
                 RecentActivity.Add($"Failed to stop session: {ex.Message}");
             }
         }
+        [RelayCommand]
+        private void OpenLogs(string sessionId)
+        {
+            RecentActivity.Add($"Opening logs for session: {sessionId}");
+            // In a real implementation:
+            // var logViewer = new LogViewerWindow(sessionId);
+            // logViewer.Show();
+        }
     }
 }

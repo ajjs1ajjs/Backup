@@ -15,9 +15,11 @@ type ReadDiskArgs struct {
 }
 
 type ReadDiskReply struct {
-	Data   []byte
-	EOF    bool
-	Err    string
+	Data     []byte
+	Hash     string
+	DataSent bool
+	EOF      bool
+	Err      string
 }
 
 type WriteChunkArgs struct {
@@ -39,12 +41,13 @@ type SystemInfoReply struct {
 
 // Service defines the RPC service export
 type Service struct {
-	ctx context.Context
-	dm  DataMover
+	ctx    context.Context
+	dm     DataMover
+	dedupe *Deduplicator
 }
 
-func NewService(ctx context.Context, dm DataMover) *Service {
-	return &Service{ctx: ctx, dm: dm}
+func NewService(ctx context.Context, dm DataMover, dedupe *Deduplicator) *Service {
+	return &Service{ctx: ctx, dm: dm, dedupe: dedupe}
 }
 
 func (s *Service) GetSystemInfo(args *SystemInfoArgs, reply *SystemInfoReply) error {
@@ -86,8 +89,35 @@ func (s *Service) ReadDisk(args *ReadDiskArgs, reply *ReadDiskReply) error {
 	}
 
 	reply.Data = data[:n]
+	
+	// Deduplication logic
+	hash, isNew := s.dedupe.CheckAndHash(reply.Data)
+	reply.Hash = hash
+	if isNew {
+		reply.DataSent = true
+		s.dedupe.MarkAsTransfered(hash)
+	} else {
+		reply.DataSent = false
+		reply.Data = nil // Don't send data if it's already known
+	}
+
 	if err == io.EOF || int64(n) < args.Size {
 		reply.EOF = true
+	}
+	return nil
+}
+
+func (s *Service) ResetSession(args *string, reply *bool) error {
+	s.dedupe.ClearSession()
+	*reply = true
+	return nil
+}
+
+func (s *Service) Ping(args *string, reply *bool) error {
+	*reply = true
+	err := s.dm.Ping(s.ctx)
+	if err != nil {
+		return err
 	}
 	return nil
 }

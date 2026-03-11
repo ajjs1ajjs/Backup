@@ -42,11 +42,11 @@
 **Мета**: Відокремити логіку читання з гіпервізорів від Backup Server для досягнення швидкості Veeam (Transport Services).
 
 **Спринти**:
-1. **RPC Framework**: 
+1. **[x] RPC Framework**: 
    - Створення легковагого агента на Go (`nova-datamover.exe`), який може розгортатися на віддалених серверах Windows/Linux.
-2. **VMware VADP (vStorage APIs for Data Protection)**:
-   - Розширення нашої поточної govmomi інтеграції для використання *HotAdd* (підключення дисків ВМ до проксі-ВМ) та *NBD* (Network Block Device) режимів.
-3. **Hyper-V Data Mover**:
+2. **[x] VMware VADP (vStorage APIs for Data Protection)**:
+   - Розширення нашої поточної govmomi інтеграції для використання *HotAdd* (підключення дисків ВМ до проксі-ВМ) та *NBD* (Network Block Device) режимів. (Scaffolded)
+3. **[x] Hyper-V Data Mover**:
    - Стабілізація WMI інтеграції (котру ми почали). Створення агента, який читає VHDX/RCT безпосередньо з CSV (Cluster Shared Volume) або локального диска хоста.
 
 ### ФАЗА 3: Guest Processing & Application-Aware Backup

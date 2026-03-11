@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"net/rpc"
 	"os"
@@ -47,9 +46,10 @@ func main() {
 		cancel()
 	}()
 
-	// Initialize DataMover implementation (mock for now)
-	dm := &mockDataMover{logger: logger}
-	service := datamover.NewService(ctx, dm)
+	// Initialize DataMover implementation
+	dm := datamover.NewDiskReader()
+	dedupe := datamover.NewDeduplicator()
+	service := datamover.NewService(ctx, dm, dedupe)
 	
 	rpc.Register(service)
 
@@ -73,25 +73,4 @@ func main() {
 
 	<-ctx.Done()
 	logger.Info("Datamover exited")
-}
-
-type mockDataMover struct {
-	logger *zap.Logger
-}
-
-func (m *mockDataMover) ReadDisk(ctx context.Context, sourceURI string, offset int64, size int64) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockDataMover) WriteChunk(ctx context.Context, chunkID string, data io.Reader) error {
-	return nil
-}
-
-func (m *mockDataMover) GetSystemInfo(ctx context.Context) (*datamover.SystemInfo, error) {
-	hostname, _ := os.Hostname()
-	return &datamover.SystemInfo{
-		Hostname: hostname,
-		OS:       "windows", // Hardcoded for now
-		Arch:     "amd64",
-	}, nil
 }

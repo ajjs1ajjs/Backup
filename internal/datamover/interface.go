@@ -15,6 +15,7 @@ type DataMover interface {
 	
 	// GetSystemInfo returns hardware and OS info for optimization
 	GetSystemInfo(ctx context.Context) (*SystemInfo, error)
+	Ping(ctx context.Context) error
 }
 
 type SystemInfo struct {
