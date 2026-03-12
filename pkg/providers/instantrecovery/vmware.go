@@ -4,6 +4,8 @@ package instantrecovery
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -29,7 +31,8 @@ type VMwareClientInterface interface {
 type VMwareFinder interface {
 	Datacenter(ctx context.Context, path string) (*object.Datacenter, error)
 	Datastore(ctx context.Context, path string) (*object.Datastore, error)
-	Host(ctx context.Context, path string) (*object.HostSystem, error)
+	HostSystem(ctx context.Context, path string) (*object.HostSystem, error)
+	VirtualMachine(ctx context.Context, path string) (*object.VirtualMachine, error)
 }
 
 // NewVMwareInstantRecovery creates a new VMware instant recovery manager
@@ -160,9 +163,15 @@ func (v *VMwareInstantRecovery) mountNFSDatastore(ctx context.Context, hostName,
 	}
 
 	// For NFS, the remote host is typically the machine running NovaBackup
-	// In this context, we assume the machine's IP is reachable by ESXi
+	// Use helper to detect reachable IP
+	localIP, err := v.getReachableLocalIP(hostName)
+	if err != nil {
+		v.logger.Warn("Failed to detect reachable local IP, falling back to 127.0.0.1 (likely to fail)", zap.Error(err))
+		localIP = "127.0.0.1"
+	}
+
 	spec := types.HostNasVolumeSpec{
-		RemoteHost: "127.0.0.1", // TODO: Get actual local IP reachable by ESXi
+		RemoteHost: localIP,
 		RemotePath: nfsPath,
 		LocalPath:  datastoreName,
 		AccessMode: string(types.HostMountModeReadOnly),
@@ -175,6 +184,25 @@ func (v *VMwareInstantRecovery) mountNFSDatastore(ctx context.Context, hostName,
 	}
 
 	return nil
+}
+
+// getReachableLocalIP attempts to find a local IP that can reach the target host
+func (v *VMwareInstantRecovery) getReachableLocalIP(targetHost string) (string, error) {
+	// Try to resolve targetHost to IP if it's a hostname
+	addrs, err := net.LookupIP(targetHost)
+	if err != nil || len(addrs) == 0 {
+		return "", fmt.Errorf("could not resolve host %s: %v", targetHost, err)
+	}
+
+	// Use the first resolved IP to establish a "dummy" connection to detect local address
+	conn, err := net.DialTimeout("udp", net.JoinHostPort(addrs[0].String(), "1"), 2*time.Second)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
 }
 
 // unmountNFSDatastore removes NFS datastore from host
@@ -240,11 +268,19 @@ func (v *VMwareInstantRecovery) registerVMFromDatastore(ctx context.Context, con
 func (v *VMwareInstantRecovery) powerOnVM(ctx context.Context, vmRef string) error {
 	v.logger.Info("Powering on VM", zap.String("vm", vmRef))
 
-	// In production:
-	// vm := object.NewVirtualMachine(client, vmRef)
-	// task, err := vm.PowerOn(ctx)
+	// Find VM by path (vmRef is currently vmxPath from registration)
+	finder := v.vmwareClient.GetFinder()
+	vm, err := finder.VirtualMachine(ctx, vmRef)
+	if err != nil {
+		return fmt.Errorf("failed to find VM %s: %w", vmRef, err)
+	}
 
-	return nil
+	task, err := vm.PowerOn(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to trigger power on: %w", err)
+	}
+
+	return task.Wait(ctx)
 }
 
 // StopInstantRecovery stops instant recovery and cleans up
@@ -284,17 +320,55 @@ func (v *VMwareInstantRecovery) ListActiveSessions() []*InstantRecoverySession {
 	return v.nfsManager.ListSessions()
 }
 
-// MigrateToProduction migrates instantly recovered VM to production storage
+// MigrateToProduction migrates instantly recovered VM to production storage using Storage vMotion
 func (v *VMwareInstantRecovery) MigrateToProduction(ctx context.Context, sessionID string, targetDatastore string) error {
-	v.logger.Info("Migrating VM to production",
+	v.logger.Info("Migrating VM to production (Storage vMotion)",
 		zap.String("session", sessionID),
 		zap.String("target_datastore", targetDatastore))
 
-	// This would perform Storage vMotion to move VM from NFS to production storage
-	// 1. Get VM reference from session
-	// 2. Initiate Storage vMotion
-	// 3. Update VM configuration
-	// 4. Unmount NFS datastore after successful migration
+	// 1. Get session info
+	session, err := v.nfsManager.GetSession(sessionID)
+	if err != nil {
+		return err
+	}
 
+	// 2. Find VM
+	finder := v.vmwareClient.GetFinder()
+	// session.VMName is used as the key in registerVMFromDatastore
+	// Assuming VM is reachable by just name if uniquely registered
+	vm, err := finder.VirtualMachine(ctx, session.VMName)
+	if err != nil {
+		// Fallback to searching by path if stored in session metadata (to be added)
+		return fmt.Errorf("failed to find VM for migration: %w", err)
+	}
+
+	// 3. Find target datastore
+	ds, err := finder.Datastore(ctx, targetDatastore)
+	if err != nil {
+		return fmt.Errorf("target datastore %s not found: %w", targetDatastore, err)
+	}
+
+	// 4. Create relocation spec for Storage vMotion
+	spec := types.VirtualMachineRelocateSpec{
+		Datastore: types.NewReference(ds.Reference()),
+	}
+
+	// 5. Initiate RelocateVM_Task
+	v.logger.Info("Initiating Storage vMotion task", zap.String("vm", vm.Name()), zap.String("ds", targetDatastore))
+	task, err := vm.Relocate(ctx, spec, types.VirtualMachineMovePriorityDefaultPriority)
+	if err != nil {
+		return fmt.Errorf("failed to initiate Storage vMotion: %w", err)
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("Storage vMotion task failed: %w", err)
+	}
+
+	v.logger.Info("Storage vMotion completed successfully", zap.String("vm", session.VMName))
+
+	// 6. Cleanup NFS (optional: should we do it automatically? Veeam typically asks)
+	// For now, satisfy the "Advanced Restore" goal by completing the move.
+	
 	return nil
 }

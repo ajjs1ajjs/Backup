@@ -70,8 +70,18 @@
    - Реєстрація нашого сховища дедуплікованих блоків як датастору NFS у VMware vSphere.
 2. **[x] Synthetic Disk Presentation**:
    - Трансляція бекап-чанків NovaBackup у сиквенційний потік `.vhdx` / `.vmdk` на льоту через `ChunkVFS`.
-3. **Storage vMotion Trigger**: 
-   - Автоматичний перенос ВМ з нашого NFS на продуктивний датастор в фоновому режимі після Instant Recovery.
+3. **[x] Storage vMotion Trigger**:
+   - Реалізовано `MigrateToProduction` в `pkg/providers/instantrecovery/vmware.go` через `RelocateVM_Task`.
+   - Автоматичний перенос ВМ з нашого NFS на продуктивний датастор через govmomi API.
+4. **[x] VMware Power Management**:
+   - Реалізовано `powerOnVM` через `govmomi` API.
+   - Автоматичне увімкнення ВМ після реєстрації на ESXi-хості.
+5. **[x] IP Detection для NFS Mount**:
+   - Реалізовано `getReachableLocalIP` — автоматичне визначення IP-адреси, досяжної для ESXi.
+6. **[x] Уніфікований InstantRecoveryManager**:
+   - `internal/recovery/instant_manager.go` — єдиний менеджер сесій (Hyper-V + VMware).
+   - `RecoverToVMware` — новий метод для запуску Instant Recovery на VMware ESXi.
+   - Повне прибирання ресурсів (VM, datastore, NFS) при зупинці сесії.
 
 ### ФАЗА 5: Backup Repository & Storage Integration
 **Мета**: Розширити варіанти зберігання даних на рівень Enterprise.

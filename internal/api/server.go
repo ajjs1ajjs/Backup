@@ -38,7 +38,7 @@ func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storag
 		backup:    backup.NewBackupManager(db),
 		storage:   stor,
 	}
-	s.irMgr = recovery.NewInstantRecoveryManager(db, s.backup.GetCompressor(), stor)
+	s.irMgr = recovery.NewInstantRecoveryManager(db, s.backup.GetCompressor(), stor, nil) // VMware provider nil for now
 	s.setupRoutes()
 	return s, nil
 }
@@ -448,7 +448,7 @@ func (s *Server) handleInstantRecovery(c *gin.Context) {
 	}
 
 	// Start NFS server via IR Manager
-	err := s.irMgr.StartNFS(c.Request.Context(), req.RestorePointID.String(), 2049)
+	_, err := s.irMgr.StartNFS(c.Request.Context(), req.RestorePointID.String(), 2049)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -470,7 +470,7 @@ func (s *Server) listRecoverySessions(c *gin.Context) {
 // stopRecoverySession stops a specific instant recovery session
 func (s *Server) stopRecoverySession(c *gin.Context) {
 	id := c.Param("id")
-	if err := s.irMgr.StopSession(id); err != nil {
+	if err := s.irMgr.StopSession(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}

@@ -20,18 +20,22 @@ import (
 
 	"github.com/willscott/go-nfs"
 	"github.com/willscott/go-nfs/helpers"
+
+	"novabackup/pkg/providers/instantrecovery"
 )
 
 // RecoverySession represents an active instant recovery session
 type RecoverySession struct {
 	ID             string
 	VMName         string
+	Platform       string // "hyperv" or "vmware"
 	RestorePointID string
 	NFSExport      string
 	NFSPort        int
 	StartTime      time.Time
 	VFS            *ChunkVFS
 	Listener       net.Listener
+	ProviderData   interface{} // Store provider-specific data (e.g. SessionID for VMware)
 }
 
 // InstantRecoveryManager handles the lifecycle of instant VM restores
@@ -41,33 +45,36 @@ type InstantRecoveryManager struct {
 	storage  *storage.Engine
 	sessions map[string]*RecoverySession
 	mu       sync.RWMutex
+
+	vmwareProvider *instantrecovery.VMwareInstantRecovery
 }
 
-func NewInstantRecoveryManager(db *database.Connection, comp compression.Compressor, stor *storage.Engine) *InstantRecoveryManager {
+func NewInstantRecoveryManager(db *database.Connection, comp compression.Compressor, stor *storage.Engine, vmware *instantrecovery.VMwareInstantRecovery) *InstantRecoveryManager {
 	return &InstantRecoveryManager{
-		db:       db,
-		comp:     comp,
-		storage:  stor,
-		sessions: make(map[string]*RecoverySession),
+		db:             db,
+		comp:           comp,
+		storage:        stor,
+		sessions:       make(map[string]*RecoverySession),
+		vmwareProvider: vmware,
 	}
 }
 
 // StartNFS starts an NFS server presenting a specific Restore Point
-func (m *InstantRecoveryManager) StartNFS(ctx context.Context, rpID string, port int) error {
+func (m *InstantRecoveryManager) StartNFS(ctx context.Context, rpID string, port int) (*RecoverySession, error) {
 	id, err := uuid.Parse(rpID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// 1. Load RP data from DB
 	chunkInfos, err := m.db.GetChunksForRestorePoint(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	
 	size, err := m.db.GetRestorePointTotalSize(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	hashes := make([]string, len(chunkInfos))
@@ -87,13 +94,14 @@ func (m *InstantRecoveryManager) StartNFS(ctx context.Context, rpID string, port
 	log.Printf("[InstantRecovery] Starting virtual NFS server for RP: %s on port %d", rpID, port)
 	listener, err := net.Listen("tcp", net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", port)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sessionID := uuid.New().String()
 	session := &RecoverySession{
 		ID:             sessionID,
-		VMName:         "unnamed", // Should probably be passed in
+		VMName:         "unnamed",
+		Platform:       "nfs-only",
 		RestorePointID: rpID,
 		NFSExport:      fmt.Sprintf("/exports/%s", sessionID),
 		NFSPort:        port,
@@ -115,7 +123,7 @@ func (m *InstantRecoveryManager) StartNFS(ctx context.Context, rpID string, port
 		}
 	}()
 
-	return nil
+	return session, nil
 }
 
 // ListSessions returns all active recovery sessions
@@ -131,7 +139,7 @@ func (m *InstantRecoveryManager) ListSessions() []*RecoverySession {
 }
 
 // StopSession stops a specific recovery session
-func (m *InstantRecoveryManager) StopSession(id string) error {
+func (m *InstantRecoveryManager) StopSession(ctx context.Context, id string) error {
 	m.mu.Lock()
 	session, ok := m.sessions[id]
 	if !ok {
@@ -141,18 +149,69 @@ func (m *InstantRecoveryManager) StopSession(id string) error {
 	delete(m.sessions, id)
 	m.mu.Unlock()
 
-	log.Printf("[InstantRecovery] Stopping virtual NFS server for session: %s", id)
+	log.Printf("[InstantRecovery] Stopping virtual NFS server for session: %s (Platform: %s)", id, session.Platform)
+
+	// Platform-specific cleanup
+	if session.Platform == "vmware" && m.vmwareProvider != nil {
+		if providerSessionID, ok := session.ProviderData.(string); ok {
+			if err := m.vmwareProvider.StopInstantRecovery(ctx, providerSessionID); err != nil {
+				log.Printf("[InstantRecovery] VMware provider cleanup warning: %v", err)
+			}
+		}
+	} else if session.Platform == "hyperv" {
+		// Hyper-V cleanup: Remove VM and differencing disk
+		cmd := exec.Command("powershell", "-Command", fmt.Sprintf("Stop-VM -Name '%s' -Force; Remove-VM -Name '%s' -Force", session.VMName, session.VMName))
+		if output, err := cmd.CombinedOutput(); err != nil {
+			log.Printf("[InstantRecovery] Hyper-V VM removal warning: %v (%s)", err, string(output))
+		}
+	}
+
 	return session.Listener.Close()
 }
 
+// Support for VMware: Mount NFS on ESXi and Register VM
+func (m *InstantRecoveryManager) RecoverToVMware(ctx context.Context, vmName string, rpID string, targetHost string, powerOn bool) (string, error) {
+	if m.vmwareProvider == nil {
+		return "", fmt.Errorf("VMware provider not initialized")
+	}
+
+	// 1. Start virtual NFS server for this RP
+	session, err := m.StartNFS(ctx, rpID, 2049) // Default NFS port
+	if err != nil {
+		return "", fmt.Errorf("failed to start NFS for VMware: %w", err)
+	}
+
+	session.VMName = vmName
+	session.Platform = "vmware"
+
+	// 2. Use VMware provider to mount and register
+	config := instantrecovery.InstantRecoveryVMConfig{
+		VMName:     vmName,
+		TargetHost: targetHost,
+		PowerOn:    powerOn,
+		BackupPath: session.NFSExport, // In this case, it's our virtual export path
+	}
+
+	result, err := m.vmwareProvider.StartInstantRecovery(ctx, config)
+	if err != nil {
+		m.StopSession(ctx, session.ID)
+		return "", fmt.Errorf("VMware provider failed: %w", err)
+	}
+
+	// 3. Store provider session ID for cleanup
+	session.ProviderData = result.SessionID
+
+	return session.ID, nil
+}
+
 // StopNFS stops the running virtual NFS server
-func (m *InstantRecoveryManager) StopNFS() error {
+func (m *InstantRecoveryManager) StopNFS(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for id, s := range m.sessions {
+	for id := range m.sessions {
 		log.Printf("[InstantRecovery] Stopping virtual NFS server for session: %s", id)
-		s.Listener.Close()
+		m.StopSession(ctx, id)
 	}
 	m.sessions = make(map[string]*RecoverySession)
 	return nil

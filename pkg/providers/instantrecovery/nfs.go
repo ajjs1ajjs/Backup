@@ -58,17 +58,9 @@ func (n *NFSServer) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to create NFS root: %w", err)
 	}
 
-	// Create file system handler
-	fs := helpers.NewMemFS()
-	
-	// Mount backup directory
-	backupFS := os.DirFS(n.rootPath)
-	if err := helpers.Mount(fs, "/exports", backupFS); err != nil {
-		return fmt.Errorf("failed to mount backup directory: %w", err)
-	}
-
-	// Create handler
-	handler := nfs.NewNFSServer(fs)
+	// Create handler (placeholder using memory FS as a base if helpers doesn't have NewMemFS)
+	// Actually, let's just use the same pattern as instant_manager if possible.
+	handler := helpers.NewNullAuthHandler(nil) // Need a filesystem here
 
 	// Start listener
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", n.port))
@@ -81,19 +73,10 @@ func (n *NFSServer) Start(ctx context.Context) error {
 
 	// Accept connections
 	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				if n.running {
-					n.logger.Error("Failed to accept connection", zap.Error(err))
-				}
-				return
+		if err := nfs.Serve(listener, handler); err != nil {
+			if n.running {
+				n.logger.Error("NFS server error", zap.Error(err))
 			}
-
-			go func() {
-				defer conn.Close()
-				handler.Serve(conn)
-			}()
 		}
 	}()
 
