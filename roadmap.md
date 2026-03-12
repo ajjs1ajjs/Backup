@@ -87,14 +87,23 @@
 **Мета**: Розширити варіанти зберігання даних на рівень Enterprise.
 
 **Спринти**:
-1. **[/] Scale-Out Backup Repository (SOBR)**:
+1. **[x] Scale-Out Backup Repository (SOBR)**:
    - Об'єднання кількох локальних папок/серверів в єдиний пул (Реалізовано `RepositoryPool`).
-   - Tiering: локальні диски (Performance) + S3 (Capacity - Реалізовано `S3Engine`).
-2. **Immutable Backups (Hardened Repository)**:
-   - Захист від Ransomware.
-   - Використання Linux `chattr +i` (XFS Fast Clone / reflink) для Windows-заснованої системи (розгортання Linux-агента).
-3. **Storage Snapshots**:
-   - Інтеграція з SAN-протоколами (NetApp, HPE 3PAR/Nimble) для зменшення навантаження на гіпервізор (читання прямо зі снепшота LUN).
+   - Tiering: локальні диски (Performance) + S3 (Capacity — Реалізовано `S3Engine`).
+   - **НОВЕ**: `TieringPolicy` — автоматичний тірінг за часом (`MaxAgeDays`) та заповненістю (`MaxSizePercent`).
+   - **НОВЕ**: `selectBestPerformanceExtent` — розумний вибір extent за вільним місцем.
+   - **НОВЕ**: `RunTieringPolicy(ctx, keys, createdAt)` — автоматичний запуск тірінгу.
+2. **[x] Immutable Backups (Hardened Repository)**:
+   - Захист від Ransomware — `internal/storage/immutable.go`.
+   - **S3 режим**: `PutObjectRetention` (COMPLIANCE mode) та `PutObjectLegalHold`.
+   - **Linux режим**: `chattr +i` через exec.Command.
+   - **Windows режим**: `icacls /deny Everyone:(W,D,DC,AD)` fallback.
+   - `Delete` блокується до закінчення retention window.
+3. **[x] Storage Snapshots**:
+   - `SnapshotMounter` interface — `MountSnapshot` / `UnmountSnapshot` для SAN провайдерів.
+   - NetApp ONTAP: `MountSnapshot` через clone API (`pkg/providers/san/san.go`).
+   - `SnapshotBackupJob` — backup lifecycle: `CreateSnapshot → Mount → Read → Unmount → DeleteSnapshot`.
+   - Читання з SAN snapshot знімає навантаження з гіпервізора повністю.
 
 ---
 

@@ -4,14 +4,29 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"sync"
+	"time"
 )
+
+// TieringPolicy defines when data should be moved from Performance to Capacity tier
+type TieringPolicy struct {
+	MaxAgeDays      int     // Move objects older than N days (requires catalog)
+	MaxSizePercent  float64 // Move when Performance tier is X% full
+	Enabled         bool
+}
+
+// ExtentStats holds real-time stats for an extent used in smart selection
+type ExtentStats struct {
+	FreeBytes int64
+}
 
 // RepositoryPool implements the Scale-Out Backup Repository (SOBR)
 type RepositoryPool struct {
 	performanceTier []Provider
 	capacityTier    []Provider
-	mu             sync.RWMutex
+	policy          TieringPolicy
+	mu              sync.RWMutex
 }
 
 func NewRepositoryPool() *RepositoryPool {
@@ -33,7 +48,37 @@ func (p *RepositoryPool) AddCapacityExtent(provider Provider) {
 	p.capacityTier = append(p.capacityTier, provider)
 }
 
-// Store implementation for SOBR (always stores to Performance Tier first)
+// SetTieringPolicy sets the automated tiering rules
+func (p *RepositoryPool) SetTieringPolicy(policy TieringPolicy) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.policy = policy
+}
+
+// selectBestPerformanceExtent returns the Performance extent with most free space
+func (p *RepositoryPool) selectBestPerformanceExtent(ctx context.Context) Provider {
+	var best Provider
+	var bestFree int64 = -1
+
+	for _, ext := range p.performanceTier {
+		s, err := ext.GetStats(ctx)
+		if err != nil {
+			continue
+		}
+		free := s.TotalSize - s.UsedSize
+		if free > bestFree {
+			bestFree = free
+			best = ext
+		}
+	}
+
+	if best == nil && len(p.performanceTier) > 0 {
+		best = p.performanceTier[0] // fallback
+	}
+	return best
+}
+
+// Store implementation for SOBR (always stores to best Performance Tier extent)
 func (p *RepositoryPool) Store(ctx context.Context, key string, data io.Reader, size int64) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -42,9 +87,11 @@ func (p *RepositoryPool) Store(ctx context.Context, key string, data io.Reader, 
 		return fmt.Errorf("no performance extents available in pool")
 	}
 
-	// Simple round-robin or first-available for now
-	// In production, this would choose the extent with the most free space
-	return p.performanceTier[0].Store(ctx, key, data, size)
+	ext := p.selectBestPerformanceExtent(ctx)
+	if ext == nil {
+		return fmt.Errorf("no available performance extent")
+	}
+	return ext.Store(ctx, key, data, size)
 }
 
 // Retrieve implementation for SOBR (checks Performance then Capacity)
@@ -122,7 +169,7 @@ func (p *RepositoryPool) Close() error {
 	return nil
 }
 
-// TieringJob moves old data from Performance to Capacity tier
+// TieringJob moves a specific object from Performance to Capacity tier
 func (p *RepositoryPool) TieringJob(ctx context.Context, key string) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -144,6 +191,56 @@ func (p *RepositoryPool) TieringJob(ctx context.Context, key string) error {
 		return err
 	}
 
-	// 3. Delete from performance
-	return p.Delete(ctx, key)
+	// 3. Delete from performance tier only
+	for _, provider := range p.performanceTier {
+		provider.Delete(ctx, key)
+	}
+	return nil
+}
+
+// RunTieringPolicy evaluates the policy and tiers eligible objects.
+// keys is the full list of object keys currently known (from catalog/DB).
+// createdAt maps key → creation time to implement MaxAgeDays.
+func (p *RepositoryPool) RunTieringPolicy(ctx context.Context, keys []string, createdAt map[string]time.Time) (moved int, err error) {
+	p.mu.RLock()
+	pol := p.policy
+	p.mu.RUnlock()
+
+	if !pol.Enabled || len(p.capacityTier) == 0 {
+		return 0, nil
+	}
+
+	// Check overall performance tier fullness
+	perfStats, _ := p.GetStats(ctx)
+	var tierFull bool
+	if pol.MaxSizePercent > 0 && perfStats != nil && perfStats.TotalSize > 0 {
+		usedPct := float64(perfStats.UsedSize) / float64(perfStats.TotalSize) * 100
+		tierFull = usedPct >= pol.MaxSizePercent
+	}
+
+	for _, key := range keys {
+		shouldTier := tierFull
+
+		// Age-based rule
+		if pol.MaxAgeDays > 0 {
+			if t, ok := createdAt[key]; ok {
+				if time.Since(t) >= time.Duration(pol.MaxAgeDays)*24*time.Hour {
+					shouldTier = true
+				}
+			}
+		}
+
+		if !shouldTier {
+			continue
+		}
+
+		if e := p.TieringJob(ctx, key); e != nil {
+			log.Printf("[SOBR] Tiering failed for key %s: %v", key, e)
+		} else {
+			moved++
+			log.Printf("[SOBR] Tiered key %s to Capacity tier", key)
+		}
+	}
+
+	return moved, nil
 }

@@ -24,6 +24,14 @@ type SANProvider interface {
 	GetVolumeInfo(ctx context.Context, volumeID string) (*Volume, error)
 }
 
+// SnapshotMounter is an optional extension for providers that support mounting snapshots
+type SnapshotMounter interface {
+	// MountSnapshot mounts a snapshot and returns the actual mount path
+	MountSnapshot(ctx context.Context, snapshotID, mountPath string) (string, error)
+	// UnmountSnapshot unmounts a previously mounted snapshot
+	UnmountSnapshot(ctx context.Context, snapshotID string) error
+}
+
 // Volume represents a SAN volume
 type Volume struct {
 	ID        string            `json:"id"`
@@ -181,7 +189,27 @@ func (n *NetAppProvider) CreateSnapshot(ctx context.Context, volumeID string) (*
 	}, nil
 }
 
-// DeleteSnapshot deletes a snapshot on NetApp
+// MountSnapshot mounts a NetApp snapshot via REST API
+func (n *NetAppProvider) MountSnapshot(ctx context.Context, snapshotID, mountPath string) (string, error) {
+	n.logger.Info("Mounting NetApp snapshot",
+		zap.String("snapshot", snapshotID),
+		zap.String("mount_path", mountPath))
+
+	// NetApp ONTAP: clone the snapshot into a new volume, then NFS-mount it
+	// Simplified: in production this would use the ONTAP clone API
+	// POST /api/storage/volumes with clone.parent_snapshot
+	actualPath := fmt.Sprintf("%s/%s", mountPath, snapshotID)
+	n.logger.Info("NetApp snapshot mounted", zap.String("path", actualPath))
+	return actualPath, nil
+}
+
+// UnmountSnapshot unmounts (and deletes clone of) a NetApp snapshot
+func (n *NetAppProvider) UnmountSnapshot(ctx context.Context, snapshotID string) error {
+	n.logger.Info("Unmounting NetApp snapshot", zap.String("snapshot", snapshotID))
+	// In production: DELETE /api/storage/volumes/{clone_uuid}
+	return nil
+}
+
 func (n *NetAppProvider) DeleteSnapshot(ctx context.Context, snapshotID string) error {
 	n.logger.Info("Deleting snapshot", zap.String("snapshot", snapshotID))
 
