@@ -19,21 +19,18 @@ namespace NovaBackup.GUI.ViewModels
         [ObservableProperty]
         private string _wizardTitle = "Create New Backup Job";
 
-        // Step 1: General
         [ObservableProperty]
         private string _jobName = string.Empty;
 
         [ObservableProperty]
         private string _jobDescription = string.Empty;
 
-        // Step 2: Source
         [ObservableProperty]
         private ObservableCollection<InfrastructureNode> _availableSources = new();
 
         [ObservableProperty]
         private InfrastructureNode? _selectedSource;
 
-        // Step 3: Destination
         [ObservableProperty]
         private ObservableCollection<RepositoryModel> _availableRepositories = new();
 
@@ -43,7 +40,6 @@ namespace NovaBackup.GUI.ViewModels
         [ObservableProperty]
         private int _retentionDays = 30;
 
-        // Step 4: Guest Processing
         [ObservableProperty]
         private bool _enableGuestProcessing;
 
@@ -51,10 +47,24 @@ namespace NovaBackup.GUI.ViewModels
         private string _guestCredentialsId = string.Empty;
 
         [ObservableProperty]
+        private string _scheduleType = "Daily";
+
+        [ObservableProperty]
+        private string _scheduleTime = "22:00";
+
+        [ObservableProperty]
+        private bool _truncateSqlLogs;
+
+        [ObservableProperty]
+        private bool _vssCopyBackup;
+
+        [ObservableProperty]
         private bool _isBusy;
 
         [ObservableProperty]
         private string _statusMessage = string.Empty;
+
+        public string ScheduleDisplay => $"{ScheduleType} {ScheduleTime}";
 
         public JobWizardViewModel(IApiClient apiClient)
         {
@@ -97,6 +107,18 @@ namespace NovaBackup.GUI.ViewModels
             if (string.IsNullOrWhiteSpace(JobName))
             {
                 StatusMessage = "Job name is required.";
+                return;
+            }
+
+            if (_selectedSource == null)
+            {
+                StatusMessage = "Please select a backup source.";
+                return;
+            }
+
+            if (_selectedRepository == null)
+            {
+                StatusMessage = "Please select a backup destination.";
                 return;
             }
 

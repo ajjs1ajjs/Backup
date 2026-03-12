@@ -2,7 +2,6 @@
 package audit
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -21,12 +20,12 @@ type EventSeverity string
 
 const (
 	// Event Types
-	EventTypeUserLogin        EventType = "user_login"
-	EventTypeUserLogout       EventType = "user_logout"
-	EventTypeUserCreate       EventType = "user_create"
-	EventTypeUserUpdate       EventType = "user_update"
-	EventTypeUserDelete       EventType = "user_delete"
-	EventTypeUserFailedLogin  EventType = "user_failed_login"
+	EventTypeUserLogin       EventType = "user_login"
+	EventTypeUserLogout      EventType = "user_logout"
+	EventTypeUserCreate      EventType = "user_create"
+	EventTypeUserUpdate      EventType = "user_update"
+	EventTypeUserDelete      EventType = "user_delete"
+	EventTypeUserFailedLogin EventType = "user_failed_login"
 
 	EventTypeJobCreate    EventType = "job_create"
 	EventTypeJobUpdate    EventType = "job_update"
@@ -36,18 +35,18 @@ const (
 	EventTypeJobFailed    EventType = "job_failed"
 	EventTypeJobCancelled EventType = "job_cancelled"
 
-	EventTypeBackupCreate   EventType = "backup_create"
-	EventTypeBackupDelete   EventType = "backup_delete"
-	EventTypeBackupRestore  EventType = "backup_restore"
-	EventTypeBackupVerify   EventType = "backup_verify"
+	EventTypeBackupCreate  EventType = "backup_create"
+	EventTypeBackupDelete  EventType = "backup_delete"
+	EventTypeBackupRestore EventType = "backup_restore"
+	EventTypeBackupVerify  EventType = "backup_verify"
 
-	EventTypeVMBackup      EventType = "vm_backup"
-	EventTypeVMRestore     EventType = "vm_restore"
-	EventTypeVMSnapshot    EventType = "vm_snapshot"
+	EventTypeVMBackup        EventType = "vm_backup"
+	EventTypeVMRestore       EventType = "vm_restore"
+	EventTypeVMSnapshot      EventType = "vm_snapshot"
 	EventTypeInstantRecovery EventType = "instant_recovery"
 
-	EventTypeConfigChange  EventType = "config_change"
-	EventTypeSecurityAlert EventType = "security_alert"
+	EventTypeConfigChange     EventType = "config_change"
+	EventTypeSecurityAlert    EventType = "security_alert"
 	EventTypePermissionChange EventType = "permission_change"
 
 	// Event Severities
@@ -59,31 +58,31 @@ const (
 
 // AuditEvent represents a single audit event
 type AuditEvent struct {
-	ID          string                 `json:"id"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Type        EventType              `json:"type"`
-	Severity    EventSeverity          `json:"severity"`
-	UserID      string                 `json:"user_id,omitempty"`
-	Username    string                 `json:"username,omitempty"`
-	SessionID   string                 `json:"session_id,omitempty"`
-	IPAddress   string                 `json:"ip_address,omitempty"`
-	UserAgent   string                 `json:"user_agent,omitempty"`
-	Resource    string                 `json:"resource"`
-	Action      string                 `json:"action"`
-	Status      string                 `json:"status"`
-	Details     map[string]interface{} `json:"details,omitempty"`
-	Error       string                 `json:"error,omitempty"`
-	Duration    time.Duration          `json:"duration,omitempty"`
+	ID        string                 `json:"id"`
+	Timestamp time.Time              `json:"timestamp"`
+	Type      EventType              `json:"type"`
+	Severity  EventSeverity          `json:"severity"`
+	UserID    string                 `json:"user_id,omitempty"`
+	Username  string                 `json:"username,omitempty"`
+	SessionID string                 `json:"session_id,omitempty"`
+	IPAddress string                 `json:"ip_address,omitempty"`
+	UserAgent string                 `json:"user_agent,omitempty"`
+	Resource  string                 `json:"resource"`
+	Action    string                 `json:"action"`
+	Status    string                 `json:"status"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+	Error     string                 `json:"error,omitempty"`
+	Duration  time.Duration          `json:"duration,omitempty"`
 }
 
 // AuditLogger manages audit logging
 type AuditLogger struct {
-	logger     *zap.Logger
-	logDir     string
-	logFile    *os.File
-	mu         sync.Mutex
-	events     []*AuditEvent
-	maxEvents  int
+	logger      *zap.Logger
+	logDir      string
+	logFile     *os.File
+	mu          sync.Mutex
+	events      []*AuditEvent
+	maxEvents   int
 	writeToFile bool
 }
 

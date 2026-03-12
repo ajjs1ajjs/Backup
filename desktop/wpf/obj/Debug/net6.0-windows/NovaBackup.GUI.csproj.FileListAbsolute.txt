@@ -75,3 +75,17 @@ D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\AddServerWindow.b
 D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\AddServerWindow.g.cs
 D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\JobWizardWindow.baml
 D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\JobWizardWindow.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\InstantRecoveryWizardWindow.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\InstantRecoveryWizardWindow.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsView.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Styles\Theme.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Styles\ThemeMVVMUpdate.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Styles\ThemePatch17.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Styles\ThemePatch17Update.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindowMinimal.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindowMVVM.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindowMinimal.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindowMVVM.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindow.g.cs
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsView.baml
+D:\WORK_CODE\Backup\desktop\wpf\obj\Debug\net6.0-windows\Views\RecoverySessionsWindow.baml
