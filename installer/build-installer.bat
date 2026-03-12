@@ -1,7 +1,7 @@
 @echo off  
   
 echo ========================================  
-echo   NovaBackup v6.0 - Build Installer  
+echo   NovaBackup v7.0 - Build Installer  
 echo ========================================  
 echo.  
 echo Looking for Inno Setup...  

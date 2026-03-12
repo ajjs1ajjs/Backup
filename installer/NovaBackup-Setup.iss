@@ -1,7 +1,7 @@
 [Setup]
 ; Визначення інсталятора
-AppName=NovaBackup v6.0 Enterprise
-AppVersion=6.0.0
+AppName=NovaBackup v7.0 Enterprise
+AppVersion=7.0.0
 AppPublisher=NovaBackup Technologies
 AppPublisherURL=https://novabackup.com
 AppSupportURL=https://novabackup.com/support

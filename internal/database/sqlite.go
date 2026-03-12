@@ -8,6 +8,7 @@ import (
 	"novabackup/pkg/models"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
 
@@ -407,7 +408,7 @@ func (c *Connection) SaveRestorePointChunk(rpID uuid.UUID, hash string, sequence
 func (c *Connection) GetExpiredRestorePoints(jobID uuid.UUID, days int) ([]models.RestorePoint, error) {
 	query := `SELECT id, job_id, point_time, status, total_bytes FROM restore_points 
 	          WHERE job_id = ? AND point_time < DATETIME('now', ?)`
-	
+
 	rows, err := c.db.Query(query, jobID.String(), fmt.Sprintf("-%d days", days))
 	if err != nil {
 		return nil, err
@@ -429,7 +430,7 @@ func (c *Connection) GetExpiredRestorePoints(jobID uuid.UUID, days int) ([]model
 func (c *Connection) GetRestorePointMapping(rpID uuid.UUID) ([]models.ChunkMapping, error) {
 	query := `SELECT chunk_hash, sequence_order, original_path FROM restore_point_chunks 
 	          WHERE restore_point_id = ? ORDER BY original_path, sequence_order`
-	
+
 	rows, err := c.db.Query(query, rpID.String())
 	if err != nil {
 		return nil, err
