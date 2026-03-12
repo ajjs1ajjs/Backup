@@ -3,239 +3,182 @@ package cdp
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"novabackup/internal/deduplication"
+	"go.uber.org/zap"
 )
 
-// EventProcessor processes file system events
+// EventProcessor processes file events and creates recovery points
 type EventProcessor struct {
 	config        CDPConfig
 	dedupeManager deduplication.DeduplicationManager
-	cdpEngine     *InMemoryCDPEngine
-	isRunning     bool
-	workerCount   int
+	eventQueue    <-chan *FileEvent
+	ctx           context.Context
+	cancel        context.CancelFunc
 	wg            sync.WaitGroup
-	stopChan      chan struct{}
+	isRunning     bool
+	logger        *zap.Logger
+	rateLimiter   *RateLimiter
+}
+
+// RateLimiter limits event processing rate
+type RateLimiter struct {
+	maxPerSecond int
+	tokens       chan struct{}
+}
+
+// NewRateLimiter creates a new rate limiter
+func NewRateLimiter(maxPerSecond int) *RateLimiter {
+	rl := &RateLimiter{
+		maxPerSecond: maxPerSecond,
+		tokens:       make(chan struct{}, maxPerSecond),
+	}
+
+	// Fill tokens
+	for i := 0; i < maxPerSecond; i++ {
+		rl.tokens <- struct{}{}
+	}
+
+	// Replenish tokens every second
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			select {
+			case rl.tokens <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
+	return rl
+}
+
+// Wait blocks until a token is available
+func (rl *RateLimiter) Wait(ctx context.Context) error {
+	select {
+	case <-rl.tokens:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // NewEventProcessor creates a new event processor
 func NewEventProcessor(config CDPConfig, dedupeMgr deduplication.DeduplicationManager) *EventProcessor {
+	logger, _ := zap.NewDevelopment()
+
 	return &EventProcessor{
 		config:        config,
 		dedupeManager: dedupeMgr,
-		workerCount:   4, // Default worker count
-		stopChan:      make(chan struct{}),
+		logger:        logger,
+		rateLimiter:   NewRateLimiter(config.MaxEventsPerSecond),
 	}
 }
 
-// Start starts the event processor
-func (ep *EventProcessor) Start(ctx context.Context, eventQueue <-chan *FileEvent, cdpEngine *InMemoryCDPEngine) error {
+// Start begins processing events
+func (ep *EventProcessor) Start(ctx context.Context, eventQueue <-chan *FileEvent, cdpEngine CDPEngine) error {
 	if ep.isRunning {
 		return fmt.Errorf("event processor is already running")
 	}
 
-	ep.cdpEngine = cdpEngine
+	ep.ctx, ep.cancel = context.WithCancel(ctx)
+	ep.eventQueue = eventQueue
 	ep.isRunning = true
 
-	// Start worker goroutines
-	for i := 0; i < ep.workerCount; i++ {
-		ep.wg.Add(1)
-		go ep.worker(ctx, eventQueue)
-	}
+	ep.wg.Add(1)
+	go ep.processEvents(cdpEngine)
+
+	ep.logger.Info("Event processor started",
+		zap.Int("max_events_per_second", ep.config.MaxEventsPerSecond))
 
 	return nil
 }
 
-// Stop stops the event processor
+// Stop stops processing events
 func (ep *EventProcessor) Stop() {
 	if !ep.isRunning {
 		return
 	}
 
-	close(ep.stopChan)
+	ep.cancel()
 	ep.wg.Wait()
 	ep.isRunning = false
+
+	ep.logger.Info("Event processor stopped")
 }
 
-// worker processes events from the queue
-func (ep *EventProcessor) worker(ctx context.Context, eventQueue <-chan *FileEvent) {
+// processEvents processes events from the queue
+func (ep *EventProcessor) processEvents(cdpEngine CDPEngine) {
 	defer ep.wg.Done()
 
 	for {
 		select {
-		case <-ep.stopChan:
+		case <-ep.ctx.Done():
 			return
-		case <-ctx.Done():
-			return
-		case event, ok := <-eventQueue:
+		case event, ok := <-ep.eventQueue:
 			if !ok {
 				return
 			}
-			ep.processEvent(ctx, event)
-		}
-	}
-}
 
-// processEvent processes a single event
-func (ep *EventProcessor) processEvent(ctx context.Context, event *FileEvent) {
-	// Rate limiting
-	if err := ep.rateLimit(); err != nil {
-		event.Error = err.Error()
-		ep.cdpEngine.stats.FailedEvents++
-		return
-	}
-
-	// Process the event
-	if err := ep.cdpEngine.ProcessEvent(ctx, event); err != nil {
-		event.Error = err.Error()
-		ep.cdpEngine.stats.FailedEvents++
-	}
-}
-
-// rateLimit implements rate limiting for event processing
-func (ep *EventProcessor) rateLimit() error {
-	// Simple rate limiting - in a real implementation, you would use
-	// a more sophisticated rate limiter like token bucket
-	if ep.config.MaxEventsPerSecond > 0 {
-		time.Sleep(time.Second / time.Duration(ep.config.MaxEventsPerSecond))
-	}
-	return nil
-}
-
-// InMemoryFileWatcher implements FileWatcher interface in memory
-type InMemoryFileWatcher struct {
-	config    CDPConfig
-	isRunning bool
-	watched   map[string]bool
-	mutex     sync.RWMutex
-	stopChan  chan struct{}
-}
-
-// NewFileWatcher creates a new file watcher
-func NewFileWatcher(config CDPConfig) FileWatcher {
-	return &InMemoryFileWatcher{
-		config:   config,
-		watched:  make(map[string]bool),
-		stopChan: make(chan struct{}),
-	}
-}
-
-// Start starts watching the specified paths
-func (fw *InMemoryFileWatcher) Start(ctx context.Context, paths []string, eventQueue chan<- *FileEvent) error {
-	fw.mutex.Lock()
-	defer fw.mutex.Unlock()
-
-	if fw.isRunning {
-		return fmt.Errorf("file watcher is already running")
-	}
-
-	// Add paths to watch
-	for _, path := range paths {
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			return fmt.Errorf("failed to resolve path %s: %w", path, err)
-		}
-		fw.watched[absPath] = true
-	}
-
-	fw.isRunning = true
-
-	// Start monitoring goroutine
-	go fw.monitor(ctx, eventQueue)
-
-	return nil
-}
-
-// Stop stops the file watcher
-func (fw *InMemoryFileWatcher) Stop() {
-	fw.mutex.Lock()
-	defer fw.mutex.Unlock()
-
-	if !fw.isRunning {
-		return
-	}
-
-	close(fw.stopChan)
-	fw.isRunning = false
-}
-
-// monitor simulates file system monitoring
-func (fw *InMemoryFileWatcher) monitor(ctx context.Context, eventQueue chan<- *FileEvent) {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-fw.stopChan:
-			return
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// In a real implementation, you would use fsnotify or similar
-			// to actually watch file system changes
-			// For now, we'll just simulate occasional events
-			fw.simulateEvents(ctx, eventQueue)
-		}
-	}
-}
-
-// simulateEvents generates mock file system events for testing
-func (fw *InMemoryFileWatcher) simulateEvents(ctx context.Context, eventQueue chan<- *FileEvent) {
-	// This is a placeholder for actual file system monitoring
-	// In a real implementation, you would use fsnotify or similar
-
-	// For demonstration, we'll occasionally generate mock events
-	if time.Now().Unix()%10 == 0 { // Every 10 seconds
-		fw.mutex.RLock()
-		paths := make([]string, 0, len(fw.watched))
-		for path := range fw.watched {
-			paths = append(paths, path)
-		}
-		fw.mutex.RUnlock()
-
-		if len(paths) > 0 {
-			// Generate a mock event
-			event := &FileEvent{
-				ID:      generateEventID(),
-				Type:    EventModify,
-				Path:    paths[0] + "/test_file.txt",
-				Size:    1024,
-				ModTime: time.Now(),
-				Metadata: map[string]string{
-					"simulated": "true",
-				},
+			// Apply rate limiting
+			if err := ep.rateLimiter.Wait(ep.ctx); err != nil {
+				ep.logger.Warn("Rate limiter wait failed", zap.Error(err))
+				continue
 			}
 
-			select {
-			case eventQueue <- event:
-			case <-ctx.Done():
-				return
-			default:
-				// Queue is full, drop the event
+			// Process event
+			if err := cdpEngine.ProcessEvent(ep.ctx, event); err != nil {
+				ep.logger.Error("Failed to process event",
+					zap.String("event_id", event.ID),
+					zap.String("path", event.Path),
+					zap.Error(err))
 			}
 		}
 	}
 }
 
-// IsWatching returns true if the watcher is active
-func (fw *InMemoryFileWatcher) IsWatching() bool {
-	fw.mutex.RLock()
-	defer fw.mutex.RUnlock()
-	return fw.isRunning
+// ProcessEventSync processes a single event synchronously
+func (ep *EventProcessor) ProcessEventSync(ctx context.Context, event *FileEvent, cdpEngine CDPEngine) error {
+	return cdpEngine.ProcessEvent(ctx, event)
 }
 
-// GetWatchedPaths returns all watched paths
-func (fw *InMemoryFileWatcher) GetWatchedPaths() []string {
-	fw.mutex.RLock()
-	defer fw.mutex.RUnlock()
+// BatchProcessEvents processes multiple events in batch
+func (ep *EventProcessor) BatchProcessEvents(ctx context.Context, events []*FileEvent, cdpEngine CDPEngine) ([]error, error) {
+	errors := make([]error, len(events))
+	var wg sync.WaitGroup
 
-	paths := make([]string, 0, len(fw.watched))
-	for path := range fw.watched {
-		paths = append(paths, path)
+	for i, event := range events {
+		wg.Add(1)
+		go func(idx int, ev *FileEvent) {
+			defer wg.Done()
+			if err := cdpEngine.ProcessEvent(ctx, ev); err != nil {
+				errors[idx] = err
+			}
+		}(i, event)
 	}
 
-	return paths
+	wg.Wait()
+
+	return errors, nil
+}
+
+// GetQueueSize returns the current queue size
+func (ep *EventProcessor) GetQueueSize() int {
+	return len(ep.eventQueue)
+}
+
+// GetStats returns processor statistics
+func (ep *EventProcessor) GetStats() map[string]interface{} {
+	return map[string]interface{}{
+		"is_running":      ep.isRunning,
+		"queue_size":      ep.GetQueueSize(),
+		"max_per_second":  ep.config.MaxEventsPerSecond,
+		"max_queue_size":  ep.config.MaxQueueSize,
+		"rpo_target":      ep.config.RPOTarget.String(),
+		"compression":     ep.config.CompressionEnabled,
+		"encryption":      ep.config.EncryptionEnabled,
+	}
 }

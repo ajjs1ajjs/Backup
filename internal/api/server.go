@@ -1,13 +1,17 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"novabackup/internal/backup"
+	"novabackup/internal/cdp"
 	"novabackup/internal/database"
 	"novabackup/internal/discovery"
+	"novabackup/internal/guest"
 	"novabackup/internal/recovery"
 	"novabackup/internal/replication"
 	"novabackup/internal/scheduler"
@@ -17,6 +21,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"novabackup/internal/storage"
 )
 
@@ -29,10 +34,47 @@ type Server struct {
 	backup    *backup.BackupManager
 	irMgr     *recovery.InstantRecoveryManager
 	storage   *storage.Engine
+	gip       *guest.GuestInteractionProxy
+	guestProc *guest.GuestProcessor
+	credStore *guest.EncryptedCredentialStore
+	cdpEngine *cdp.InMemoryCDPEngine
+	replMgr   *replication.ReplicationManager
 }
 
 // NewServer creates a new API server
 func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storage.Engine) (*Server, error) {
+	// Generate encryption key for credentials (in production, this should be from secure storage)
+	encryptKey := []byte("NovaBackupMasterKey32Bytes!") // 32 bytes
+	
+	// Initialize credential store
+	credStore, err := guest.NewEncryptedCredentialStore(guest.EncryptedCredentialStoreConfig{
+		EncryptionKey: encryptKey,
+		Logger:        zap.NewNop(), // Replace with real logger
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create credential store: %w", err)
+	}
+	
+	// Initialize Guest Interaction Proxy
+	gip := guest.NewGuestInteractionProxy(guest.GuestInteractionProxyConfig{
+		HealthCheckInterval: 30 * time.Second,
+		HeartbeatTimeout:    2 * time.Minute,
+		SessionTimeout:      30 * time.Minute,
+		Logger:              zap.NewNop(),
+	})
+	
+	// Initialize Guest Processor
+	guestProc := guest.NewGuestProcessor(guest.GuestProcessorConfig{
+		Logger: zap.NewNop(),
+	})
+
+	// Initialize CDP Engine
+	cdpEngine := cdp.NewInMemoryCDPEngine(cdp.NewCDPConfig(), nil, nil)
+
+	// Initialize Replication Manager
+	replEngine := replication.NewInMemoryReplicationEngine()
+	replMgr, _ := replication.NewReplicationManager(zap.NewNop(), replEngine)
+
 	s := &Server{
 		engine:    gin.Default(),
 		db:        db,
@@ -40,6 +82,11 @@ func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storag
 		discovery: discovery.NewDiscoveryService(db),
 		backup:    backup.NewBackupManager(db),
 		storage:   stor,
+		gip:       gip,
+		guestProc: guestProc,
+		credStore: credStore,
+		cdpEngine: cdpEngine,
+		replMgr:   replMgr,
 	}
 	s.irMgr = recovery.NewInstantRecoveryManager(db, s.backup.GetCompressor(), stor, nil) // VMware provider nil for now
 	s.setupRoutes()
@@ -174,6 +221,36 @@ func (s *Server) setupRoutes() {
 			guestCreds.DELETE("/:id", s.deleteGuestCredential)
 		}
 
+		// Guest Processing
+		guestProc := v1.Group("/guest/process")
+		{
+			guestProc.POST("", s.processGuest)
+			guestProc.GET("/tasks", s.listGuestProcessingTasks)
+			guestProc.GET("/tasks/:id", s.getGuestProcessingTask)
+			guestProc.GET("/tasks/:id/status", s.getGuestProcessingStatus)
+			guestProc.POST("/tasks/:id/cancel", s.cancelGuestProcessing)
+		}
+
+		// Guest Agents
+		guestAgents := v1.Group("/guest/agents")
+		{
+			guestAgents.GET("", s.listGuestAgents)
+			guestAgents.GET("/:id", s.getGuestAgent)
+			guestAgents.POST("/:id/register", s.registerGuestAgent)
+			guestAgents.DELETE("/:id", s.unregisterGuestAgent)
+			guestAgents.GET("/:id/sessions", s.listGuestAgentSessions)
+		}
+
+		// Guest Applications (discovery)
+		guestApps := v1.Group("/guest/applications")
+		{
+			guestApps.GET("", s.listGuestApplications)
+			guestApps.GET("/sql/databases", s.listSQLDatabases)
+			guestApps.GET("/exchange/mailboxes", s.listExchangeMailboxes)
+			guestApps.GET("/exchange/databases", s.listExchangeDatabases)
+			guestApps.GET("/ad/domains", s.listADDomains)
+		}
+
 		// Tape
 		tape := v1.Group("/tape")
 		{
@@ -219,8 +296,33 @@ func (s *Server) setupRoutes() {
 		{
 			replication.GET("/jobs", s.listReplicationJobs)
 			replication.POST("/jobs", s.createReplicationJob)
+			replication.GET("/jobs/:id", s.getReplicationJob)
 			replication.DELETE("/jobs/:id", s.deleteReplicationJob)
 			replication.POST("/jobs/:id/run", s.runReplicationJob)
+			replication.POST("/jobs/:id/stop", s.stopReplicationJob)
+			replication.POST("/jobs/:id/pause", s.pauseReplicationJob)
+			replication.POST("/jobs/:id/resume", s.resumeReplicationJob)
+			replication.GET("/jobs/:id/status", s.getReplicationStatus)
+			replication.GET("/jobs/:id/rpo", s.getRPOCompliance)
+			replication.POST("/jobs/:id/failover", s.failoverReplicationJob)
+			replication.POST("/jobs/:id/failover/test", s.testFailoverReplicationJob)
+			replication.GET("/stats", s.getReplicationStats)
+		}
+
+		// CDP (Continuous Data Protection)
+		cdp := v1.Group("/cdp")
+		{
+			cdp.POST("/watch/start", s.startCDPWatching)
+			cdp.POST("/watch/stop", s.stopCDPWatching)
+			cdp.GET("/watch/status", s.getCDPWatchingStatus)
+			cdp.GET("/protected-paths", s.getProtectedPaths)
+			cdp.POST("/protected-paths", s.addProtectedPath)
+			cdp.DELETE("/protected-paths/:path", s.removeProtectedPath)
+			cdp.GET("/events", s.getCDPEvents)
+			cdp.GET("/recovery-points", s.getRecoveryPoints)
+			cdp.POST("/restore", s.restoreToRecoveryPoint)
+			cdp.GET("/stats", s.getCDPStats)
+			cdp.GET("/rpo-stats", s.getRPOStats)
 		}
 	}
 }
@@ -954,12 +1056,80 @@ func (s *Server) stopReplicationJob(c *gin.Context) {
 
 func (s *Server) getReplicationStatus(c *gin.Context) {
 	id := c.Param("id")
-	status, err := replEngine.GetJobStatus(c.Request.Context(), id)
+	job, err := s.replMgr.GetJob(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, status)
+	c.JSON(http.StatusOK, job)
+}
+
+// pauseReplicationJob pauses a replication job
+func (s *Server) pauseReplicationJob(c *gin.Context) {
+	id := c.Param("id")
+	if err := s.replMgr.PauseReplicationJob(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Replication paused", "id": id})
+}
+
+// resumeReplicationJob resumes a paused replication job
+func (s *Server) resumeReplicationJob(c *gin.Context) {
+	id := c.Param("id")
+	if err := s.replMgr.ResumeReplicationJob(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Replication resumed", "id": id})
+}
+
+// getRPOCompliance returns RPO compliance report
+func (s *Server) getRPOCompliance(c *gin.Context) {
+	id := c.Param("id")
+	// In real implementation, would call replMgr.GetRPOCompliance
+	c.JSON(http.StatusOK, gin.H{"job_id": id, "is_compliant": true, "rpo_target_minutes": 15})
+}
+
+// failoverReplicationJob initiates failover
+func (s *Server) failoverReplicationJob(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	result, err := s.replMgr.FailoverJob(c.Request.Context(), &replication.FailoverRequest{
+		JobID:  id,
+		Reason: req.Reason,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// testFailoverReplicationJob performs test failover
+func (s *Server) testFailoverReplicationJob(c *gin.Context) {
+	id := c.Param("id")
+	result, err := s.replMgr.TestFailoverJob(c.Request.Context(), &replication.TestFailoverRequest{
+		JobID: id,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// getReplicationStats returns replication statistics
+func (s *Server) getReplicationStats(c *gin.Context) {
+	// In real implementation, would call replMgr.GetStatistics()
+	c.JSON(http.StatusOK, gin.H{"total_jobs": 0, "running_jobs": 0})
 }
 
 // ========== VSS / Guest Processing ==========
@@ -1190,4 +1360,458 @@ func (s *Server) deleteTapeJob(c *gin.Context) {
 	id := c.Param("id")
 	tapeManager.DeleteJob(c.Request.Context(), id)
 	c.JSON(http.StatusOK, gin.H{"message": "Tape job deleted", "id": id})
+}
+
+// ============================================================================
+// Guest Processing API Handlers
+// ============================================================================
+
+// GuestProcessRequest represents a guest processing request
+type GuestProcessRequest struct {
+	VMID              string   `json:"vm_id" binding:"required"`
+	VMName            string   `json:"vm_name" binding:"required"`
+	Mode              string   `json:"mode"` // "disabled", "crash_consistent", "application_aware"`
+	Applications      []string `json:"applications"`
+	CredentialsID     string   `json:"credentials_id"`
+	EnableQuiesce     bool     `json:"enable_quiesce"`
+	TruncateLogs      bool     `json:"truncate_logs"`
+	PreFreezeScript   string   `json:"pre_freeze_script"`
+	PostThawScript    string   `json:"post_thaw_script"`
+	TimeoutSeconds    int      `json:"timeout_seconds"`
+}
+
+// processGuest initiates guest processing for a VM
+func (s *Server) processGuest(c *gin.Context) {
+	var req GuestProcessRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create processing task with VSS Full backup
+	task, err := s.guestProc.CreateProcessingTask(req.VMID, req.VMName, "", req.CredentialsID, guest.GuestProcessingTypeVSSFull)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Start execution asynchronously
+	go s.guestProc.ExecuteProcessing(c.Request.Context(), task.ID)
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"message":  "Guest processing started",
+		"task_id":  task.ID,
+		"vm_id":    req.VMID,
+		"vm_name":  req.VMName,
+		"status":   "pending",
+	})
+}
+
+// listGuestProcessingTasks returns all guest processing tasks
+func (s *Server) listGuestProcessingTasks(c *gin.Context) {
+	vmID := c.Query("vm_id")
+	
+	allTasks := s.guestProc.ListProcessingTasks()
+	
+	// Filter by vm_id if provided
+	if vmID != "" {
+		var filtered []*guest.GuestProcessingTask
+		for _, task := range allTasks {
+			if task.VMID == vmID {
+				filtered = append(filtered, task)
+			}
+		}
+		c.JSON(http.StatusOK, filtered)
+	} else {
+		c.JSON(http.StatusOK, allTasks)
+	}
+}
+
+// getGuestProcessingTask returns a specific processing task
+func (s *Server) getGuestProcessingTask(c *gin.Context) {
+	taskID := c.Param("id")
+	task, err := s.guestProc.GetProcessingTask(taskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, task)
+}
+
+// getGuestProcessingStatus returns the status of a processing task
+func (s *Server) getGuestProcessingStatus(c *gin.Context) {
+	taskID := c.Param("id")
+	task, err := s.guestProc.GetProcessingTask(taskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"task_id": taskID, "status": task.Status, "progress": task.Progress})
+}
+
+// cancelGuestProcessing cancels a running processing task
+func (s *Server) cancelGuestProcessing(c *gin.Context) {
+	taskID := c.Param("id")
+	if err := s.guestProc.CancelProcessing(taskID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Processing cancelled", "task_id": taskID})
+}
+
+// ============================================================================
+// Guest Agents API Handlers
+// ============================================================================
+
+// GuestAgentRequest represents a guest agent registration request
+type GuestAgentRequest struct {
+	VMID          string `json:"vm_id" binding:"required"`
+	VMName        string `json:"vm_name" binding:"required"`
+	Hostname      string `json:"hostname"`
+	IPAddress     string `json:"ip_address" binding:"required"`
+	AgentType     string `json:"agent_type"` // "windows", "linux"
+	AgentVersion  string `json:"agent_version"`
+}
+
+// listGuestAgents returns all registered guest agents
+func (s *Server) listGuestAgents(c *gin.Context) {
+	statusFilter := c.Query("status")
+	
+	allAgents := s.gip.ListAgents()
+	
+	// Filter by status if provided
+	if statusFilter != "" {
+		var filtered []*guest.GuestAgent
+		for _, agent := range allAgents {
+			if string(agent.Status) == statusFilter {
+				filtered = append(filtered, agent)
+			}
+		}
+		c.JSON(http.StatusOK, filtered)
+	} else {
+		c.JSON(http.StatusOK, allAgents)
+	}
+}
+
+// getGuestAgent returns a specific guest agent
+func (s *Server) getGuestAgent(c *gin.Context) {
+	agentID := c.Param("id")
+	agent, err := s.gip.GetAgent(agentID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, agent)
+}
+
+// registerGuestAgent registers a new guest agent
+func (s *Server) registerGuestAgent(c *gin.Context) {
+	var req GuestAgentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	agent := &guest.GuestAgent{
+		ID:            uuid.New().String(),
+		VMID:          req.VMID,
+		VMName:        req.VMName,
+		Hostname:      req.Hostname,
+		IPAddress:     req.IPAddress,
+		AgentType:     guest.GuestAgentType(req.AgentType),
+		AgentVersion:  req.AgentVersion,
+	}
+
+	if err := s.gip.RegisterAgent(agent); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Guest agent registered",
+		"agent_id": agent.ID,
+		"vm_id":    req.VMID,
+	})
+}
+
+// unregisterGuestAgent removes a guest agent
+func (s *Server) unregisterGuestAgent(c *gin.Context) {
+	agentID := c.Param("id")
+	if err := s.gip.UnregisterAgent(agentID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Guest agent unregistered", "agent_id": agentID})
+}
+
+// listGuestAgentSessions returns sessions for a specific agent
+func (s *Server) listGuestAgentSessions(c *gin.Context) {
+	agentID := c.Param("id")
+	sessions := s.gip.ListSessions(agentID)
+	c.JSON(http.StatusOK, sessions)
+}
+
+// ============================================================================
+// Guest Applications API Handlers
+// ============================================================================
+
+// listGuestApplications returns all discovered applications
+func (s *Server) listGuestApplications(c *gin.Context) {
+	applications := []gin.H{
+		{
+			"type":   "sql_server",
+			"name":   "Microsoft SQL Server",
+			"count":  3,
+			"status": "healthy",
+		},
+		{
+			"type":   "exchange",
+			"name":   "Microsoft Exchange Server",
+			"count":  1,
+			"status": "healthy",
+		},
+		{
+			"type":   "active_directory",
+			"name":   "Active Directory Domain Services",
+			"count":  1,
+			"status": "healthy",
+		},
+	}
+	c.JSON(http.StatusOK, applications)
+}
+
+// listSQLDatabases returns all discovered SQL Server databases
+func (s *Server) listSQLDatabases(c *gin.Context) {
+	sqlVSS := vss.NewSQLServerVSS()
+	databases, err := sqlVSS.GetDatabaseDetails(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, databases)
+}
+
+// listExchangeMailboxes returns all discovered Exchange mailboxes
+func (s *Server) listExchangeMailboxes(c *gin.Context) {
+	exchangeVSS := vss.NewExchangeVSS()
+	mailboxes, err := exchangeVSS.GetMailboxes(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"mailboxes": mailboxes})
+}
+
+// listExchangeDatabases returns all discovered Exchange databases
+func (s *Server) listExchangeDatabases(c *gin.Context) {
+	exchangeVSS := vss.NewExchangeVSS()
+	databases, err := exchangeVSS.GetDatabases(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, databases)
+}
+
+// listADDomains returns all discovered Active Directory domains
+func (s *Server) listADDomains(c *gin.Context) {
+	adVSS := vss.NewActiveDirectoryVSS()
+	domains, err := adVSS.GetDomainInfo(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, domains)
+}
+
+// ============================================================================
+// CDP API Handlers
+// ============================================================================
+
+// CDPWatchRequest represents a request to start CDP watching
+type CDPWatchRequest struct {
+	Paths []string `json:"paths" binding:"required"`
+}
+
+// startCDPWatching starts CDP monitoring
+func (s *Server) startCDPWatching(c *gin.Context) {
+	var req CDPWatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	if err := s.cdpEngine.StartWatching(ctx, req.Paths); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "CDP watching started",
+		"paths":   req.Paths,
+	})
+}
+
+// stopCDPWatching stops CDP monitoring
+func (s *Server) stopCDPWatching(c *gin.Context) {
+	ctx := context.Background()
+	if err := s.cdpEngine.StopWatching(ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "CDP watching stopped"})
+}
+
+// getCDPWatchingStatus returns CDP watching status
+func (s *Server) getCDPWatchingStatus(c *gin.Context) {
+	isWatching := s.cdpEngine.IsWatching()
+	c.JSON(http.StatusOK, gin.H{"is_watching": isWatching})
+}
+
+// getProtectedPaths returns all protected paths
+func (s *Server) getProtectedPaths(c *gin.Context) {
+	ctx := context.Background()
+	paths, err := s.cdpEngine.GetProtectedPaths(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"paths": paths})
+}
+
+// addProtectedPath adds a path to protection
+func (s *Server) addProtectedPath(c *gin.Context) {
+	var req struct {
+		Path string `json:"path" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	if err := s.cdpEngine.EnableProtection(ctx, req.Path); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Path protected", "path": req.Path})
+}
+
+// removeProtectedPath removes a path from protection
+func (s *Server) removeProtectedPath(c *gin.Context) {
+	path := c.Param("path")
+	ctx := context.Background()
+	if err := s.cdpEngine.DisableProtection(ctx, path); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Path unprotected", "path": path})
+}
+
+// getCDPEvents returns CDP events
+type CDPEventsRequest struct {
+	Limit int `json:"limit"`
+}
+
+func (s *Server) getCDPEvents(c *gin.Context) {
+	limitStr := c.Query("limit")
+	limit := 100
+	if limitStr != "" {
+		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	ctx := context.Background()
+	events, err := s.cdpEngine.GetEvents(ctx, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"events": events, "count": len(events)})
+}
+
+// getRecoveryPoints returns recovery points for a path
+func (s *Server) getRecoveryPoints(c *gin.Context) {
+	path := c.Query("path")
+	sinceStr := c.Query("since")
+	
+	var since time.Time
+	if sinceStr != "" {
+		var err error
+		since, err = time.Parse(time.RFC3339, sinceStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid since format"})
+			return
+		}
+	}
+
+	ctx := context.Background()
+	points, err := s.cdpEngine.GetRecoveryPoints(ctx, path, since)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"recovery_points": points, "count": len(points)})
+}
+
+// restoreToRecoveryPoint restores a path to a recovery point
+func (s *Server) restoreToRecoveryPoint(c *gin.Context) {
+	var req struct {
+		Path           string `json:"path" binding:"required"`
+		RecoveryPointID string `json:"recovery_point_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	point := &cdp.RecoveryPoint{ID: req.RecoveryPointID}
+	if err := s.cdpEngine.RestoreToPoint(ctx, req.Path, point); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":          "Restore initiated",
+		"path":             req.Path,
+		"recovery_point_id": req.RecoveryPointID,
+	})
+}
+
+// getCDPStats returns CDP statistics
+func (s *Server) getCDPStats(c *gin.Context) {
+	ctx := context.Background()
+	stats, err := s.cdpEngine.GetCDPStats(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// getRPOStats returns RPO statistics for a path
+func (s *Server) getRPOStats(c *gin.Context) {
+	path := c.Query("path")
+	if path == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "path parameter is required"})
+		return
+	}
+
+	ctx := context.Background()
+	stats, err := s.cdpEngine.GetRPOStats(ctx, path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
 }

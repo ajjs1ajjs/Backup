@@ -157,7 +157,7 @@ func NewInMemoryCDPEngine(config CDPConfig, tenantMgr multitenancy.TenantManager
 			LastEventTime: nil,
 		},
 		eventProcessor: NewEventProcessor(config, dedupeMgr),
-		fileWatcher:    NewFileWatcher(config),
+		fileWatcher:    NewPollingFileWatcher(config),
 	}
 }
 
