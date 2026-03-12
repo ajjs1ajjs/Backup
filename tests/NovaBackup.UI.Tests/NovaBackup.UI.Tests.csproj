@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0-windows7.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -14,9 +14,6 @@
     <PackageReference Include="Moq" Version="4.18.4" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\\..\\desktop\\wpf\\NovaBackup.GUI.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\desktop\wpf\NovaBackup.GUI.csproj" />
+    <ProjectReference Include="..\..\desktop\wpf\NovaBackup.GUI.csproj" />
   </ItemGroup>
 </Project>

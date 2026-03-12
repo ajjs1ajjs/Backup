@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NovaBackup.UI.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6f2962370fcd43297eca3658d9fd770c244d215d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2815372f5108ef5160500e09e2b9b351145636aa")]
 [assembly: System.Reflection.AssemblyProductAttribute("NovaBackup.UI.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NovaBackup.UI.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"novabackup/internal/rbac"
+	"novabackup/pkg/rbac"
 )
 
 // TenantManager manages multi-tenant operations
@@ -20,17 +20,17 @@ type TenantManager interface {
 	UpdateTenant(ctx context.Context, tenant *Tenant) error
 	DeleteTenant(ctx context.Context, tenantID string) error
 	ListTenants(ctx context.Context) ([]Tenant, error)
-	
+
 	// Quota management
 	CheckQuota(ctx context.Context, tenantID string, quotaType QuotaType, amount int64) (bool, error)
 	GetQuotaUsage(ctx context.Context, tenantID string) (*QuotaUsage, error)
 	UpdateQuota(ctx context.Context, tenantID string, quotas TenantQuotas) error
-	
+
 	// Resource isolation
 	GetTenantResources(ctx context.Context, tenantID string) (*TenantResources, error)
 	AssignResource(ctx context.Context, tenantID string, resourceType string, resourceID string) error
 	UnassignResource(ctx context.Context, tenantID string, resourceType string, resourceID string) error
-	
+
 	// Tenant context
 	WithTenant(ctx context.Context, tenantID string) context.Context
 	GetTenantFromContext(ctx context.Context) string
@@ -39,54 +39,54 @@ type TenantManager interface {
 
 // Tenant represents a multi-tenant organization
 type Tenant struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Settings    TenantSettings    `json:"settings"`
-	Quotas      TenantQuotas      `json:"quotas"`
-	Status      TenantStatus      `json:"status"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	LastActive  *time.Time        `json:"last_active,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Settings    TenantSettings `json:"settings"`
+	Quotas      TenantQuotas   `json:"quotas"`
+	Status      TenantStatus   `json:"status"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	LastActive  *time.Time     `json:"last_active,omitempty"`
 }
 
 // TenantSettings contains tenant-specific configuration
 type TenantSettings struct {
-	Timezone              string            `json:"timezone"`
-	BackupRetentionDays    int               `json:"backup_retention_days"`
-	DefaultStorageType     string            `json:"default_storage_type"`
-	NotificationSettings   NotificationSettings `json:"notification_settings"`
-	SecuritySettings      SecuritySettings  `json:"security_settings"`
-	CustomSettings         map[string]string `json:"custom_settings"`
+	Timezone             string               `json:"timezone"`
+	BackupRetentionDays  int                  `json:"backup_retention_days"`
+	DefaultStorageType   string               `json:"default_storage_type"`
+	NotificationSettings NotificationSettings `json:"notification_settings"`
+	SecuritySettings     SecuritySettings     `json:"security_settings"`
+	CustomSettings       map[string]string    `json:"custom_settings"`
 }
 
 // NotificationSettings for tenant notifications
 type NotificationSettings struct {
-	EmailEnabled     bool     `json:"email_enabled"`
-	EmailRecipients  []string `json:"email_recipients"`
-	WebhookURL       string   `json:"webhook_url"`
-	SlackEnabled     bool     `json:"slack_enabled"`
-	SlackWebhookURL  string   `json:"slack_webhook_url"`
+	EmailEnabled    bool     `json:"email_enabled"`
+	EmailRecipients []string `json:"email_recipients"`
+	WebhookURL      string   `json:"webhook_url"`
+	SlackEnabled    bool     `json:"slack_enabled"`
+	SlackWebhookURL string   `json:"slack_webhook_url"`
 }
 
 // SecuritySettings for tenant security policies
 type SecuritySettings struct {
-	SessionTimeoutMinutes    int  `json:"session_timeout_minutes"`
-	MaxFailedAttempts       int  `json:"max_failed_attempts"`
-	RequireMFA              bool `json:"require_mfa"`
-	PasswordMinLength        int  `json:"password_min_length"`
-	RequirePasswordChange   bool `json:"require_password_change_days"`
+	SessionTimeoutMinutes int  `json:"session_timeout_minutes"`
+	MaxFailedAttempts     int  `json:"max_failed_attempts"`
+	RequireMFA            bool `json:"require_mfa"`
+	PasswordMinLength     int  `json:"password_min_length"`
+	RequirePasswordChange bool `json:"require_password_change_days"`
 }
 
 // TenantQuotas defines resource limits for a tenant
 type TenantQuotas struct {
-	MaxBackups          int64 `json:"max_backups"`
-	MaxStorageGB        int64 `json:"max_storage_gb"`
-	MaxUsers            int   `json:"max_users"`
-	MaxConcurrentJobs   int   `json:"max_concurrent_jobs"`
-	MaxVMs              int   `json:"max_vms"`
-	MaxAPIRequestsPerHour int  `json:"max_api_requests_per_hour"`
-	RetentionDays       int   `json:"retention_days"`
+	MaxBackups            int64 `json:"max_backups"`
+	MaxStorageGB          int64 `json:"max_storage_gb"`
+	MaxUsers              int   `json:"max_users"`
+	MaxConcurrentJobs     int   `json:"max_concurrent_jobs"`
+	MaxVMs                int   `json:"max_vms"`
+	MaxAPIRequestsPerHour int   `json:"max_api_requests_per_hour"`
+	RetentionDays         int   `json:"retention_days"`
 }
 
 // TenantStatus represents the current status of a tenant
@@ -125,24 +125,24 @@ type QuotaUsage struct {
 
 // TenantResources represents resources owned by a tenant
 type TenantResources struct {
-	TenantID     string                    `json:"tenant_id"`
-	Backups      []TenantResource          `json:"backups"`
-	VMs          []TenantResource          `json:"vms"`
-	Storage      []TenantResource          `json:"storage"`
-	Jobs         []TenantResource          `json:"jobs"`
-	Users        []TenantResource          `json:"users"`
+	TenantID        string                      `json:"tenant_id"`
+	Backups         []TenantResource            `json:"backups"`
+	VMs             []TenantResource            `json:"vms"`
+	Storage         []TenantResource            `json:"storage"`
+	Jobs            []TenantResource            `json:"jobs"`
+	Users           []TenantResource            `json:"users"`
 	CustomResources map[string][]TenantResource `json:"custom_resources"`
 }
 
 // TenantResource represents a resource owned by a tenant
 type TenantResource struct {
-	ID           string            `json:"id"`
-	Type         string            `json:"type"`
-	Name         string            `json:"name"`
-	Status       string            `json:"status"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	Metadata     map[string]string `json:"metadata"`
+	ID        string            `json:"id"`
+	Type      string            `json:"type"`
+	Name      string            `json:"name"`
+	Status    string            `json:"status"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	Metadata  map[string]string `json:"metadata"`
 }
 
 // SQLTenantManager implements TenantManager using SQL database
@@ -210,16 +210,6 @@ func (t *SQLTenantManager) validateTenant(tenant *Tenant) error {
 	return nil
 }
 
-func tenantQuotasToRBAC(tq TenantQuotas) rbac.TenantQuotas {
-	return rbac.TenantQuotas{
-		MaxBackups:        tq.MaxBackups,
-		MaxStorageGB:      tq.MaxStorageGB,
-		MaxUsers:          tq.MaxUsers,
-		MaxConcurrentJobs: tq.MaxConcurrentJobs,
-		RetentionDays:     tq.RetentionDays,
-	}
-}
-
 // Utility functions for creating new entities
 func NewTenant(name, description string) *Tenant {
 	return &Tenant{
@@ -227,14 +217,14 @@ func NewTenant(name, description string) *Tenant {
 		Name:        name,
 		Description: description,
 		Settings: TenantSettings{
-			Timezone:           "UTC",
+			Timezone:            "UTC",
 			BackupRetentionDays: 30,
 			DefaultStorageType:  "local",
 			NotificationSettings: NotificationSettings{
 				EmailEnabled: false,
 			},
 			SecuritySettings: SecuritySettings{
-				SessionTimeoutMinutes:  480,
+				SessionTimeoutMinutes: 480,
 				MaxFailedAttempts:     5,
 				RequireMFA:            false,
 				PasswordMinLength:     8,
@@ -243,13 +233,13 @@ func NewTenant(name, description string) *Tenant {
 			CustomSettings: make(map[string]string),
 		},
 		Quotas: TenantQuotas{
-			MaxBackups:             100,
-			MaxStorageGB:           1000,
-			MaxUsers:               10,
-			MaxConcurrentJobs:      5,
-			MaxVMs:                 50,
-			MaxAPIRequestsPerHour:  1000,
-			RetentionDays:          30,
+			MaxBackups:            100,
+			MaxStorageGB:          1000,
+			MaxUsers:              10,
+			MaxConcurrentJobs:     5,
+			MaxVMs:                50,
+			MaxAPIRequestsPerHour: 1000,
+			RetentionDays:         30,
 		},
 		Status:    TenantStatusActive,
 		CreatedAt: time.Now(),

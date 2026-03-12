@@ -29,6 +29,7 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Status Card -->
@@ -39,9 +40,11 @@
           </StackPanel>
         </Border>
         <!-- Additional Quick Action: Recovery Sessions -->
-        <Border Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,10,0,0">
+        <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="Recovery Sessions" Style="{StaticResource MaterialDesignRaisedButton}" Width="210" Height="60" Command="{Binding OpenRecoverySessionsWindowCommand}" />
+                <Button Content="Recovery Sessions (MVVM)" Command="{Binding OpenRecoverySessionsWindowMVVMCommand}" Margin="6" HorizontalAlignment="Left"/>
+                <Button Content="Recovery Sessions (Minimal)" Command="{Binding OpenRecoverySessionsWindowMinimalCommand}" Margin="6" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
 

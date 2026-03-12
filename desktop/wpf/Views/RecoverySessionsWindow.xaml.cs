@@ -3,6 +3,9 @@ using System.Windows;
 using NovaBackup.GUI.Services;
 using NovaBackup.GUI.ViewModels;
 
+using System.Windows;
+using NovaBackup.GUI.ViewModels;
+
 namespace NovaBackup.GUI.Views
 {
     public partial class RecoverySessionsWindow : Window

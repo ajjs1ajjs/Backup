@@ -112,8 +112,8 @@
                                         <StackPanel>
                                             <TextBlock Text="Guest OS Processing" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,20"/>
                                             <CheckBox Content="Enable application-aware processing" IsChecked="{Binding EnableGuestProcessing}" Margin="0,0,0,15"/>
-                                                 <StackPanel IsEnabled="{Binding EnableGuestProcessing}">
-                                                     <TextBlock Text="Guest Credentials" Margin="0,0,0,5"/>
+                                            <StackPanel>
+                                                <TextBlock Text="Guest Credentials" Margin="0,0,0,5"/>
                                                      <ComboBox SelectedValue="{Binding GuestCredentialsId}" Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,10">
                                                          <ComboBoxItem Content="Administrator (Local)" Tag="local_admin"/>
                                                          <ComboBoxItem Content="NOVA\svc_backup (Domain)" Tag="domain_backup"/>
@@ -137,13 +137,14 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
+                                                 <Grid.RowDefinitions>
+                                                     <RowDefinition Height="Auto"/>
+                                                     <RowDefinition Height="Auto"/>
+                                                     <RowDefinition Height="Auto"/>
+                                                     <RowDefinition Height="Auto"/>
+                                                     <RowDefinition Height="Auto"/>
+                                                     <RowDefinition Height="Auto"/>
+                                                 </Grid.RowDefinitions>
                                                 
                                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Job Name: " FontWeight="Bold" Margin="0,5"/>
                                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding JobName}" Margin="10,5"/>

@@ -47,10 +47,24 @@ namespace NovaBackup.GUI.ViewModels
         private string _guestCredentialsId = string.Empty;
 
         [ObservableProperty]
+        private string _scheduleType = "Daily";
+
+        [ObservableProperty]
+        private string _scheduleTime = "22:00";
+
+        [ObservableProperty]
+        private bool _truncateSqlLogs;
+
+        [ObservableProperty]
+        private bool _vssCopyBackup;
+
+        [ObservableProperty]
         private bool _isBusy;
 
         [ObservableProperty]
         private string _statusMessage = string.Empty;
+
+        public string ScheduleDisplay => $"{ScheduleType} {ScheduleTime}";
 
         public JobWizardViewModel(IApiClient apiClient)
         {
