@@ -1,14 +1,14 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NovaBackup.GUI.Models;
 using NovaBackup.GUI.Services;
-using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 
 namespace NovaBackup.GUI.ViewModels
 {
-    public partial class RecoverySessionsViewModel : ObservableObject
+    public class RecoverySessionsViewModel : ObservableObject
     {
         private readonly IApiClient _apiClient;
 
@@ -16,30 +16,27 @@ namespace NovaBackup.GUI.ViewModels
         private ObservableCollection<RecoverySessionModel> _sessions = new();
 
         [ObservableProperty]
-        private bool _isBusy;
+        private string _statusMessage = string.Empty;
 
         [ObservableProperty]
-        private string _statusMessage = string.Empty;
+        private bool _isBusy;
 
         public RecoverySessionsViewModel(IApiClient apiClient)
         {
             _apiClient = apiClient;
-            _ = RefreshSessionsAsync();
+            _ = LoadSessionsAsync();
         }
 
-        [RelayCommand]
-        public async Task RefreshSessionsAsync()
+        private async Task LoadSessionsAsync()
         {
             IsBusy = true;
+            StatusMessage = "Loading sessions...";
             try
             {
                 var sessions = await _apiClient.GetInstantRecoverySessionsAsync();
                 Sessions.Clear();
-                foreach (var session in sessions)
-                {
-                    Sessions.Add(session);
-                }
-                StatusMessage = $"Updated at {DateTime.Now:HH:mm:ss}";
+                foreach (var s in sessions) Sessions.Add(s);
+                StatusMessage = string.Empty;
             }
             catch (Exception ex)
             {
@@ -52,32 +49,16 @@ namespace NovaBackup.GUI.ViewModels
         }
 
         [RelayCommand]
-        private async Task StopSession(RecoverySessionModel? session)
+        private async Task StopSessionAsync(string sessionId)
         {
-            if (session == null) return;
-
-            IsBusy = true;
-            StatusMessage = $"Stopping session {session.SessionID}...";
             try
             {
-                bool success = await _apiClient.StopInstantRecoveryAsync(session.SessionID);
-                if (success)
-                {
-                    Sessions.Remove(session);
-                    StatusMessage = "Session stopped successfully.";
-                }
-                else
-                {
-                    StatusMessage = "Failed to stop session.";
-                }
+                await _apiClient.StopInstantRecoveryAsync(sessionId);
+                await LoadSessionsAsync();
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
-            }
-            finally
-            {
-                IsBusy = false;
+                StatusMessage = ex.Message;
             }
         }
     }

@@ -119,5 +119,17 @@ namespace NovaBackup.GUI.Services
             });
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<List<RecoverySessionModel>> GetInstantRecoverySessionsAsync()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<RecoverySessionModel>>("recovery/sessions");
+            return response ?? new List<RecoverySessionModel>();
+        }
+
+        public async Task<bool> StopInstantRecoveryAsync(string sessionId)
+        {
+            var response = await _httpClient.PostAsync($"recovery/sessions/{sessionId}/stop", null);
+            return response.IsSuccessStatusCode;
+        }
     }
 }

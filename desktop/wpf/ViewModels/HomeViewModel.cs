@@ -124,5 +124,13 @@ namespace NovaBackup.GUI.ViewModels
             // var logViewer = new LogViewerWindow(sessionId);
             // logViewer.Show();
         }
+        
+        [RelayCommand]
+        private void OpenRecoverySessionsWindow()
+        {
+            var window = new RecoverySessionsWindow(_apiClient);
+            window.Owner = System.Windows.Application.Current.MainWindow;
+            window.ShowDialog();
+        }
     }
 }
