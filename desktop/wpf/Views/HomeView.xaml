@@ -9,161 +9,72 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1100">
 
-    <Grid Background="#FF1E1E1E">
+  <Grid Background="#FF1E1E1E">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Dashboard Header -->
+    <TextBlock Grid.Row="0" Text="Dashboard" FontSize="28" FontWeight="Bold" Margin="30,20" Foreground="White"/>
+
+    <!-- Dashboard Content -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <Grid Margin="30,0,30,30">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
-        <!-- Dashboard Header -->
-        <TextBlock Grid.Row="0" Text="Dashboard" FontSize="28" FontWeight="Bold" 
-                  Margin="30,20" Foreground="White"/>
-        
-        <!-- Dashboard Cards -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <Grid Margin="30,0,30,30">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
 
-                <!-- Status Card -->
-                <Border Grid.Column="0" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
-                    <StackPanel>
-                        <TextBlock Text="System Status" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                                    <TextBlock Text="{Binding SystemStatus}" FontSize="14" Foreground="#FF28A745" Margin="0,10,0,0"/>
-                                    <TextBlock Text="{Binding ActiveJobs, StringFormat='Active Jobs: {0}'}" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                    <TextBlock Text="{Binding StorageUsed, StringFormat='Storage Used: {0:F1} GB'}" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                </StackPanel>
-                                
-                                <StackPanel Grid.Column="1" Margin="0,10,0,0">
-                                    <TextBlock Text="{Binding SuccessJobs, StringFormat='Success: {0}'}" FontSize="12" Foreground="#FF28A745"/>
-                                    <TextBlock Text="{Binding WarningJobs, StringFormat='Warnings: {0}'}" FontSize="12" Foreground="#FFFFA500" Margin="0,5,0,0"/>
-                                    <TextBlock Text="{Binding FailedJobs, StringFormat='Errors: {0}'}" FontSize="12" Foreground="#FFDC3545" Margin="0,5,0,0"/>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
+        <!-- Status Card -->
+        <Border Grid.Column="0" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
+          <StackPanel>
+            <TextBlock Text="System Status" FontSize="16" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="{Binding SystemStatus}" FontSize="12" Foreground="#FFAAAAAA"/>
+          </StackPanel>
+        </Border>
 
-                    <!-- Activity Card -->
-                    <Border Grid.Column="1" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
-                        <StackPanel>
-                            <TextBlock Text="Recent Activity" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                            <ItemsControl ItemsSource="{Binding RecentActivity}" Margin="0,10,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="#FFAAAAAA" Margin="0,5,0,0"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
+        <!-- Activity Card -->
+        <Border Grid.Column="1" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,15,15">
+          <StackPanel>
+            <TextBlock Text="Recent Activity" FontSize="16" FontWeight="Bold" Foreground="White"/>
+            <ItemsControl ItemsSource="{Binding RecentActivity}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" FontSize="12" Foreground="#FFAAAAAA"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
-                    <!-- Active Recovery Sessions Card -->
-                    <Border Grid.Column="2" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,0,15"
-                            Visibility="{Binding HasActiveSessions, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,10">
-                                <TextBlock Text="Active Recovery" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                <Button HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" 
-                                        Foreground="#FF007ACC" Padding="0" Content="View All"
-                                        Command="{Binding NavigateToSessionsCommand}"/>
-                            </Grid>
-                            
-                            <ItemsControl ItemsSource="{Binding ActiveSessions}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#FF3D3D3D" CornerRadius="2" Padding="10" Margin="0,0,0,8">
-                                            <Grid>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding VMName}" FontWeight="Bold" Foreground="White" FontSize="12"/>
-                                                    <TextBlock Text="{Binding Status}" Foreground="#FF28A745" FontSize="10" Margin="0,2,0,0"/>
-                                                    
-                                                    <!-- Progress Bar -->
-                                                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" 
-                                                                 Maximum="1" 
-                                                                 Height="4" 
-                                                                 Margin="0,8,0,0"
-                                                                 Foreground="#FF007ACC"
-                                                                 Background="#11FFFFFF"
-                                                                 BorderThickness="0"/>
-                                                    <TextBlock Text="{Binding FormattedProgress}" 
-                                                               HorizontalAlignment="Right" 
-                                                               FontSize="9" 
-                                                               Foreground="#FFAAAAAA"
-                                                               Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                                
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                                                    <Button Background="Transparent" BorderThickness="0" Padding="4"
-                                                            Command="{Binding DataContext.OpenLogsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding SessionID}"
-                                                            ToolTip="Open Session Logs">
-                                                        <materialDesign:PackIcon Kind="FileDocumentOutline" Foreground="#FFAAAAAA" Width="14" Height="14"/>
-                                                    </Button>
-                                                    
-                                                    <Button Background="Transparent" BorderThickness="0" Padding="4"
-                                                            Command="{Binding DataContext.StopSessionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding SessionID}"
-                                                            ToolTip="Stop Session">
-                                                        <materialDesign:PackIcon Kind="PowerOff" Foreground="#FFDC3545" Width="14" Height="14"/>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
+        <!-- Recovery Card -->
+        <Border Grid.Column="2" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,0,15">
+          <StackPanel>
+            <TextBlock Text="Active Recovery" FontSize="16" FontWeight="Bold" Foreground="White"/>
+            <ItemsControl ItemsSource="{Binding ActiveSessions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding VMName}" FontSize="12" Foreground="#FFAAAAAA"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
-                    <!-- Placeholder/Empty State for 3rd column if no sessions -->
-                    <Border Grid.Column="2" Grid.Row="0" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,0,0,15"
-                            Visibility="{Binding HasActiveSessions, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                             <materialDesign:PackIcon Kind="CheckCircleOutline" Width="40" Height="40" Foreground="#FFAAAAAA" HorizontalAlignment="Center"/>
-                             <TextBlock Text="No active recoveries" Foreground="#FFAAAAAA" Margin="0,10,0,0" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-            <!-- Quick Actions Card -->
-            <Border Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,15,0,0">
-                <StackPanel>
-                    <TextBlock Text="Quick Actions" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,0,15"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource MaterialDesignRaisedAccentButton}" 
-                                Command="{Binding OpenInstantRecoveryWizardCommand}"
-                                Width="200" Height="60" Margin="0,0,20,0">
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="LightningBolt" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Instant Recovery" VerticalAlignment="Center" FontWeight="Bold"/>
-                            </StackPanel>
-                        </Button>
-                        
-                        <Button Style="{StaticResource MaterialDesignRaisedButton}" 
-                                Width="180" Height="60" Margin="0,0,20,0">
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="AutoFix" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="New Backup Job" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </Grid>
-        </ScrollViewer>
-    </Grid>
+        <!-- Quick Actions -->
+        <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#FF2D2D2D" CornerRadius="4" Padding="20" Margin="0,15,0,0">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <Button Content="Instant Recovery" Style="{StaticResource MaterialDesignRaisedAccentButton}" Width="200" Height="60" Margin="0,0,20,0"/>
+            <Button Content="New Backup Job" Style="{StaticResource MaterialDesignRaisedButton}" Width="180" Height="60"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
 </UserControl>

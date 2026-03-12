@@ -56,16 +56,33 @@ namespace NovaBackup.GUI.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> CreateJobAsync(JobModel job, string schedule)
+        {
+            var response = await _httpClient.PostAsJsonAsync("jobs", new {
+                name = job.Name,
+                description = "Created via WPF Wizard",
+                job_type = job.Platform.ToLower() == "hyper-v" ? "vm" : "file",
+                schedule = schedule,
+                enabled = true,
+                retention_days = job.RetentionDays,
+                guest_processing = job.EnableGuestProcessing,
+                guest_credentials_id = job.GuestCredentialsId
+            });
+            return response.IsSuccessStatusCode;
+        }
+
+        // Overload for simpler WPF call without explicit schedule parameter
         public async Task<bool> CreateJobAsync(JobModel job)
         {
             var response = await _httpClient.PostAsJsonAsync("jobs", new {
                 name = job.Name,
                 description = "Created via WPF Wizard",
                 job_type = job.Platform.ToLower() == "hyper-v" ? "vm" : "file",
-                source = "Nova-Source-01",
-                destination = "Default-Repo",
                 schedule = "Daily 22:00",
-                enabled = true
+                enabled = true,
+                retention_days = job.RetentionDays,
+                guest_processing = job.EnableGuestProcessing,
+                guest_credentials_id = job.GuestCredentialsId
             });
             return response.IsSuccessStatusCode;
         }
