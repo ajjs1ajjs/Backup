@@ -229,6 +229,60 @@ class ApiClient {
     return response.data;
   }
 
+  // RBAC - Users
+  async getUsers() {
+    const response = await this.client.get('/api/v1/rbac/users');
+    return response.data;
+  }
+
+  async createUser(user: { username: string; email: string; password: string }) {
+    const response = await this.client.post('/api/v1/rbac/users', user);
+    return response.data;
+  }
+
+  async updateUser(id: string, user: { email?: string; active?: boolean }) {
+    const response = await this.client.put(`/api/v1/rbac/users/${id}`, user);
+    return response.data;
+  }
+
+  async deleteUser(id: string) {
+    await this.client.delete(`/api/v1/rbac/users/${id}`);
+  }
+
+  async assignRoleToUser(userId: string, roleId: string) {
+    await this.client.post(`/api/v1/rbac/users/${userId}/roles`, { role_id: roleId });
+  }
+
+  async removeRoleFromUser(userId: string, roleId: string) {
+    await this.client.delete(`/api/v1/rbac/users/${userId}/roles/${roleId}`);
+  }
+
+  // RBAC - Roles
+  async getRoles() {
+    const response = await this.client.get('/api/v1/rbac/roles');
+    return response.data;
+  }
+
+  async createRole(role: { id: string; name: string; description?: string; permissions?: string[] }) {
+    const response = await this.client.post('/api/v1/rbac/roles', role);
+    return response.data;
+  }
+
+  async updateRole(id: string, role: { name?: string; description?: string; permissions?: string[] }) {
+    const response = await this.client.put(`/api/v1/rbac/roles/${id}`, role);
+    return response.data;
+  }
+
+  async deleteRole(id: string) {
+    await this.client.delete(`/api/v1/rbac/roles/${id}`);
+  }
+
+  // RBAC - Permissions
+  async getPermissions() {
+    const response = await this.client.get('/api/v1/rbac/permissions');
+    return response.data;
+  }
+
   // Health
   async healthCheck(): Promise<{ status: string; version: string }> {
     const response = await this.client.get('/health');
