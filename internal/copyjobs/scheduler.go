@@ -30,7 +30,7 @@ func (s *CopyJobScheduler) Start() {
 }
 
 // AddJob adds a job to the scheduler
-func (s *JobScheduler) AddJob(job *BackupCopyJob) {
+func (s *CopyJobScheduler) AddJob(job *BackupCopyJob) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -43,7 +43,7 @@ func (s *JobScheduler) AddJob(job *BackupCopyJob) {
 }
 
 // RemoveJob removes a job from the scheduler
-func (s *JobScheduler) RemoveJob(jobID string) {
+func (s *CopyJobScheduler) RemoveJob(jobID string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -59,7 +59,7 @@ func (s *JobScheduler) RemoveJob(jobID string) {
 }
 
 // ScheduleJob schedules a job with the given schedule
-func (s *JobScheduler) ScheduleJob(jobID string, schedule string) {
+func (s *CopyJobScheduler) ScheduleJob(jobID string, schedule string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -76,7 +76,7 @@ func (s *JobScheduler) ScheduleJob(jobID string, schedule string) {
 }
 
 // UnscheduleJob unschedules a job
-func (s *JobScheduler) UnscheduleJob(jobID string) {
+func (s *CopyJobScheduler) UnscheduleJob(jobID string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -87,7 +87,7 @@ func (s *JobScheduler) UnscheduleJob(jobID string) {
 }
 
 // GetNextRun retrieves the next job to run
-func (s *JobScheduler) GetNextRun(tenantID string, jobs map[string]*BackupCopyJob) (*BackupCopyJob, error) {
+func (s *CopyJobScheduler) GetNextRun(tenantID string, jobs map[string]*BackupCopyJob) (*BackupCopyJob, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -111,7 +111,7 @@ func (s *JobScheduler) GetNextRun(tenantID string, jobs map[string]*BackupCopyJo
 }
 
 // shouldRunJob checks if a job should run based on its schedule
-func (s *JobScheduler) shouldRunJob(job *BackupCopyJob, now time.Time) bool {
+func (s *CopyJobScheduler) shouldRunJob(job *BackupCopyJob, now time.Time) bool {
 	// Simple scheduling - in a real implementation, this would parse cron expressions
 	// For now, we'll use simple time-based scheduling
 
@@ -139,6 +139,7 @@ func (s *CopyJobScheduler) run() {
 }
 
 // Stop stops the job scheduler
-func (s *JobScheduler) Stop() {
+func (s *CopyJobScheduler) Stop() {
+	s.ticker.Stop()
 	close(s.stopChan)
 }

@@ -178,17 +178,24 @@ func TestBackupCopyManager(t *testing.T) {
 		// Create multiple jobs
 		for i := 0; i < 5; i++ {
 			job := &BackupCopyJob{
-				ID:          fmt.Sprintf("list-job-%d", i),
-				Name:        fmt.Sprintf("List Test Job %d", i),
+				ID:         fmt.Sprintf("list-job-%d", i),
+				Name:       fmt.Sprintf("List Test Job %d", i),
 				SourceRepo: "primary-repo",
 				TargetRepo: "secondary-repo",
 				BackupType: "full",
-				Enabled:    i < 3, // First 3 enabled
-				Priority:   Priority(i % 2 == 0 ? PriorityHigh : PriorityNormal),
+				Enabled:    i < 3,
 				TenantID:   "test-tenant",
-				Status:     JobStatus(i % 2 == 1 ? JobStatusCompleted : JobStatusPending),
 			}
-			
+
+			// Set priority and status based on index
+			if i%2 == 0 {
+				job.Priority = PriorityHigh
+				job.Status = JobStatusPending
+			} else {
+				job.Priority = PriorityNormal
+				job.Status = JobStatusCompleted
+			}
+
 			err := manager.CreateJob(ctx, job)
 			if err != nil {
 				t.Fatalf("Failed to create list job %d: %v", i, err)

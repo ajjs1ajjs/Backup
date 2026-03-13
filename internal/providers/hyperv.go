@@ -128,12 +128,12 @@ func (h *HyperVBackupProvider) Backup(ctx context.Context, vmName string, dest s
 	vmState, err := h.getVMState(ctx, vmName)
 	if err != nil {
 		result.Status = models.JobStatusFailed
-		result.ErrorMessage = fmt.Sprintf("failed to get VM state: %w", err)
+		result.ErrorMessage = fmt.Sprintf("failed to get VM state: %v", err)
 		result.EndTime = time.Now()
 		return result, err
 	}
 
-	// Skip if VM is already off
+	// Check if VM is already off
 	_ = vmState // Use vmState for potential future logic
 
 	// Create checkpoint (snapshot)
@@ -141,7 +141,7 @@ func (h *HyperVBackupProvider) Backup(ctx context.Context, vmName string, dest s
 	err = h.createCheckpoint(ctx, vmName, checkpointName)
 	if err != nil {
 		result.Status = models.JobStatusFailed
-		result.ErrorMessage = fmt.Sprintf("failed to create checkpoint: %w", err)
+		result.ErrorMessage = fmt.Sprintf("failed to create checkpoint: %v", err)
 		result.EndTime = time.Now()
 		return result, err
 	}
@@ -153,7 +153,7 @@ func (h *HyperVBackupProvider) Backup(ctx context.Context, vmName string, dest s
 		// Cleanup checkpoint
 		h.removeCheckpoint(ctx, vmName, checkpointName)
 		result.Status = models.JobStatusFailed
-		result.ErrorMessage = fmt.Sprintf("failed to export VM: %w", err)
+		result.ErrorMessage = fmt.Sprintf("failed to export VM: %v", err)
 		result.EndTime = time.Now()
 		return result, err
 	}

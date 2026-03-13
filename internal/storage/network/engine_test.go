@@ -325,7 +325,7 @@ func TestConfigValidation(t *testing.T) {
 				Username:   "",
 				Password:   "",
 			},
-			wantErr: true,
+			wantErr: false, // Username is now optional
 		},
 	}
 

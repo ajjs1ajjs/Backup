@@ -1964,15 +1964,15 @@ func (m *InMemoryRecoveryPlanManager) GetActiveRecoveries(ctx context.Context) (
 			}
 
 			activeRecovery := &ActiveRecovery{
-				ID:        execution.ID,
-				PlanID:    execution.PlanID,
-				TenantID:  execution.TenantID,
-				Status:    execution.Status,
-				Progress:  execution.Progress,
-				StartTime: *execution.StartedAt,
+				ID:       execution.ID,
+				PlanID:   execution.PlanID,
+				TenantID: execution.TenantID,
+				Status:   execution.Status,
+				Progress: execution.Progress,
 			}
 
 			if execution.StartedAt != nil {
+				activeRecovery.StartTime = *execution.StartedAt
 				activeRecovery.Duration = time.Since(*execution.StartedAt)
 			}
 
