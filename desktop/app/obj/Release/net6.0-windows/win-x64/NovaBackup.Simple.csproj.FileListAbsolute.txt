@@ -1,6 +1,0 @@
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.csproj.AssemblyReference.cache
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.GeneratedMSBuildEditorConfig.editorconfig
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.AssemblyInfoInputs.cache
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.AssemblyInfo.cs
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.csproj.CoreCompileInputs.cache
-D:\WORK_CODE\Backup\desktop\app\obj\Release\net6.0-windows\win-x64\NovaBackup.Simple.sourcelink.json
