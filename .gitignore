@@ -98,3 +98,6 @@ QUICKSTART.md
 ROADMAP.md
 TODO_*.md
 v*_*.md
+*.bat
+Directory.Build.props
+monitoring/
