@@ -185,6 +185,43 @@
                             <TextBlock Text="Instant Recovery" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+
+                    <Separator Background="#FF3D3D3D" Margin="10,10" Height="1"/>
+
+                    <!-- Management -->
+                    <TextBlock Text="MANAGEMENT" FontSize="11" FontWeight="Bold" Foreground="#FF666666" Margin="15,10,10,5"/>
+
+                    <!-- Credentials -->
+                    <Button x:Name="btnCredentials" Style="{StaticResource NavButtonStyle}" Click="btnCredentials_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="KeyVariant" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Credentials" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Backup Proxies -->
+                    <Button x:Name="btnProxies" Style="{StaticResource NavButtonStyle}" Click="btnProxies_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ServerNetwork" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Backup Proxies" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- VSS Writers -->
+                    <Button x:Name="btnVSS" Style="{StaticResource NavButtonStyle}" Click="btnVSS_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Chip" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="VSS Writers" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Replication -->
+                    <Button x:Name="btnReplication" Style="{StaticResource NavButtonStyle}" Click="btnReplication_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="SwapHorizontal" Width="20" Height="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Replication" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Border>
 

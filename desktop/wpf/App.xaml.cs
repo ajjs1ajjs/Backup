@@ -23,7 +23,8 @@ namespace NovaBackup.GUI
                     // Register services
                     services.AddSingleton<Services.INavigationService, Services.NavigationService>();
                     services.AddHttpClient<Services.IApiClient, Services.ApiClient>();
-                    
+                    services.AddSingleton<Services.CredentialService>();
+
                     // Register ViewModels
                     services.AddSingleton<ViewModels.MainViewModel>();
                     services.AddSingleton<ViewModels.HomeViewModel>();
@@ -31,18 +32,27 @@ namespace NovaBackup.GUI
                     services.AddSingleton<ViewModels.JobsViewModel>();
                     services.AddSingleton<ViewModels.StorageViewModel>();
                     services.AddSingleton<ViewModels.RecoverySessionsViewModel>();
+                    services.AddSingleton<ViewModels.VSSViewModel>();
+                    services.AddSingleton<ViewModels.ReplicationViewModel>();
+                    services.AddTransient<ViewModels.CredentialsViewModel>();
+                    services.AddTransient<ViewModels.ProxiesViewModel>();
                     services.AddTransient<ViewModels.AddServerViewModel>();
-                    services.AddTransient<Views.AddServerWindow>();
                     services.AddTransient<ViewModels.JobWizardViewModel>();
+                    services.AddTransient<Views.AddServerWindow>();
                     services.AddTransient<Views.JobWizardWindow>();
-                    
+                    services.AddTransient<Views.CredentialsWindow>();
+                    services.AddTransient<Views.ProxiesWindow>();
+
                     // Provides instances of ViewModels for the NavigationService
                     services.AddSingleton<Func<Type, CommunityToolkit.Mvvm.ComponentModel.ObservableObject>>(serviceProvider => viewModelType => {
                         return (CommunityToolkit.Mvvm.ComponentModel.ObservableObject)serviceProvider.GetRequiredService(viewModelType);
                     });
 
                     // Register Views
-                    services.AddSingleton<MainWindow>(provider => new MainWindow {
+                    services.AddSingleton<MainWindow>(provider => new MainWindow(
+                        provider.GetRequiredService<Services.IApiClient>(),
+                        provider.GetRequiredService<Services.CredentialService>()
+                    ) {
                         DataContext = provider.GetRequiredService<ViewModels.MainViewModel>()
                     });
                 })
