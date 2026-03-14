@@ -39,5 +39,35 @@ namespace NovaBackup.GUI.ViewModels
 
         [RelayCommand]
         private void NavigateRecovery() => _navigationService.NavigateTo<RecoverySessionsViewModel>();
+
+        [RelayCommand]
+        private void NavigateVSS() => _navigationService.NavigateTo<VSSViewModel>();
+
+        [RelayCommand]
+        private void NavigateReplication() => _navigationService.NavigateTo<ReplicationViewModel>();
+
+        [RelayCommand]
+        private void NavigateReports() => _navigationService.NavigateTo<ReportsViewModel>();
+
+        [RelayCommand]
+        private void NavigateAuditLog() => _navigationService.NavigateTo<AuditLogViewModel>();
+
+        [RelayCommand]
+        private void NavigateUsers() => _navigationService.NavigateTo<UsersViewModel>();
+
+        [RelayCommand]
+        private void NavigateRoles() => _navigationService.NavigateTo<RolesViewModel>();
+
+        [RelayCommand]
+        private void NavigateTape() => _navigationService.NavigateTo<TapeViewModel>();
+
+        [RelayCommand]
+        private void NavigateCredentials() => _navigationService.NavigateTo<CredentialsViewModel>();
+
+        [RelayCommand]
+        private void NavigateProxies() => _navigationService.NavigateTo<ProxiesViewModel>();
+
+        [RelayCommand]
+        private void NavigateSynthetic() => _navigationService.NavigateTo<SyntheticBackupViewModel>();
     }
 }

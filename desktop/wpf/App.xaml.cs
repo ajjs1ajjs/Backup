@@ -34,6 +34,7 @@ namespace NovaBackup.GUI
                     services.AddSingleton<ViewModels.RecoverySessionsViewModel>();
                     services.AddSingleton<ViewModels.VSSViewModel>();
                     services.AddSingleton<ViewModels.ReplicationViewModel>();
+                    services.AddSingleton<ViewModels.SyntheticBackupViewModel>();
                     services.AddTransient<ViewModels.CredentialsViewModel>();
                     services.AddTransient<ViewModels.ProxiesViewModel>();
                     services.AddTransient<ViewModels.AddServerViewModel>();

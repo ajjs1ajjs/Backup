@@ -15,37 +15,40 @@ import (
 	"novabackup/internal/recovery"
 	"novabackup/internal/replication"
 	"novabackup/internal/scheduler"
+	"novabackup/internal/synthetic"
 	"novabackup/internal/tape"
 	"novabackup/internal/vss"
 	"novabackup/pkg/models"
 
+	"novabackup/internal/storage"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"novabackup/internal/storage"
 )
 
 // Server represents the API server
 type Server struct {
-	engine    *gin.Engine
-	db        *database.Connection
-	scheduler *scheduler.Scheduler
-	discovery *discovery.DiscoveryService
-	backup    *backup.BackupManager
-	irMgr     *recovery.InstantRecoveryManager
-	storage   *storage.Engine
-	gip       *guest.GuestInteractionProxy
-	guestProc *guest.GuestProcessor
-	credStore *guest.EncryptedCredentialStore
-	cdpEngine *cdp.InMemoryCDPEngine
-	replMgr   *replication.ReplicationManager
+	engine       *gin.Engine
+	db           *database.Connection
+	scheduler    *scheduler.Scheduler
+	discovery    *discovery.DiscoveryService
+	backup       *backup.BackupManager
+	irMgr        *recovery.InstantRecoveryManager
+	storage      *storage.Engine
+	gip          *guest.GuestInteractionProxy
+	guestProc    *guest.GuestProcessor
+	credStore    *guest.EncryptedCredentialStore
+	cdpEngine    *cdp.InMemoryCDPEngine
+	replMgr      *replication.ReplicationManager
+	syntheticMgr *synthetic.InMemorySyntheticBackupManager
 }
 
 // NewServer creates a new API server
 func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storage.Engine) (*Server, error) {
 	// Generate encryption key for credentials (in production, this should be from secure storage)
 	encryptKey := []byte("NovaBackupMasterKey32Bytes!") // 32 bytes
-	
+
 	// Initialize credential store
 	credStore, err := guest.NewEncryptedCredentialStore(guest.EncryptedCredentialStoreConfig{
 		EncryptionKey: encryptKey,
@@ -54,7 +57,7 @@ func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storag
 	if err != nil {
 		return nil, fmt.Errorf("failed to create credential store: %w", err)
 	}
-	
+
 	// Initialize Guest Interaction Proxy
 	gip := guest.NewGuestInteractionProxy(guest.GuestInteractionProxyConfig{
 		HealthCheckInterval: 30 * time.Second,
@@ -62,7 +65,7 @@ func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storag
 		SessionTimeout:      30 * time.Minute,
 		Logger:              zap.NewNop(),
 	})
-	
+
 	// Initialize Guest Processor
 	guestProc := guest.NewGuestProcessor(guest.GuestProcessorConfig{
 		Logger: zap.NewNop(),
@@ -89,6 +92,10 @@ func NewServer(db *database.Connection, sched *scheduler.Scheduler, stor *storag
 		replMgr:   replMgr,
 	}
 	s.irMgr = recovery.NewInstantRecoveryManager(db, s.backup.GetCompressor(), stor, nil) // VMware provider nil for now
+
+	// Initialize Synthetic Backup Manager
+	s.syntheticMgr = synthetic.NewInMemorySyntheticBackupManager(nil, nil) // TODO: Add proper tenant manager
+
 	s.setupRoutes()
 	return s, nil
 }
@@ -323,6 +330,19 @@ func (s *Server) setupRoutes() {
 			cdp.POST("/restore", s.restoreToRecoveryPoint)
 			cdp.GET("/stats", s.getCDPStats)
 			cdp.GET("/rpo-stats", s.getRPOStats)
+		}
+
+		// Synthetic Backup
+		synthetic := v1.Group("/synthetic")
+		{
+			synthetic.POST("", s.createSyntheticBackup)
+			synthetic.GET("", s.listSyntheticBackups)
+			synthetic.GET("/:id", s.getSyntheticBackup)
+			synthetic.DELETE("/:id", s.deleteSyntheticBackup)
+			synthetic.POST("/merge", s.mergeIncrementals)
+			synthetic.GET("/chains", s.getBackupChain)
+			synthetic.GET("/stats", s.getSyntheticStats)
+			synthetic.GET("/chains/stats", s.getBackupChainStats)
 		}
 	}
 }
@@ -1101,7 +1121,7 @@ func (s *Server) failoverReplicationJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	result, err := s.replMgr.FailoverJob(c.Request.Context(), &replication.FailoverRequest{
 		JobID:  id,
 		Reason: req.Reason,
@@ -1368,16 +1388,16 @@ func (s *Server) deleteTapeJob(c *gin.Context) {
 
 // GuestProcessRequest represents a guest processing request
 type GuestProcessRequest struct {
-	VMID              string   `json:"vm_id" binding:"required"`
-	VMName            string   `json:"vm_name" binding:"required"`
-	Mode              string   `json:"mode"` // "disabled", "crash_consistent", "application_aware"`
-	Applications      []string `json:"applications"`
-	CredentialsID     string   `json:"credentials_id"`
-	EnableQuiesce     bool     `json:"enable_quiesce"`
-	TruncateLogs      bool     `json:"truncate_logs"`
-	PreFreezeScript   string   `json:"pre_freeze_script"`
-	PostThawScript    string   `json:"post_thaw_script"`
-	TimeoutSeconds    int      `json:"timeout_seconds"`
+	VMID            string   `json:"vm_id" binding:"required"`
+	VMName          string   `json:"vm_name" binding:"required"`
+	Mode            string   `json:"mode"` // "disabled", "crash_consistent", "application_aware"`
+	Applications    []string `json:"applications"`
+	CredentialsID   string   `json:"credentials_id"`
+	EnableQuiesce   bool     `json:"enable_quiesce"`
+	TruncateLogs    bool     `json:"truncate_logs"`
+	PreFreezeScript string   `json:"pre_freeze_script"`
+	PostThawScript  string   `json:"post_thaw_script"`
+	TimeoutSeconds  int      `json:"timeout_seconds"`
 }
 
 // processGuest initiates guest processing for a VM
@@ -1399,20 +1419,20 @@ func (s *Server) processGuest(c *gin.Context) {
 	go s.guestProc.ExecuteProcessing(c.Request.Context(), task.ID)
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"message":  "Guest processing started",
-		"task_id":  task.ID,
-		"vm_id":    req.VMID,
-		"vm_name":  req.VMName,
-		"status":   "pending",
+		"message": "Guest processing started",
+		"task_id": task.ID,
+		"vm_id":   req.VMID,
+		"vm_name": req.VMName,
+		"status":  "pending",
 	})
 }
 
 // listGuestProcessingTasks returns all guest processing tasks
 func (s *Server) listGuestProcessingTasks(c *gin.Context) {
 	vmID := c.Query("vm_id")
-	
+
 	allTasks := s.guestProc.ListProcessingTasks()
-	
+
 	// Filter by vm_id if provided
 	if vmID != "" {
 		var filtered []*guest.GuestProcessingTask
@@ -1465,20 +1485,20 @@ func (s *Server) cancelGuestProcessing(c *gin.Context) {
 
 // GuestAgentRequest represents a guest agent registration request
 type GuestAgentRequest struct {
-	VMID          string `json:"vm_id" binding:"required"`
-	VMName        string `json:"vm_name" binding:"required"`
-	Hostname      string `json:"hostname"`
-	IPAddress     string `json:"ip_address" binding:"required"`
-	AgentType     string `json:"agent_type"` // "windows", "linux"
-	AgentVersion  string `json:"agent_version"`
+	VMID         string `json:"vm_id" binding:"required"`
+	VMName       string `json:"vm_name" binding:"required"`
+	Hostname     string `json:"hostname"`
+	IPAddress    string `json:"ip_address" binding:"required"`
+	AgentType    string `json:"agent_type"` // "windows", "linux"
+	AgentVersion string `json:"agent_version"`
 }
 
 // listGuestAgents returns all registered guest agents
 func (s *Server) listGuestAgents(c *gin.Context) {
 	statusFilter := c.Query("status")
-	
+
 	allAgents := s.gip.ListAgents()
-	
+
 	// Filter by status if provided
 	if statusFilter != "" {
 		var filtered []*guest.GuestAgent
@@ -1513,13 +1533,13 @@ func (s *Server) registerGuestAgent(c *gin.Context) {
 	}
 
 	agent := &guest.GuestAgent{
-		ID:            uuid.New().String(),
-		VMID:          req.VMID,
-		VMName:        req.VMName,
-		Hostname:      req.Hostname,
-		IPAddress:     req.IPAddress,
-		AgentType:     guest.GuestAgentType(req.AgentType),
-		AgentVersion:  req.AgentVersion,
+		ID:           uuid.New().String(),
+		VMID:         req.VMID,
+		VMName:       req.VMName,
+		Hostname:     req.Hostname,
+		IPAddress:    req.IPAddress,
+		AgentType:    guest.GuestAgentType(req.AgentType),
+		AgentVersion: req.AgentVersion,
 	}
 
 	if err := s.gip.RegisterAgent(agent); err != nil {
@@ -1740,7 +1760,7 @@ func (s *Server) getCDPEvents(c *gin.Context) {
 func (s *Server) getRecoveryPoints(c *gin.Context) {
 	path := c.Query("path")
 	sinceStr := c.Query("since")
-	
+
 	var since time.Time
 	if sinceStr != "" {
 		var err error
@@ -1764,7 +1784,7 @@ func (s *Server) getRecoveryPoints(c *gin.Context) {
 // restoreToRecoveryPoint restores a path to a recovery point
 func (s *Server) restoreToRecoveryPoint(c *gin.Context) {
 	var req struct {
-		Path           string `json:"path" binding:"required"`
+		Path            string `json:"path" binding:"required"`
 		RecoveryPointID string `json:"recovery_point_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1780,8 +1800,8 @@ func (s *Server) restoreToRecoveryPoint(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":          "Restore initiated",
-		"path":             req.Path,
+		"message":           "Restore initiated",
+		"path":              req.Path,
 		"recovery_point_id": req.RecoveryPointID,
 	})
 }
@@ -1808,6 +1828,123 @@ func (s *Server) getRPOStats(c *gin.Context) {
 
 	ctx := context.Background()
 	stats, err := s.cdpEngine.GetRPOStats(ctx, path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// ==================== Synthetic Backup Handlers ====================
+
+// createSyntheticBackup creates a new synthetic backup
+func (s *Server) createSyntheticBackup(c *gin.Context) {
+	var req synthetic.SyntheticBackupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	result, err := s.syntheticMgr.CreateSyntheticBackup(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, result)
+}
+
+// listSyntheticBackups lists all synthetic backups
+func (s *Server) listSyntheticBackups(c *gin.Context) {
+	ctx := context.Background()
+	filter := &synthetic.SyntheticBackupFilter{}
+
+	backups, err := s.syntheticMgr.ListSyntheticBackups(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"backups": backups, "count": len(backups)})
+}
+
+// getSyntheticBackup gets a specific synthetic backup
+func (s *Server) getSyntheticBackup(c *gin.Context) {
+	id := c.Param("id")
+	ctx := context.Background()
+
+	backup, err := s.syntheticMgr.GetSyntheticBackup(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, backup)
+}
+
+// deleteSyntheticBackup deletes a synthetic backup
+func (s *Server) deleteSyntheticBackup(c *gin.Context) {
+	id := c.Param("id")
+	ctx := context.Background()
+
+	if err := s.syntheticMgr.DeleteSyntheticBackup(ctx, id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Synthetic backup deleted", "id": id})
+}
+
+// mergeIncrementals merges incremental backups into a synthetic full
+func (s *Server) mergeIncrementals(c *gin.Context) {
+	var req synthetic.MergeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	result, err := s.syntheticMgr.MergeIncrementals(ctx, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// getBackupChain gets the backup chain for a synthetic backup
+func (s *Server) getBackupChain(c *gin.Context) {
+	ctx := context.Background()
+	filter := &synthetic.ChainFilter{}
+
+	chain, err := s.syntheticMgr.GetBackupChain(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, chain)
+}
+
+// getSyntheticStats returns synthetic backup statistics
+func (s *Server) getSyntheticStats(c *gin.Context) {
+	ctx := context.Background()
+	stats, err := s.syntheticMgr.GetSyntheticStats(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// getBackupChainStats returns backup chain statistics
+func (s *Server) getBackupChainStats(c *gin.Context) {
+	ctx := context.Background()
+	stats, err := s.syntheticMgr.GetBackupChainStats(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

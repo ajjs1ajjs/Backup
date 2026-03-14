@@ -23,8 +23,8 @@ public class ReplicationViewModelTests
     [Fact]
     public void Constructor_InitializesWithEmptyCollection()
     {
-        Assert.NotNull(_viewModel.ReplicationJobs);
-        Assert.Empty(_viewModel.ReplicationJobs);
+        Assert.NotNull(_viewModel.Jobs);
+        Assert.Empty(_viewModel.Jobs);
         Assert.False(_viewModel.IsLoading);
     }
 
@@ -40,10 +40,10 @@ public class ReplicationViewModelTests
         _mockApiClient.Setup(x => x.GetReplicationJobsAsync())
             .ReturnsAsync(expectedJobs);
 
-        await _viewModel.LoadDataAsync();
+        await _viewModel.LoadDataCommand.ExecuteAsync(null);
 
-        Assert.Equal(2, _viewModel.ReplicationJobs.Count);
-        Assert.Contains(_viewModel.ReplicationJobs, j => j.Name == "VM Replication 1");
+        Assert.Equal(2, _viewModel.Jobs.Count);
+        Assert.Contains(_viewModel.Jobs, j => j.Name == "VM Replication 1");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class ReplicationViewModelTests
         _mockApiClient.Setup(x => x.GetReplicationJobsAsync())
             .ThrowsAsync(new HttpRequestException("API Error"));
 
-        await _viewModel.LoadDataAsync();
+        await _viewModel.LoadDataCommand.ExecuteAsync(null);
 
         Assert.Contains("Error", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }

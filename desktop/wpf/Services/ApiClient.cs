@@ -366,5 +366,55 @@ namespace NovaBackup.GUI.Services
             var response = await _httpClient.GetFromJsonAsync<List<string>>("rbac/permissions");
             return response ?? new List<string>();
         }
+
+        // Synthetic Backup
+        public async Task<List<SyntheticBackupModel>> GetSyntheticBackupsAsync()
+        {
+            var response = await _httpClient.GetFromJsonAsync<Dictionary<string, object>>("synthetic");
+            if (response != null && response.ContainsKey("backups"))
+            {
+                var backups = new List<SyntheticBackupModel>();
+                var backupArray = response["backups"] as System.Text.Json.JsonElement?;
+                if (backupArray.HasValue)
+                {
+                    foreach (var item in backupArray.Value.EnumerateArray())
+                    {
+                        var backup = new SyntheticBackupModel
+                        {
+                            Id = item.GetProperty("id").GetString() ?? "",
+                            Name = item.GetProperty("backup_type").GetString() ?? "Synthetic Backup",
+                            SourceRepo = item.GetProperty("source_repo").GetString() ?? "",
+                            TargetRepo = item.GetProperty("target_repo").GetString() ?? "",
+                            BackupType = item.GetProperty("backup_type").GetString() ?? "",
+                            Status = item.GetProperty("status").GetString() ?? "",
+                            Size = item.GetProperty("size").GetInt64(),
+                            CompressionRatio = item.GetProperty("compression_ratio").GetDouble(),
+                            CreatedAt = item.GetProperty("created_at").GetDateTime(),
+                        };
+                        backups.Add(backup);
+                    }
+                }
+                return backups;
+            }
+            return new List<SyntheticBackupModel>();
+        }
+
+        public async Task<bool> CreateSyntheticBackupAsync(SyntheticBackupRequest request)
+        {
+            var response = await _httpClient.PostAsJsonAsync("synthetic", request);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteSyntheticBackupAsync(string id)
+        {
+            var response = await _httpClient.DeleteAsync($"synthetic/{id}");
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> MergeIncrementalsAsync(MergeIncrementalsRequest request)
+        {
+            var response = await _httpClient.PostAsJsonAsync("synthetic/merge", request);
+            return response.IsSuccessStatusCode;
+        }
     }
 }

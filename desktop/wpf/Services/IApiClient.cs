@@ -94,6 +94,12 @@ namespace NovaBackup.GUI.Services
 
         // RBAC - Permissions
         Task<List<string>> GetPermissionsAsync();
+
+        // Synthetic Backup
+        Task<List<SyntheticBackupModel>> GetSyntheticBackupsAsync();
+        Task<bool> CreateSyntheticBackupAsync(SyntheticBackupRequest request);
+        Task<bool> DeleteSyntheticBackupAsync(string id);
+        Task<bool> MergeIncrementalsAsync(MergeIncrementalsRequest request);
     }
 
     public class ReplicationJobModel

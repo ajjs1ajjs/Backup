@@ -40,7 +40,7 @@ public class VSSViewModelTests
         _mockApiClient.Setup(x => x.GetVSSWritersAsync())
             .ReturnsAsync(expectedWriters);
 
-        await _viewModel.LoadDataAsync();
+        await _viewModel.LoadDataCommand.ExecuteAsync(null);
 
         Assert.Equal(2, _viewModel.Writers.Count);
         Assert.Contains(_viewModel.Writers, w => w.Name == "VSS Writer 1");
@@ -53,7 +53,7 @@ public class VSSViewModelTests
         _mockApiClient.Setup(x => x.GetVSSWritersAsync())
             .ThrowsAsync(new HttpRequestException("API Error"));
 
-        await _viewModel.LoadDataAsync();
+        await _viewModel.LoadDataCommand.ExecuteAsync(null);
 
         Assert.Contains("Error", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -65,7 +65,7 @@ public class VSSViewModelTests
         _mockApiClient.Setup(x => x.GetVSSWritersAsync())
             .Returns(tcs.Task);
 
-        var task = _viewModel.LoadDataAsync();
+        var task = _viewModel.LoadDataCommand.ExecuteAsync(null);
 
         Assert.True(_viewModel.IsLoading);
 

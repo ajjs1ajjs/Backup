@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NovaBackup.GUI.Models;
 using NovaBackup.GUI.Services;
+using NovaBackup.GUI.ViewModels;
 
 namespace NovaBackup.GUI.Services
 {
@@ -113,5 +114,16 @@ namespace NovaBackup.GUI.Services
             "user:create", "user:read", "user:update", "user:delete",
             "system:config", "system:logs", "system:admin"
         });
+
+        // Synthetic Backup
+        public Task<List<SyntheticBackupModel>> GetSyntheticBackupsAsync() => Task.FromResult(new List<SyntheticBackupModel>
+        {
+            new SyntheticBackupModel { Id = "synth1", Name = "Weekly Synthetic Full", SourceRepo = "Repo-01", TargetRepo = "SOBR-01", BackupType = "Full", Status = "Completed", Size = 524288000, CompressionRatio = 0.45, CreatedAt = DateTime.Now.AddDays(-7) },
+            new SyntheticBackupModel { Id = "synth2", Name = "Monthly Synthetic Full", SourceRepo = "Repo-02", TargetRepo = "SOBR-02", BackupType = "Full", Status = "Running", Size = 1073741824, CompressionRatio = 0.38, CreatedAt = DateTime.Now.AddDays(-30) }
+        });
+
+        public Task<bool> CreateSyntheticBackupAsync(SyntheticBackupRequest request) => Task.FromResult(true);
+        public Task<bool> DeleteSyntheticBackupAsync(string id) => Task.FromResult(true);
+        public Task<bool> MergeIncrementalsAsync(MergeIncrementalsRequest request) => Task.FromResult(true);
     }
 }

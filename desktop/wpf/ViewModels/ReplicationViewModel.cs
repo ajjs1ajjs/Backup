@@ -14,6 +14,9 @@ namespace NovaBackup.GUI.ViewModels
         private ObservableCollection<Services.ReplicationJobModel> _jobs = new();
 
         [ObservableProperty]
+        private Services.ReplicationJobModel _selectedJob = new();
+
+        [ObservableProperty]
         private bool _isLoading;
 
         [ObservableProperty]
