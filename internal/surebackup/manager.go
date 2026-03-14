@@ -8,6 +8,8 @@ import (
 
 	"novabackup/internal/multitenancy"
 	"novabackup/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 // SureBackupManager manages sandbox environments for backup verification
@@ -783,9 +785,9 @@ func (m *InMemorySureBackupManager) validateTenantAccess(ctx context.Context, te
 }
 
 func generateSandboxID() string {
-	return fmt.Sprintf("sandbox-%d", time.Now().UnixNano())
+	return fmt.Sprintf("sandbox-%s", uuid.New().String()[:8])
 }
 
 func generateVerificationID() string {
-	return fmt.Sprintf("verif-%d", time.Now().UnixNano())
+	return fmt.Sprintf("verif-%s", uuid.New().String()[:8])
 }

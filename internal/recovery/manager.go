@@ -8,6 +8,8 @@ import (
 
 	"novabackup/internal/multitenancy"
 	"novabackup/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 // RecoveryPlanManager manages automated recovery plans
@@ -2066,13 +2068,13 @@ func (m *InMemoryRecoveryPlanManager) validateTenantAccess(ctx context.Context, 
 }
 
 func generatePlanID() string {
-	return fmt.Sprintf("recovery-plan-%d", time.Now().UnixNano())
+	return fmt.Sprintf("recovery-plan-%s", uuid.New().String()[:8])
 }
 
 func generateSequenceID() string {
-	return fmt.Sprintf("vm-sequence-%d", time.Now().UnixNano())
+	return fmt.Sprintf("vm-sequence-%s", uuid.New().String()[:8])
 }
 
 func generateExecutionID() string {
-	return fmt.Sprintf("recovery-exec-%d", time.Now().UnixNano())
+	return fmt.Sprintf("recovery-exec-%s", uuid.New().String()[:8])
 }

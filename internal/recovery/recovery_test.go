@@ -71,11 +71,11 @@ func (m *MockTenantManager) UpdateQuota(ctx context.Context, tenantID string, qu
 
 func (m *MockTenantManager) GetTenantResources(ctx context.Context, tenantID string) (*multitenancy.TenantResources, error) {
 	return &multitenancy.TenantResources{
-		Backups: []multitenancy.TenantResource{},
-		VMs: []multitenancy.TenantResource{},
-		Storage: []multitenancy.TenantResource{},
-		Jobs: []multitenancy.TenantResource{},
-		Users: []multitenancy.TenantResource{},
+		Backups:         []multitenancy.TenantResource{},
+		VMs:             []multitenancy.TenantResource{},
+		Storage:         []multitenancy.TenantResource{},
+		Jobs:            []multitenancy.TenantResource{},
+		Users:           []multitenancy.TenantResource{},
 		CustomResources: make(map[string][]multitenancy.TenantResource),
 	}, nil
 }
@@ -109,11 +109,11 @@ func TestRecoveryPlanManager(t *testing.T) {
 			Priority:    RecoveryPriorityCritical,
 			VMSequences: []VMSequence{
 				{
-					ID:          "seq-webapp",
-					Name:        "Web Application Recovery",
-					TenantID:    "test-tenant",
-					Type:        VMSequenceTypeSequential,
-					Enabled:     true,
+					ID:       "seq-webapp",
+					Name:     "Web Application Recovery",
+					TenantID: "test-tenant",
+					Type:     VMSequenceTypeSequential,
+					Enabled:  true,
 					VMs: []VMRecovery{
 						{
 							ID:           "vm-web-1",
@@ -137,9 +137,9 @@ func TestRecoveryPlanManager(t *testing.T) {
 								Network:    []string{"recovery-network"},
 								Config:     map[string]string{"cpu": "2", "memory": "4GB"},
 								Resources: VMResources{
-									CPU:        2,
-									MemoryGB:   4,
-									StorageGB:  100,
+									CPU:         2,
+									MemoryGB:    4,
+									StorageGB:   100,
 									NetworkMbps: 1000,
 								},
 							},
@@ -154,8 +154,8 @@ func TestRecoveryPlanManager(t *testing.T) {
 								Compression: true,
 							},
 							Configuration: VMConfig{
-								CPU:      2,
-								MemoryGB: 4,
+								CPU:       2,
+								MemoryGB:  4,
 								StorageGB: 100,
 								Network: []NetworkConfig{
 									{
@@ -189,13 +189,13 @@ func TestRecoveryPlanManager(t *testing.T) {
 								},
 								Disks: []DiskConfig{
 									{
-										ID:          "disk-1",
-										Name:        "system-disk",
-										Type:        "ssd",
-										SizeGB:      100,
-										Format:      "vmdk",
+										ID:            "disk-1",
+										Name:          "system-disk",
+										Type:          "ssd",
+										SizeGB:        100,
+										Format:        "vmdk",
 										ThinProvision: true,
-										StorageTier: "ssd-tier-1",
+										StorageTier:   "ssd-tier-1",
 									},
 								},
 								NICs: []NICConfig{
@@ -209,14 +209,14 @@ func TestRecoveryPlanManager(t *testing.T) {
 								},
 							},
 							Requirements: VMRequirements{
-								MinCPU:         2,
-								MinMemoryGB:    4,
-								MinStorageGB:   100,
+								MinCPU:           2,
+								MinMemoryGB:      4,
+								MinStorageGB:     100,
 								NetworkBandwidth: 1000,
-								StorageType:    "ssd",
-								StorageTier:    "ssd-tier-1",
-								NetworkType:    "vlan",
-								NetworkTier:    "standard",
+								StorageType:      "ssd",
+								StorageTier:      "ssd-tier-1",
+								NetworkType:      "vlan",
+								NetworkTier:      "standard",
 							},
 							Validation: VMValidation{
 								PreCheck: []ValidationRule{
@@ -1025,17 +1025,23 @@ func TestRecoveryPlanManager(t *testing.T) {
 			t.Errorf("Expected at least 1 active recovery, got %d", len(activeRecoveries))
 		}
 
-		// Verify recovery properties
+		// Verify recovery properties - find the recovery for our plan
+		found := false
 		for _, recovery := range activeRecoveries {
-			if recovery.PlanID != plan.ID {
-				t.Errorf("Expected plan ID %s, got %s", plan.ID, recovery.PlanID)
+			if recovery.PlanID == plan.ID {
+				found = true
+				if recovery.TenantID != "test-tenant" {
+					t.Errorf("Expected tenant ID %s, got %s", "test-tenant", recovery.TenantID)
+				}
+				if recovery.Status != ExecutionStatusRunning && recovery.Status != ExecutionStatusPending {
+					t.Errorf("Expected running or pending status, got %s", recovery.Status)
+				}
+				break
 			}
-			if recovery.TenantID != "test-tenant" {
-				t.Errorf("Expected tenant ID %s, got %s", "test-tenant", recovery.TenantID)
-			}
-			if recovery.Status != ExecutionStatusRunning && recovery.Status != ExecutionStatusPending {
-				t.Errorf("Expected running or pending status, got %s", recovery.Status)
-			}
+		}
+
+		if !found {
+			t.Errorf("Expected to find recovery for plan %s, but not found", plan.ID)
 		}
 	})
 }

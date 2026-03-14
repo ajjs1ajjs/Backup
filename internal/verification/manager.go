@@ -9,6 +9,8 @@ import (
 	"novabackup/internal/multitenancy"
 	"novabackup/internal/storage"
 	"novabackup/internal/surebackup"
+
+	"github.com/google/uuid"
 )
 
 // Re-export types from surebackup package for convenience
@@ -1143,9 +1145,9 @@ func (m *InMemoryAutoVerificationManager) validateTenantAccess(ctx context.Conte
 }
 
 func generateScheduleID() string {
-	return fmt.Sprintf("schedule-%d", time.Now().UnixNano())
+	return fmt.Sprintf("schedule-%s", uuid.New().String()[:8])
 }
 
 func generateJobID() string {
-	return fmt.Sprintf("job-%d", time.Now().UnixNano())
+	return fmt.Sprintf("job-%s", uuid.New().String()[:8])
 }

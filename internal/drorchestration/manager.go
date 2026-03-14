@@ -8,6 +8,8 @@ import (
 
 	"novabackup/internal/multitenancy"
 	"novabackup/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 // ResourceLimits contains resource constraints
@@ -2197,10 +2199,12 @@ func (m *InMemoryDROrchestrator) GetActiveExecutions(ctx context.Context) ([]*Ac
 				TenantID:  execution.TenantID,
 				Status:    execution.Status,
 				Progress:  execution.Progress,
-				StartTime: *execution.StartedAt,
+				StartTime: time.Time{},
+				Duration:  0,
 			}
 
 			if execution.StartedAt != nil {
+				activeExec.StartTime = *execution.StartedAt
 				activeExec.Duration = time.Since(*execution.StartedAt)
 			}
 
@@ -2223,10 +2227,12 @@ func (m *InMemoryDROrchestrator) GetActiveExecutions(ctx context.Context) ([]*Ac
 				TenantID:  execution.TenantID,
 				Status:    execution.Status,
 				Progress:  execution.Progress,
-				StartTime: *execution.StartedAt,
+				StartTime: time.Time{},
+				Duration:  0,
 			}
 
 			if execution.StartedAt != nil {
+				activeExec.StartTime = *execution.StartedAt
 				activeExec.Duration = time.Since(*execution.StartedAt)
 			}
 
@@ -2249,10 +2255,12 @@ func (m *InMemoryDROrchestrator) GetActiveExecutions(ctx context.Context) ([]*Ac
 				TenantID:  execution.TenantID,
 				Status:    execution.Status,
 				Progress:  execution.Progress,
-				StartTime: *execution.StartedAt,
+				StartTime: time.Time{},
+				Duration:  0,
 			}
 
 			if execution.StartedAt != nil {
+				activeExec.StartTime = *execution.StartedAt
 				activeExec.Duration = time.Since(*execution.StartedAt)
 			}
 
@@ -2414,9 +2422,9 @@ func (m *InMemoryDROrchestrator) validateTenantAccess(ctx context.Context, tenan
 }
 
 func generatePlanID() string {
-	return fmt.Sprintf("dr-plan-%d", time.Now().UnixNano())
+	return fmt.Sprintf("dr-plan-%s", uuid.New().String()[:8])
 }
 
 func generateExecutionID() string {
-	return fmt.Sprintf("dr-exec-%d", time.Now().UnixNano())
+	return fmt.Sprintf("dr-exec-%s", uuid.New().String()[:8])
 }

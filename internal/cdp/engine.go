@@ -9,6 +9,8 @@ import (
 
 	"novabackup/internal/deduplication"
 	"novabackup/internal/multitenancy"
+
+	"github.com/google/uuid"
 )
 
 // CDPEngine manages continuous data protection operations
@@ -642,7 +644,7 @@ func (c *InMemoryCDPEngine) GetRPOStats(ctx context.Context, path string) (*RPOS
 
 // Utility functions
 func generateEventID() string {
-	return fmt.Sprintf("event_%d", time.Now().UnixNano())
+	return fmt.Sprintf("event_%s", uuid.New().String()[:8])
 }
 
 // NewCDPConfig creates a default CDP configuration

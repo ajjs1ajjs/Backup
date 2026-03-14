@@ -8,6 +8,8 @@ import (
 
 	"novabackup/internal/deduplication"
 	"novabackup/internal/multitenancy"
+
+	"github.com/google/uuid"
 )
 
 // SyntheticBackupManager manages synthetic full backup operations
@@ -203,9 +205,20 @@ func (m *InMemorySyntheticBackupManager) CreateSyntheticBackup(ctx context.Conte
 		return nil, fmt.Errorf("tenant ID required for synthetic backup creation")
 	}
 
+	// Parse size from metadata if provided
+	var bytesOriginal, bytesCompressed int64
+	if request.Metadata != nil {
+		if val, ok := request.Metadata["bytes_original"]; ok {
+			bytesOriginal = parseInt64FromString(val)
+		}
+		if val, ok := request.Metadata["bytes_compressed"]; ok {
+			bytesCompressed = parseInt64FromString(val)
+		}
+	}
+
 	// Create synthetic backup
 	backup := &SyntheticBackup{
-		ID:               fmt.Sprintf("synthetic-backup-%d", time.Now().UnixNano()),
+		ID:               fmt.Sprintf("synthetic-backup-%s", uuid.New().String()[:8]),
 		SourceRepo:       request.SourceRepo,
 		TargetRepo:       request.TargetRepo,
 		BackupType:       request.BackupType,
@@ -217,6 +230,9 @@ func (m *InMemorySyntheticBackupManager) CreateSyntheticBackup(ctx context.Conte
 		Metadata:         request.Metadata,
 		Status:           BackupStatusPending,
 		CreatedAt:        time.Now(),
+		Size:             bytesOriginal,
+		BytesOriginal:    bytesOriginal,
+		BytesCompressed:  bytesCompressed,
 	}
 
 	m.mutex.Lock()
@@ -231,9 +247,9 @@ func (m *InMemorySyntheticBackupManager) CreateSyntheticBackup(ctx context.Conte
 	return &SyntheticBackupResult{
 		BackupID:         backup.ID,
 		Success:          true,
-		BytesProcessed:   0, // Will be updated during processing
-		BytesOriginal:    0,
-		CompressionRatio: 0.0,
+		BytesProcessed:   bytesOriginal,
+		BytesOriginal:    bytesOriginal,
+		CompressionRatio: compressionRatio(bytesCompressed, bytesOriginal),
 		Duration:         0,
 		CreatedAt:        backup.CreatedAt,
 		Metadata: map[string]string{
@@ -279,41 +295,38 @@ func (m *InMemorySyntheticBackupManager) ListSyntheticBackups(ctx context.Contex
 
 	var backups []SyntheticBackup
 	for _, backup := range m.backups {
-		// Apply tenant filter
-		if filter.TenantID != "" && backup.TenantID != filter.TenantID {
+		// Always filter by tenant from context
+		if backup.TenantID != tenantID {
 			continue
 		}
 
-		// Apply status filter
-		if filter.Status != "" && backup.Status != filter.Status {
-			continue
-		}
-
-		// Apply source repo filter
-		if filter.SourceRepo != "" && backup.SourceRepo != filter.SourceRepo {
-			continue
-		}
-
-		// Apply target repo filter
-		if filter.TargetRepo != "" && backup.TargetRepo != filter.TargetRepo {
-			continue
-		}
-
-		// Apply backup type filter
-		if filter.BackupType != "" && backup.BackupType != filter.BackupType {
-			continue
-		}
-
-		// Apply chain filter
-		if filter.ChainID != "" && backup.ChainID != filter.ChainID {
-			continue
+		// Apply additional filters if provided
+		if filter != nil {
+			if filter.TenantID != "" && backup.TenantID != filter.TenantID {
+				continue
+			}
+			if filter.Status != "" && backup.Status != filter.Status {
+				continue
+			}
+			if filter.SourceRepo != "" && backup.SourceRepo != filter.SourceRepo {
+				continue
+			}
+			if filter.TargetRepo != "" && backup.TargetRepo != filter.TargetRepo {
+				continue
+			}
+			if filter.BackupType != "" && backup.BackupType != filter.BackupType {
+				continue
+			}
+			if filter.ChainID != "" && backup.ChainID != filter.ChainID {
+				continue
+			}
 		}
 
 		backups = append(backups, *backup)
 	}
 
 	// Apply pagination
-	if filter.Offset > 0 && filter.Offset < len(backups) {
+	if filter != nil && filter.Offset > 0 && filter.Offset < len(backups) {
 		end := filter.Offset + filter.Limit
 		if end > len(backups) {
 			end = len(backups)
@@ -601,4 +614,18 @@ func (m *InMemorySyntheticBackupManager) GetBackupChainStats(ctx context.Context
 		AverageChainLength: averageChainLength,
 		LastActivity:       time.Now(),
 	}, nil
+}
+
+// Helper functions
+func parseInt64FromString(s string) int64 {
+	var result int64
+	fmt.Sscanf(s, "%d", &result)
+	return result
+}
+
+func compressionRatio(compressed, original int64) float64 {
+	if original == 0 {
+		return 0.0
+	}
+	return float64(compressed) / float64(original)
 }

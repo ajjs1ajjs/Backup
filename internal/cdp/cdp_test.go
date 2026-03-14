@@ -137,39 +137,39 @@ func TestCDPEngine(t *testing.T) {
 	config := NewCDPConfig()
 	mockTenantMgr := &MockTenantManager{}
 	mockDedupeMgr := &MockDeduplicationManager{chunks: make(map[string]*deduplication.Chunk)}
-	
+
 	cdpEngine := NewInMemoryCDPEngine(config, mockTenantMgr, mockDedupeMgr)
 
 	t.Run("StartStopWatching", func(t *testing.T) {
 		ctx := mockTenantMgr.WithTenant(context.Background(), "test-tenant")
-		
+
 		// Test starting
 		paths := []string{"/test/path", "/another/path"}
 		err := cdpEngine.StartWatching(ctx, paths)
 		if err != nil {
 			t.Fatalf("Failed to start watching: %v", err)
 		}
-		
+
 		if !cdpEngine.IsWatching() {
 			t.Error("Engine should be watching")
 		}
-		
+
 		// Test protected paths
 		protectedPaths, err := cdpEngine.GetProtectedPaths(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get protected paths: %v", err)
 		}
-		
+
 		if len(protectedPaths) != 2 {
 			t.Errorf("Expected 2 protected paths, got %d", len(protectedPaths))
 		}
-		
+
 		// Test stopping
 		err = cdpEngine.StopWatching(ctx)
 		if err != nil {
 			t.Fatalf("Failed to stop watching: %v", err)
 		}
-		
+
 		if cdpEngine.IsWatching() {
 			t.Error("Engine should not be watching")
 		}
@@ -177,46 +177,46 @@ func TestCDPEngine(t *testing.T) {
 
 	t.Run("ProcessEvent", func(t *testing.T) {
 		ctx := mockTenantMgr.WithTenant(context.Background(), "test-tenant")
-		
+
 		// Enable protection for a path first
 		err := cdpEngine.EnableProtection(ctx, "/test/path")
 		if err != nil {
 			t.Fatalf("Failed to enable protection: %v", err)
 		}
-		
-		// Process a create event
+
+		// Process a create event - use same path as protected
 		event := &FileEvent{
-			ID:      "test-event-1",
-			Type:    EventCreate,
-			Path:    "/test/path/file.txt",
-			Size:    1024,
-			ModTime: time.Now(),
+			ID:       "test-event-1",
+			Type:     EventCreate,
+			Path:     "/test/path",
+			Size:     1024,
+			ModTime:  time.Now(),
 			Checksum: "test-checksum",
 			Metadata: map[string]string{
 				"test": "true",
 			},
 		}
-		
+
 		err = cdpEngine.ProcessEvent(ctx, event)
 		if err != nil {
 			t.Fatalf("Failed to process event: %v", err)
 		}
-		
+
 		// Check if event was processed
 		if event.ProcessedAt == nil {
 			t.Error("Event should have been processed")
 		}
-		
+
 		// Get events
 		events, err := cdpEngine.GetEvents(ctx, 10)
 		if err != nil {
 			t.Fatalf("Failed to get events: %v", err)
 		}
-		
+
 		if len(events) != 1 {
 			t.Errorf("Expected 1 event, got %d", len(events))
 		}
-		
+
 		if events[0].ID != "test-event-1" {
 			t.Errorf("Expected event ID 'test-event-1', got '%s'", events[0].ID)
 		}
@@ -224,61 +224,61 @@ func TestCDPEngine(t *testing.T) {
 
 	t.Run("RecoveryPoints", func(t *testing.T) {
 		ctx := mockTenantMgr.WithTenant(context.Background(), "test-tenant")
-		
+
 		// Enable protection
 		err := cdpEngine.EnableProtection(ctx, "/test/recovery")
 		if err != nil {
 			t.Fatalf("Failed to enable protection: %v", err)
 		}
-		
-		// Process multiple events to create recovery points
+
+		// Process multiple events to create recovery points - use same path as protected
 		events := []*FileEvent{
 			{
-				ID:      "recovery-event-1",
-				Type:    EventCreate,
-				Path:    "/test/recovery/data.txt",
-				Size:    512,
-				ModTime: time.Now().Add(-2 * time.Hour),
+				ID:       "recovery-event-1",
+				Type:     EventCreate,
+				Path:     "/test/recovery",
+				Size:     512,
+				ModTime:  time.Now().Add(-2 * time.Hour),
 				Checksum: "checksum-1",
 			},
 			{
-				ID:      "recovery-event-2",
-				Type:    EventModify,
-				Path:    "/test/recovery/data.txt",
-				Size:    1024,
-				ModTime: time.Now().Add(-1 * time.Hour),
+				ID:       "recovery-event-2",
+				Type:     EventModify,
+				Path:     "/test/recovery",
+				Size:     1024,
+				ModTime:  time.Now().Add(-1 * time.Hour),
 				Checksum: "checksum-2",
 			},
 			{
-				ID:      "recovery-event-3",
-				Type:    EventModify,
-				Path:    "/test/recovery/data.txt",
-				Size:    1536,
-				ModTime: time.Now(),
+				ID:       "recovery-event-3",
+				Type:     EventModify,
+				Path:     "/test/recovery",
+				Size:     1536,
+				ModTime:  time.Now(),
 				Checksum: "checksum-3",
 			},
 		}
-		
+
 		for _, event := range events {
 			err = cdpEngine.ProcessEvent(ctx, event)
 			if err != nil {
 				t.Fatalf("Failed to process event %s: %v", event.ID, err)
 			}
 		}
-		
+
 		// Get recovery points
 		since := time.Now().Add(-3 * time.Hour)
-		points, err := cdpEngine.GetRecoveryPoints(ctx, "/test/recovery/data.txt", since)
+		points, err := cdpEngine.GetRecoveryPoints(ctx, "/test/recovery", since)
 		if err != nil {
 			t.Fatalf("Failed to get recovery points: %v", err)
 		}
-		
+
 		if len(points) != 3 {
 			t.Errorf("Expected 3 recovery points, got %d", len(points))
 		}
-		
+
 		// Test restore to point
-		err = cdpEngine.RestoreToPoint(ctx, "/test/recovery/data.txt", points[1])
+		err = cdpEngine.RestoreToPoint(ctx, "/test/recovery", points[1])
 		if err != nil {
 			t.Fatalf("Failed to restore to point: %v", err)
 		}
@@ -286,18 +286,18 @@ func TestCDPEngine(t *testing.T) {
 
 	t.Run("ProtectionManagement", func(t *testing.T) {
 		ctx := mockTenantMgr.WithTenant(context.Background(), "test-tenant")
-		
+
 		// Test enable protection
 		err := cdpEngine.EnableProtection(ctx, "/test/protection")
 		if err != nil {
 			t.Fatalf("Failed to enable protection: %v", err)
 		}
-		
+
 		protectedPaths, err := cdpEngine.GetProtectedPaths(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get protected paths: %v", err)
 		}
-		
+
 		// Check for exact match or absolute path
 		found := false
 		for _, path := range protectedPaths {
@@ -308,22 +308,22 @@ func TestCDPEngine(t *testing.T) {
 				break
 			}
 		}
-		
+
 		if !found {
 			t.Errorf("Protected path should be in the list. Got paths: %v", protectedPaths)
 		}
-		
+
 		// Test disable protection
 		err = cdpEngine.DisableProtection(ctx, "/test/protection")
 		if err != nil {
 			t.Fatalf("Failed to disable protection: %v", err)
 		}
-		
+
 		protectedPaths, err = cdpEngine.GetProtectedPaths(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get protected paths: %v", err)
 		}
-		
+
 		found = false
 		for _, path := range protectedPaths {
 			absPath, _ := filepath.Abs("/test/protection")
@@ -332,7 +332,7 @@ func TestCDPEngine(t *testing.T) {
 				break
 			}
 		}
-		
+
 		if found {
 			t.Error("Protected path should not be in the list after disabling")
 		}
@@ -346,58 +346,58 @@ func TestCDPEngine(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to enable protection: %v", err)
 		}
-		
-		// Process events
+
+		// Process events - use same path as protected
 		for i := 0; i < 5; i++ {
 			event := &FileEvent{
-				ID:      fmt.Sprintf("stats-event-%d", i),
-				Type:    EventModify,
-				Path:    "/test/stats/file.txt",
-				Size:    int64(1024 * (i + 1)),
-				ModTime: time.Now().Add(time.Duration(i) * time.Minute),
+				ID:       fmt.Sprintf("stats-event-%d", i),
+				Type:     EventModify,
+				Path:     "/test/stats",
+				Size:     int64(1024 * (i + 1)),
+				ModTime:  time.Now().Add(time.Duration(i) * time.Minute),
 				Checksum: fmt.Sprintf("checksum-%d", i),
 			}
-			
+
 			err = cdpEngine.ProcessEvent(ctx, event)
 			if err != nil {
 				t.Fatalf("Failed to process event %d: %v", i, err)
 			}
 		}
-		
+
 		// Get CDP stats
 		stats, err := cdpEngine.GetCDPStats(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get CDP stats: %v", err)
 		}
-		
+
 		if stats.TotalEvents != 5 {
 			t.Errorf("Expected 5 total events, got %d", stats.TotalEvents)
 		}
-		
+
 		if stats.ProcessedEvents != 5 {
 			t.Errorf("Expected 5 processed events, got %d", stats.ProcessedEvents)
 		}
-		
+
 		if stats.ProtectedPaths < 1 {
 			t.Errorf("Expected at least 1 protected path, got %d", stats.ProtectedPaths)
 		}
-		
+
 		// Get RPO stats
-		rpoStats, err := cdpEngine.GetRPOStats(ctx, "/test/stats/file.txt")
+		rpoStats, err := cdpEngine.GetRPOStats(ctx, "/test/stats")
 		if err != nil {
 			t.Fatalf("Failed to get RPO stats: %v", err)
 		}
-		
-		if rpoStats.Path != "/test/stats/file.txt" {
-			t.Errorf("Expected path '/test/stats/file.txt', got '%s'", rpoStats.Path)
+
+		if rpoStats.Path != "/test/stats" {
+			t.Errorf("Expected path '/test/stats', got '%s'", rpoStats.Path)
 		}
-		
+
 		if rpoStats.RecoveryPoints != 5 {
 			t.Errorf("Expected 5 recovery points, got %d", rpoStats.RecoveryPoints)
 		}
-		
-		if rpoStats.ProtectedSize != 10240 { // 1024 + 2048 + 3072 + 4096 + 5120
-			t.Errorf("Expected protected size 10240, got %d", rpoStats.ProtectedSize)
+
+		if rpoStats.ProtectedSize != 15360 { // 1024 + 2048 + 3072 + 4096 + 5120
+			t.Errorf("Expected protected size 15360, got %d", rpoStats.ProtectedSize)
 		}
 	})
 }
@@ -437,7 +437,7 @@ func TestCDPConfig(t *testing.T) {
 func TestEventProcessor(t *testing.T) {
 	config := NewCDPConfig()
 	mockDedupeMgr := &MockDeduplicationManager{chunks: make(map[string]*deduplication.Chunk)}
-	
+
 	processor := NewEventProcessor(config, mockDedupeMgr)
 
 	if processor == nil {

@@ -8,6 +8,8 @@ import (
 
 	"novabackup/internal/multitenancy"
 	"novabackup/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 // ScaleOutManager manages scale-out storage architecture
@@ -2062,6 +2064,7 @@ func (m *InMemoryScaleOutManager) GetScaleOutStats(ctx context.Context, tenantID
 			stats.ActiveRepositories++
 		}
 
+		// Count pools from repository
 		stats.TotalPools += int64(len(repo.Pools))
 		for _, pool := range repo.Pools {
 			if pool.Enabled {
@@ -2082,6 +2085,37 @@ func (m *InMemoryScaleOutManager) GetScaleOutStats(ctx context.Context, tenantID
 
 		stats.TotalMovers += int64(len(repo.DataMovers))
 		for _, mover := range repo.DataMovers {
+			if mover.Enabled && mover.Status == MoverStatusRunning {
+				stats.ActiveMovers++
+			}
+		}
+	}
+
+	// Also count standalone pools, movers, and balancers
+	for _, pool := range m.pools {
+		if pool.TenantID == tenantID {
+			stats.TotalPools++
+			if pool.Enabled {
+				stats.ActivePools++
+			}
+			stats.TotalNodes += int64(len(pool.Nodes))
+			for _, node := range pool.Nodes {
+				if node.HealthStatus.Status == HealthStatusHealthy {
+					stats.ActiveNodes++
+				}
+			}
+			totalCapacity += pool.Capacity.TotalStorage
+			usedCapacity += pool.Capacity.UsedStorage
+			totalThroughput += pool.Performance.AverageThroughput
+			totalLatency += pool.Performance.AverageLatency
+			latencyCount++
+		}
+	}
+
+	// Count standalone data movers
+	for _, mover := range m.movers {
+		if mover.TenantID == tenantID {
+			stats.TotalMovers++
 			if mover.Enabled && mover.Status == MoverStatusRunning {
 				stats.ActiveMovers++
 			}
@@ -2445,21 +2479,21 @@ func (m *InMemoryScaleOutManager) validateTenantAccess(ctx context.Context, tena
 }
 
 func generateRepositoryID() string {
-	return fmt.Sprintf("repo-%d", time.Now().UnixNano())
+	return fmt.Sprintf("repo-%s", uuid.New().String()[:8])
 }
 
 func generatePoolID() string {
-	return fmt.Sprintf("pool-%d", time.Now().UnixNano())
+	return fmt.Sprintf("pool-%s", uuid.New().String()[:8])
 }
 
 func generateNodeID() string {
-	return fmt.Sprintf("node-%d", time.Now().UnixNano())
+	return fmt.Sprintf("node-%s", uuid.New().String()[:8])
 }
 
 func generateMoverID() string {
-	return fmt.Sprintf("mover-%d", time.Now().UnixNano())
+	return fmt.Sprintf("mover-%s", uuid.New().String()[:8])
 }
 
 func generateBalancerID() string {
-	return fmt.Sprintf("balancer-%d", time.Now().UnixNano())
+	return fmt.Sprintf("balancer-%s", uuid.New().String()[:8])
 }
