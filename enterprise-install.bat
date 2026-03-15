@@ -70,33 +70,34 @@ echo [3/7] Downloading NovaBackup from GitHub...
 set "DOWNLOAD_FILE=%TEMP%\novabackup.zip"
 
 set "DOWNLOAD_OK=0"
-call :download "%GITHUB_URL%/novabackup-windows-amd64.zip" "%DOWNLOAD_FILE%"
+call :download "%RAW_URL%/novabackup.exe" "%TEMP%\novabackup.exe"
 if %errorLevel% equ 0 (
-    call :verify_zip "%DOWNLOAD_FILE%"
-    if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
+    call :verify_exe "%TEMP%\novabackup.exe"
+    if %errorLevel% equ 0 (
+        copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\\NovaBackup.exe"
+        set "DOWNLOAD_OK=2"
+    )
 )
 if "%DOWNLOAD_OK%"=="0" (
-    echo [WARNING] Release download failed. Trying raw repository...
-    call :download "%RAW_URL%/novabackup.exe" "%TEMP%\novabackup.exe"
+    echo [WARNING] Raw download failed. Trying releases...
+    call :download "%GITHUB_URL%/novabackup-windows-amd64.zip" "%DOWNLOAD_FILE%"
     if %errorLevel% equ 0 (
-        call :verify_exe "%TEMP%\novabackup.exe"
-        if %errorLevel% equ 0 (
-            copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\\NovaBackup.exe"
-            set "DOWNLOAD_OK=2"
-        )
+        call :verify_zip "%DOWNLOAD_FILE%"
+        if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
     )
-    if "%DOWNLOAD_OK%"=="0" (
-        echo [WARNING] Raw download failed! Using local build...
-        if exist "novabackup.exe" (
-            copy /Y "novabackup.exe" "%INSTALL_DIR%\"
-            set "DOWNLOAD_OK=2"
-        ) else (
-            echo [ERROR] No local build found!
-            pause
-            exit /b 1
-        )
+)
+if "%DOWNLOAD_OK%"=="0" (
+    echo [WARNING] Release download failed! Using local build...
+    if exist "novabackup.exe" (
+        copy /Y "novabackup.exe" "%INSTALL_DIR%\"
+        set "DOWNLOAD_OK=2"
+    ) else (
+        echo [ERROR] No local build found!
+        pause
+        exit /b 1
     )
-) else (
+)
+if "%DOWNLOAD_OK%"=="1" (
     :: Extract zip
     powershell -Command "Expand-Archive -Path '%DOWNLOAD_FILE%' -DestinationPath '%INSTALL_DIR%' -Force"
     del /Q "%DOWNLOAD_FILE%"

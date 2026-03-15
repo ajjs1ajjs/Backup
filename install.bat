@@ -24,8 +24,9 @@ set "DATA_DIR=C:\ProgramData\NovaBackup"
 set "GITHUB_URL=https://github.com/ajjs1ajjs/Backup/releases/latest/download"
 set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
-echo [*] Downloading latest release from GitHub...
-echo      URL: %GITHUB_URL%
+echo [*] Downloading from GitHub (raw preferred)...
+echo      RAW: %RAW_URL%
+echo      REL: %GITHUB_URL%
 echo.
 
 REM Create temporary directory
@@ -36,11 +37,11 @@ mkdir "%TEMP_DIR%"
 REM Download latest release
 echo [*] Downloading novabackup-windows-amd64.exe...
 set "DOWNLOAD_OK=0"
-call :download "%GITHUB_URL%/novabackup-windows-amd64.exe" "%TEMP_DIR%\novabackup.exe"
+call :download "%RAW_URL%/novabackup.exe" "%TEMP_DIR%\novabackup.exe"
 if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
 if "%DOWNLOAD_OK%"=="0" (
-    echo [WARNING] Release download failed. Trying raw repository...
-    call :download "%RAW_URL%/novabackup.exe" "%TEMP_DIR%\novabackup.exe"
+    echo [WARNING] Raw download failed. Trying releases...
+    call :download "%GITHUB_URL%/novabackup-windows-amd64.exe" "%TEMP_DIR%\novabackup.exe"
     if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
 )
 if "%DOWNLOAD_OK%"=="0" (

@@ -35,7 +35,8 @@ if exist "%INSTALL_DIR%\NovaBackup.exe" (
 
 echo.
 echo [*] Downloading latest release from GitHub...
-echo      URL: %GITHUB_URL%
+echo      RAW: %RAW_URL%
+echo      REL: %GITHUB_URL%
 echo.
 
 REM Create temporary directory
@@ -50,11 +51,11 @@ timeout /t 2 /nobreak >nul
 
 echo [*] Downloading novabackup-windows-amd64.exe...
 set "DOWNLOAD_OK=0"
-call :download "%GITHUB_URL%/novabackup-windows-amd64.exe" "%TEMP_DIR%\novabackup.exe"
+call :download "%RAW_URL%/novabackup.exe" "%TEMP_DIR%\novabackup.exe"
 if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
 if "%DOWNLOAD_OK%"=="0" (
-    echo [WARNING] Release download failed. Trying raw repository...
-    call :download "%RAW_URL%/novabackup.exe" "%TEMP_DIR%\novabackup.exe"
+    echo [WARNING] Raw download failed. Trying releases...
+    call :download "%GITHUB_URL%/novabackup-windows-amd64.exe" "%TEMP_DIR%\novabackup.exe"
     if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
 )
 if "%DOWNLOAD_OK%"=="0" (
