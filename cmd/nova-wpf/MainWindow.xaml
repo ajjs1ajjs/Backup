@@ -1,0 +1,153 @@
+<Window x:Class="NovaBackup.WPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NovaBackup Enterprise v6.0"
+        Height="700" Width="1200"
+        WindowStyle="SingleBorderWindow"
+        Background="#F5F5F5">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="🛡️" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="NovaBackup Enterprise" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Backup and Recovery Platform" FontSize="11" Foreground="#B3E5FC"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation -->
+            <Border Grid.Column="0" Background="White" CornerRadius="8" Margin="0,0,12,0" BorderBrush="#E0E0E0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#E3F2FD" Padding="12,8">
+                        <TextBlock Text="📂 Infrastructure" FontWeight="Bold" Foreground="#1565C0"/>
+                    </Border>
+
+                    <TreeView x:Name="navTree" Grid.Row="1" BorderThickness="0" Background="Transparent">
+                        <TreeViewItem Header="🏗️ Backup Infrastructure" IsExpanded="True">
+                            <TreeViewItem Header="📊 Dashboard"/>
+                            <TreeViewItem Header="💾 Backup Jobs"/>
+                            <TreeViewItem Header="📁 Backup Repositories"/>
+                        </TreeViewItem>
+                        <TreeViewItem Header="🔄 Replication">
+                            <TreeViewItem Header="📋 Replication Jobs"/>
+                        </TreeViewItem>
+                        <TreeViewItem Header="📈 Monitoring">
+                            <TreeViewItem Header="📊 Sessions"/>
+                            <TreeViewItem Header="⚠️ Warnings"/>
+                        </TreeViewItem>
+                    </TreeView>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Padding="12,8" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="btnNewJob" Content="➕ New Job" Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Background="#1976D2" Foreground="White" Margin="0,0,8,0" Click="BtnNewJob_Click"/>
+                            <Button x:Name="btnRunNow" Content="▶ Run Now" Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Background="#388E3C" Foreground="White" Margin="0,0,8,0" Click="BtnRunNow_Click"/>
+                            <Separator Width="1" Margin="8,4"/>
+                            <Button x:Name="btnRefresh" Content="🔄 Refresh" Style="{StaticResource MaterialDesignFlatButton}"
+                                    Click="BtnRefresh_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Jobs List -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="16">
+                            <TextBlock Text="Backup Jobs" FontSize="20" FontWeight="Bold" Margin="0,0,0,16" Foreground="#333"/>
+
+                            <!-- Job 1 -->
+                            <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="3*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="📄 Daily Documents Backup" Padding="8,8" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="File Backup" Padding="8,8" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Padding="8,8" VerticalAlignment="Center" Foreground="Green">✅ Active</TextBlock>
+                                    <TextBlock Grid.Column="3" Text="Daily 2AM" Padding="8,8" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Job 2 -->
+                            <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="3*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                        <ColumnDefinition Width="1.5*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="🖥️ Weekly System Backup" Padding="8,8" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="System" Padding="8,8" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Padding="8,8" VerticalAlignment="Center" Foreground="Green">✅ Active</TextBlock>
+                                    <TextBlock Grid.Column="3" Text="Weekly Sun" Padding="8,8" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="#ECEFF1" Padding="12,8" BorderBrush="#B0BEC5" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock x:Name="statusService" Text="🟢 Service: Running" Margin="0,0,16,0"/>
+                    <TextBlock Text="|"/>
+                    <TextBlock Text="💾 Storage: Ready" Margin="16,0,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnAbout" Content="ℹ️ About" Click="BtnAbout_Click" Style="{StaticResource MaterialDesignFlatButton}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
