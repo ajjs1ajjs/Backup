@@ -54,7 +54,7 @@ if "%DOWNLOAD_OK%"=="0" (
 call :verify_exe "%TEMP_DIR%\novabackup.exe"
 if %errorLevel% neq 0 (
     echo [ERROR] Downloaded file is invalid or corrupted.
-    echo Ensure novabackup.exe exists in the repository ^(main branch^) or use GitHub Releases.
+    echo Ensure novabackup.exe exists in the repository main branch or use GitHub Releases.
     pause
     exit /b 1
 )
