@@ -18,6 +18,7 @@ if %errorLevel% neq 0 (
 
 set "RAW_BASE=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 set "TEMP_DIR=%TEMP%\NovaBackup_Setup"
+set "CACHE_BUST=%RANDOM%%RANDOM%"
 
 if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
 mkdir "%TEMP_DIR%"
@@ -54,7 +55,7 @@ goto menu
 :run_install
 echo.
 echo [*] Downloading install script...
-call :download "%RAW_BASE%/install.bat" "%TEMP_DIR%\install.bat"
+call :download "%RAW_BASE%/install.bat?%CACHE_BUST%" "%TEMP_DIR%\install.bat"
 if %errorLevel% neq 0 (
     echo [ERROR] Failed to download install.bat
     exit /b 1
@@ -65,7 +66,7 @@ exit /b 0
 :run_update
 echo.
 echo [*] Downloading update script...
-call :download "%RAW_BASE%/update.bat" "%TEMP_DIR%\update.bat"
+call :download "%RAW_BASE%/update.bat?%CACHE_BUST%" "%TEMP_DIR%\update.bat"
 if %errorLevel% neq 0 (
     echo [ERROR] Failed to download update.bat
     exit /b 1
