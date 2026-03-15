@@ -45,7 +45,8 @@ xcopy /E /Y /I /Q "%SOURCE_DIR%*" "%INSTALL_DIR%\"
 
 echo.
 echo [*] Installing Windows Service...
-"%INSTALL_DIR%\nova.exe" install
+cd /d "%INSTALL_DIR%"
+nova.exe install
 if %errorLevel% neq 0 (
     echo [ERROR] Failed to install service!
     pause
@@ -54,7 +55,7 @@ if %errorLevel% neq 0 (
 
 echo.
 echo [*] Starting Service...
-"%INSTALL_DIR%\nova.exe" start
+nova.exe start
 
 echo.
 echo [*] Creating Start Menu shortcuts...
