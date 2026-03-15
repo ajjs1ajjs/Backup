@@ -28,7 +28,7 @@ if exist "%INSTALL_DIR%\NovaBackup.exe" (
 ) else (
     echo [ERROR] NovaBackup not installed!
     echo.
-    Please run install.bat first
+    echo Please run install.bat first
     pause
     exit /b 1
 )

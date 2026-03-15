@@ -32,8 +32,8 @@ echo.
 set "INSTALL_DIR=C:\Program Files\NovaBackup"
 set "DATA_DIR=C:\ProgramData\NovaBackup"
 set "LOGS_DIR=%DATA_DIR%\Logs"
-set "CONFIG_DIR=%DATA_DIR\Config"
-set "BACKUPS_DIR=%DATA_DIR\Backups"
+set "CONFIG_DIR=%DATA_DIR%\Config"
+set "BACKUPS_DIR=%DATA_DIR%\Backups"
 set "GITHUB_URL=https://github.com/ajjs1ajjs/Backup/releases/latest/download"
 set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
@@ -74,7 +74,7 @@ call :download "%RAW_URL%/novabackup.exe" "%TEMP%\novabackup.exe"
 if %errorLevel% equ 0 (
     call :verify_exe "%TEMP%\novabackup.exe"
     if %errorLevel% equ 0 (
-        copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\\NovaBackup.exe"
+        copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\NovaBackup.exe"
         set "DOWNLOAD_OK=2"
     )
 )
