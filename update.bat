@@ -68,7 +68,7 @@ if "%DOWNLOAD_OK%"=="0" (
 call :verify_exe "%TEMP_DIR%\novabackup.exe"
 if %errorLevel% neq 0 (
     echo [ERROR] Downloaded file is invalid or corrupted.
-    echo Ensure novabackup.exe exists in the repository (main branch) or use GitHub Releases.
+    echo Ensure novabackup.exe exists in the repository ^(main branch^) or use GitHub Releases.
     pause
     exit /b 1
 )
@@ -114,7 +114,7 @@ powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.Security
 if %errorLevel% equ 0 exit /b 0
 where curl.exe >nul 2>&1
 if %errorLevel% equ 0 (
-    curl.exe -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    curl.exe -f -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
     if %errorLevel% equ 0 exit /b 0
 )
 exit /b 1

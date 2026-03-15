@@ -220,7 +220,7 @@ powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.Security
 if %errorLevel% equ 0 exit /b 0
 where curl.exe >nul 2>&1
 if %errorLevel% equ 0 (
-    curl.exe -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    curl.exe -f -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
     if %errorLevel% equ 0 exit /b 0
 )
 exit /b 1
