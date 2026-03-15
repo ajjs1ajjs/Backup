@@ -461,46 +461,65 @@
         </div>
 
         <script>
-            const API_BASE = '/api';
+            const API_BASE = "/api";
             let users = [];
 
             const permissions = {
                 readonly: [
-                    'backup:read', 'restore:read', 'jobs:read', 'settings:read', 'logs:read'
+                    "backup:read",
+                    "restore:read",
+                    "jobs:read",
+                    "settings:read",
+                    "logs:read",
                 ],
                 backup_user: [
-                    'backup:read', 'backup:run', 'restore:read', 'jobs:read'
+                    "backup:read",
+                    "backup:run",
+                    "restore:read",
+                    "jobs:read",
                 ],
                 backup_admin: [
-                    'backup:create', 'backup:read', 'backup:update', 'backup:run',
-                    'restore:create', 'restore:read',
-                    'jobs:create', 'jobs:read', 'jobs:update',
-                    'settings:read', 'logs:read'
+                    "backup:create",
+                    "backup:read",
+                    "backup:update",
+                    "backup:run",
+                    "restore:create",
+                    "restore:read",
+                    "jobs:create",
+                    "jobs:read",
+                    "jobs:update",
+                    "settings:read",
+                    "logs:read",
                 ],
                 admin: [
-                    'backup:*', 'restore:*', 'jobs:*', 'settings:*', 'users:*', 'logs:*'
-                ]
+                    "backup:*",
+                    "restore:*",
+                    "jobs:*",
+                    "settings:*",
+                    "users:*",
+                    "logs:*",
+                ],
             };
 
             const permissionsUA = {
-                'backup:create': 'Створення бекапів',
-                'backup:read': 'Перегляд бекапів',
-                'backup:update': 'Редагування бекапів',
-                'backup:delete': 'Видалення бекапів',
-                'backup:run': 'Запуск бекапів',
-                'restore:create': 'Створення відновлення',
-                'restore:read': 'Перегляд відновлення',
-                'jobs:create': 'Створення завдань',
-                'jobs:read': 'Перегляд завдань',
-                'jobs:update': 'Редагування завдань',
-                'jobs:delete': 'Видалення завдань',
-                'settings:read': 'Перегляд налаштувань',
-                'settings:update': 'Редагування налаштувань',
-                'users:create': 'Створення користувачів',
-                'users:read': 'Перегляд користувачів',
-                'users:update': 'Редагування користувачів',
-                'users:delete': 'Видалення користувачів',
-                'logs:read': 'Перегляд логів'
+                "backup:create": "Створення бекапів",
+                "backup:read": "Перегляд бекапів",
+                "backup:update": "Редагування бекапів",
+                "backup:delete": "Видалення бекапів",
+                "backup:run": "Запуск бекапів",
+                "restore:create": "Створення відновлення",
+                "restore:read": "Перегляд відновлення",
+                "jobs:create": "Створення завдань",
+                "jobs:read": "Перегляд завдань",
+                "jobs:update": "Редагування завдань",
+                "jobs:delete": "Видалення завдань",
+                "settings:read": "Перегляд налаштувань",
+                "settings:update": "Редагування налаштувань",
+                "users:create": "Створення користувачів",
+                "users:read": "Перегляд користувачів",
+                "users:update": "Редагування користувачів",
+                "users:delete": "Видалення користувачів",
+                "logs:read": "Перегляд логів",
             };
 
             // Load users
@@ -512,10 +531,18 @@
                     renderUsers();
                     updateStats();
                 } catch (error) {
-                    console.error('Failed to load users:', error);
+                    console.error("Failed to load users:", error);
                     // Mock data for demo
                     users = [
-                        { id: 'admin', username: 'admin', email: 'admin@novabackup.local', full_name: 'Administrator', role: 'admin', enabled: true, last_login: new Date().toISOString() }
+                        {
+                            id: "admin",
+                            username: "admin",
+                            email: "admin@novabackup.local",
+                            full_name: "Administrator",
+                            role: "admin",
+                            enabled: true,
+                            last_login: new Date().toISOString(),
+                        },
                     ];
                     renderUsers();
                     updateStats();
@@ -524,7 +551,7 @@
 
             // Render users table
             function renderUsers() {
-                const tbody = document.getElementById('users-body');
+                const tbody = document.getElementById("users-body");
 
                 if (users.length === 0) {
                     tbody.innerHTML = `
@@ -537,88 +564,106 @@
                     return;
                 }
 
-                tbody.innerHTML = users.map(user => `
+                tbody.innerHTML = users
+                    .map(
+                        (user) => `
                     <tr>
                         <td>
                             <strong>👤 ${user.username}</strong>
-                            ${user.full_name ? `<br><small>${user.full_name}</small>` : ''}
+                            ${user.full_name ? `<br><small>${user.full_name}</small>` : ""}
                         </td>
                         <td>
                             <span class="role-badge ${getRoleClass(user.role)}">
                                 ${getRoleUA(user.role)}
                             </span>
                         </td>
-                        <td>${user.email || '—'}</td>
-                        <td>${user.last_login ? formatDateTime(user.last_login) : 'Ніколи'}</td>
+                        <td>${user.email || "—"}</td>
+                        <td>${user.last_login ? formatDateTime(user.last_login) : "Ніколи"}</td>
                         <td>
-                            <span class="status-badge ${user.enabled ? 'status-active' : 'status-disabled'}">
-                                ${user.enabled ? '🟢' : '⚫'} ${user.enabled ? 'Активний' : 'Вимкнено'}
+                            <span class="status-badge ${user.enabled ? "status-active" : "status-disabled"}">
+                                ${user.enabled ? "🟢" : "⚫"} ${user.enabled ? "Активний" : "Вимкнено"}
                             </span>
                         </td>
                         <td>
-                            ${user.username !== 'admin' ? `
+                            ${
+                                user.username !== "admin"
+                                    ? `
                                 <button class="btn btn-warning" onclick="editUser('${user.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
                                     ✏️
                                 </button>
                                 <button class="btn btn-danger" onclick="deleteUser('${user.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">
                                     🗑️
                                 </button>
-                            ` : '—'}
+                            `
+                                    : "—"
+                            }
                         </td>
                     </tr>
-                `).join('');
+                `,
+                    )
+                    .join("");
             }
 
             // Update stats
             function updateStats() {
-                document.getElementById('stat-total').textContent = users.length;
-                document.getElementById('stat-active').textContent = users.filter(u => u.enabled).length;
-                document.getElementById('stat-admins').textContent = users.filter(u => u.role === 'admin').length;
-                document.getElementById('stat-disabled').textContent = users.filter(u => !u.enabled).length;
+                document.getElementById("stat-total").textContent =
+                    users.length;
+                document.getElementById("stat-active").textContent =
+                    users.filter((u) => u.enabled).length;
+                document.getElementById("stat-admins").textContent =
+                    users.filter((u) => u.role === "admin").length;
+                document.getElementById("stat-disabled").textContent =
+                    users.filter((u) => !u.enabled).length;
             }
 
             // Modal functions
             function openAddModal() {
-                document.getElementById('add-modal').style.display = 'flex';
+                document.getElementById("add-modal").style.display = "flex";
                 updatePermissions();
             }
 
             function closeAddModal() {
-                document.getElementById('add-modal').style.display = 'none';
+                document.getElementById("add-modal").style.display = "none";
             }
 
             // Update permissions display
             function updatePermissions() {
-                const role = document.getElementById('user-role').value;
-                const container = document.getElementById('permissions-list');
+                const role = document.getElementById("user-role").value;
+                const container = document.getElementById("permissions-list");
                 const rolePerms = permissions[role];
 
-                container.innerHTML = Object.entries(permissionsUA).map(([perm, name]) => `
+                container.innerHTML = Object.entries(permissionsUA)
+                    .map(
+                        ([perm, name]) => `
                     <div class="permission-item">
-                        <input type="checkbox" id="perm-${perm}" ${rolePerms.includes(perm) || rolePerms.includes(perm.split(':')[0] + ':*') ? 'checked' : ''} disabled>
+                        <input type="checkbox" id="perm-${perm}" ${rolePerms.includes(perm) || rolePerms.includes(perm.split(":")[0] + ":*") ? "checked" : ""} disabled>
                         <label for="perm-${perm}">${name}</label>
                     </div>
-                `).join('');
+                `,
+                    )
+                    .join("");
             }
 
             // Add user
             async function addUser() {
                 const user = {
-                    username: document.getElementById('user-username').value,
-                    password: document.getElementById('user-password').value,
-                    email: document.getElementById('user-email').value,
-                    full_name: document.getElementById('user-fullname').value,
-                    role: document.getElementById('user-role').value,
-                    enabled: document.getElementById('user-enabled').checked
+                    username: document.getElementById("user-username").value,
+                    password: document.getElementById("user-password").value,
+                    email: document.getElementById("user-email").value,
+                    full_name: document.getElementById("user-fullname").value,
+                    role: document.getElementById("user-role").value,
+                    enabled: document.getElementById("user-enabled").checked,
                 };
 
                 if (!user.username || !user.password) {
-                    alert('Заповніть обов\'язкові поля: Ім\'я користувача та Пароль');
+                    alert(
+                        "Заповніть обов'язкові поля: Ім'я користувача та Пароль",
+                    );
                     return;
                 }
 
                 if (user.password.length < 6) {
-                    alert('Пароль має бути не менше 6 символів');
+                    alert("Пароль має бути не менше 6 символів");
                     return;
                 }
 
@@ -628,38 +673,60 @@
                 const hasDigit = /[0-9]/.test(user.password);
 
                 if (!hasUpper || !hasLower || !hasDigit) {
-                    alert('Пароль має містити великі літери, малі літери та цифри');
+                    alert(
+                        "Пароль має містити великі літери, малі літери та цифри",
+                    );
                     return;
                 }
 
                 try {
                     const res = await fetch(`${API_BASE}/users`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(user)
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(user),
                     });
 
                     if (res.ok) {
                         const result = await res.json();
                         if (result.success) {
-                            alert('✅ Користувача додано!\n\n' +
-                                  'Ім'я: ' + user.username + '\n' +
-                                  'Роль: ' + getRoleUA(user.role));
+                            alert(
+                                "✅ Користувача додано!\n\n" +
+                                    "Ім'я: " +
+                                    user.username +
+                                    "\n" +
+                                    "Роль: " +
+                                    getRoleUA(user.role),
+                            );
                             closeAddModal();
                             loadUsers();
                         } else {
-                            alert('❌ Помилка: ' + (result.error || 'Невідома помилка'));
+                            alert(
+                                "❌ Помилка: " +
+                                    (result.error || "Невідома помилка"),
+                            );
                         }
                     } else {
                         const error = await res.json();
-                        alert('❌ Помилка: ' + (error.error || 'Невідома помилка'));
+                        alert(
+                            "❌ Помилка: " +
+                                (error.error || "Невідома помилка"),
+                        );
                     }
                 } catch (error) {
                     // Demo mode - add locally
-                    alert('✅ Користувача додано (демо режим)\n\n' +
-                          'Ім'я: ' + user.username + '\n' +
-                          'Роль: ' + getRoleUA(user.role));
-                    users.push({ ...user, id: 'user_' + Date.now(), last_login: null });
+                    alert(
+                        "✅ Користувача додано (демо режим)\n\n" +
+                            "Ім'я: " +
+                            user.username +
+                            "\n" +
+                            "Роль: " +
+                            getRoleUA(user.role),
+                    );
+                    users.push({
+                        ...user,
+                        id: "user_" + Date.now(),
+                        last_login: null,
+                    });
                     renderUsers();
                     updateStats();
                     closeAddModal();
@@ -668,37 +735,45 @@
 
             // Edit user
             function editUser(id) {
-                alert('Редагування користувача: ' + id + '\n\n(Функціонал в розробці)');
+                alert(
+                    "Редагування користувача: " +
+                        id +
+                        "\n\n(Функціонал в розробці)",
+                );
             }
 
             // Delete user
             async function deleteUser(id) {
-                if (!confirm('Ви впевнені, що хочете видалити користувача?\n\nЦе не можна скасувати!')) {
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити користувача?\n\nЦе не можна скасувати!",
+                    )
+                ) {
                     return;
                 }
 
-                if (id === 'admin') {
-                    alert('❌ Не можна видалити адміністратора!');
+                if (id === "admin") {
+                    alert("❌ Не можна видалити адміністратора!");
                     return;
                 }
 
                 try {
                     const res = await fetch(`${API_BASE}/users/${id}`, {
-                        method: 'DELETE'
+                        method: "DELETE",
                     });
 
                     if (res.ok) {
-                        alert('✅ Користувача видалено!');
+                        alert("✅ Користувача видалено!");
                         loadUsers();
                     } else {
-                        alert('✅ Користувача видалено (демо режим)');
-                        users = users.filter(u => u.id !== id);
+                        alert("✅ Користувача видалено (демо режим)");
+                        users = users.filter((u) => u.id !== id);
                         renderUsers();
                         updateStats();
                     }
                 } catch (error) {
-                    alert('✅ Користувача видалено (демо режим)');
-                    users = users.filter(u => u.id !== id);
+                    alert("✅ Користувача видалено (демо режим)");
+                    users = users.filter((u) => u.id !== id);
                     renderUsers();
                     updateStats();
                 }
@@ -707,31 +782,31 @@
             // Helper functions
             function getRoleClass(role) {
                 const classes = {
-                    admin: 'role-admin',
-                    backup_admin: 'role-backup-admin',
-                    backup_user: 'role-backup-user',
-                    readonly: 'role-readonly'
+                    admin: "role-admin",
+                    backup_admin: "role-backup-admin",
+                    backup_user: "role-backup-user",
+                    readonly: "role-readonly",
                 };
-                return classes[role] || 'role-readonly';
+                return classes[role] || "role-readonly";
             }
 
             function getRoleUA(role) {
                 const roles = {
-                    admin: '👑 Адміністратор',
-                    backup_admin: '🔧 Адмін бекапів',
-                    backup_user: '💾 Користувач бекапів',
-                    readonly: '📖 Тільки читання'
+                    admin: "👑 Адміністратор",
+                    backup_admin: "🔧 Адмін бекапів",
+                    backup_user: "💾 Користувач бекапів",
+                    readonly: "📖 Тільки читання",
                 };
                 return roles[role] || role;
             }
 
             function formatDateTime(dateStr) {
-                return new Date(dateStr).toLocaleString('uk-UA', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
+                return new Date(dateStr).toLocaleString("uk-UA", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
                 });
             }
 
