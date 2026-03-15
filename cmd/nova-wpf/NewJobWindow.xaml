@@ -1,11 +1,48 @@
 <Window x:Class="NovaBackup.WPF.NewJobWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="New Backup Job Wizard" Height="600" Width="700"
+        Title="Майстер Створення Завдання" Height="650" Width="750"
         WindowStartupLocation="CenterOwner"
-        Background="#F5F5F5">
+        Background="#1a1a2e">
 
-    <Grid Margin="20">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PrimaryDark" Color="#16213e"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#0f3460"/>
+        <SolidColorBrush x:Key="AccentOrange" Color="#e94560"/>
+        <SolidColorBrush x:Key="TextLight" Color="#e8e8e8"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#1f2937"/>
+
+        <Style x:Key="Button3D" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}" BorderBrush="#000000" BorderThickness="0,4,0,0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="3" BlurRadius="8" Opacity="0.5"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2d3748"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="25">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -13,14 +50,39 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#0078D7" Padding="15,10" Margin="-20,-20,-20,20">
-            <TextBlock Text="💾 New Backup Job Wizard" FontSize="20" FontWeight="Bold" Foreground="White"/>
+        <Border Grid.Row="0" Background="{StaticResource AccentOrange}" Padding="20,15" Margin="-25,-25,-25,25" CornerRadius="12,12,0,0">
+            <TextBlock Text="💾 Майстер Створення Завдання" FontSize="24" FontWeight="Bold" Foreground="White"/>
         </Border>
 
         <!-- Wizard Steps -->
-        <TabControl Grid.Row="1" Margin="0,0,0,20">
-            <TabItem Header="1. General">
-                <Grid Margin="15">
+        <TabControl Grid.Row="1" Margin="0,0,0,25">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
+                    <Setter Property="FontSize" Value="15"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Padding" Value="20,12"/>
+                    <Setter Property="Margin" Value="2,0,0,0"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="8,8,0,0" Padding="{TemplateBinding Padding}" Margin="{TemplateBinding Margin}">
+                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlue}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+
+            <TabItem Header="1. Загальні">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -28,63 +90,63 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="180"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Job Name:" VerticalAlignment="Center" Margin="0,0,0,15"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtJobName" Height="30" Margin="0,0,0,15"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Назва Завдання:" VerticalAlignment="Center" Margin="0,0,0,20" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtJobName" Height="35" Margin="0,0,0,20" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource AccentBlue}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,0,0,15"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtDescription" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,15"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Опис:" VerticalAlignment="Center" Margin="0,0,0,20" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtDescription" Height="80" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,20" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Backup Type:" VerticalAlignment="Center" Margin="0,0,0,15"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbBackupType" Height="30" Margin="0,0,0,15">
-                        <ComboBoxItem Content="File and Folder Backup" IsSelected="True"/>
-                        <ComboBoxItem Content="System Backup"/>
-                        <ComboBoxItem Content="Hyper-V VM Backup"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Тип Резервної Копії:" VerticalAlignment="Center" Margin="0,0,0,20" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbBackupType" Height="35" Margin="0,0,0,20" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}">
+                        <ComboBoxItem Content="Резервне Копіювання Файлів і ПАПOK" IsSelected="True"/>
+                        <ComboBoxItem Content="Резервне Копіювання Системи"/>
+                        <ComboBoxItem Content="Резервне Копіювання Hyper-V VM"/>
                     </ComboBox>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="2. Source">
-                <Grid Margin="15">
+            <TabItem Header="2. Джерело">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="btnAddFolder" Content="➕ Add Folder" Padding="15,8" Margin="0,0,10,0" Click="BtnAddFolder_Click"/>
-                        <Button x:Name="btnAddFile" Content="📄 Add File" Padding="15,8" Click="BtnAddFile_Click"/>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                        <Button x:Name="btnAddFolder" Content="➕ Додати Папку" Padding="20,10" Margin="0,0,15,0" Style="{StaticResource Button3D}" Click="BtnAddFolder_Click"/>
+                        <Button x:Name="btnAddFile" Content="📄 Додати Файл" Padding="20,10" Style="{StaticResource Button3D}" Click="BtnAddFile_Click"/>
                     </StackPanel>
 
-                    <ListBox Grid.Row="1" x:Name="lstSource" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                    <ListBox Grid.Row="1" x:Name="lstSource" BorderBrush="{StaticResource AccentBlue}" BorderThickness="1" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}"/>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="3. Destination">
-                <Grid Margin="15">
+            <TabItem Header="3. Призначення">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Select Backup Repository:" Margin="0,0,0,15"/>
-                    <ComboBox Grid.Row="1" x:Name="cmbRepository" Height="30" Margin="0,0,0,15">
+                    <TextBlock Grid.Row="0" Text="Оберіть Сховище для Резервних Копій:" Margin="0,0,0,20" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <ComboBox Grid.Row="1" x:Name="cmbRepository" Height="35" Margin="0,0,0,25" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}">
                         <ComboBoxItem Content="C:\ProgramData\NovaBackup\Backups" IsSelected="True"/>
                         <ComboBoxItem Content="D:\Backups"/>
                         <ComboBoxItem Content="\\Server\BackupShare"/>
                     </ComboBox>
 
-                    <CheckBox Grid.Row="2" x:Name="chkCompression" Content="Enable Compression" IsChecked="True" Margin="0,5"/>
-                    <CheckBox Grid.Row="3" x:Name="chkEncryption" Content="Enable Encryption (AES-256)" Margin="0,5"/>
+                    <CheckBox Grid.Row="2" x:Name="chkCompression" Content="Увімкнути Стиснення (Compression)" IsChecked="True" Margin="0,10" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <CheckBox Grid.Row="3" x:Name="chkEncryption" Content="Увімкнути Шифрування (AES-256)" Margin="0,10" Foreground="{StaticResource TextLight}" FontSize="14"/>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="4. Schedule">
-                <Grid Margin="15">
+            <TabItem Header="4. Розклад">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -92,18 +154,18 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <RadioButton Grid.Row="0" x:Name="rbDaily" Content="Daily" GroupName="Schedule" IsChecked="True" Margin="0,0,0,10"/>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,15">
-                        <TextBlock Text="Run at:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBox x:Name="txtDailyTime" Width="60" Text="02:00"/>
+                    <RadioButton Grid.Row="0" x:Name="rbDaily" Content="📅 Щодня" GroupName="Schedule" IsChecked="True" Margin="0,0,0,15" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="25,0,0,20">
+                        <TextBlock Text="Час запуску:" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="{StaticResource TextLight}"/>
+                        <TextBox x:Name="txtDailyTime" Width="80" Height="35" Text="02:00" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}"/>
                     </StackPanel>
 
-                    <RadioButton Grid.Row="2" x:Name="rbWeekly" Content="Weekly" GroupName="Schedule" Margin="0,0,0,10"/>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,0">
-                        <CheckBox x:Name="chkMonday" Content="Mon"/>
-                        <CheckBox x:Name="chkWednesday" Content="Wed" Margin="10,0"/>
-                        <CheckBox x:Name="chkFriday" Content="Fri"/>
-                        <TextBox x:Name="txtWeeklyTime" Width="60" Text="22:00" Margin="20,0,0,0"/>
+                    <RadioButton Grid.Row="2" x:Name="rbWeekly" Content="📅 Щотижня" GroupName="Schedule" Margin="0,0,0,15" Foreground="{StaticResource TextLight}" FontSize="14"/>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="25,0,0,0">
+                        <CheckBox x:Name="chkMonday" Content="Пн" Margin="0,0,15,0" Foreground="{StaticResource TextLight}"/>
+                        <CheckBox x:Name="chkWednesday" Content="Ср" Margin="0,0,15,0" Foreground="{StaticResource TextLight}"/>
+                        <CheckBox x:Name="chkFriday" Content="Пт" Margin="0,0,15,0" Foreground="{StaticResource TextLight}"/>
+                        <TextBox x:Name="txtWeeklyTime" Width="80" Height="35" Text="22:00" Margin="20,0,0,0" Background="{StaticResource CardBackground}" Foreground="{StaticResource TextLight}"/>
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -111,8 +173,8 @@
 
         <!-- Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="btnCancel" Content="Cancel" Width="100" Height="35" Margin="0,0,10,0" Click="BtnCancel_Click"/>
-            <Button x:Name="btnFinish" Content="Finish" Width="100" Height="35" Background="#388E3C" Foreground="White" Click="BtnFinish_Click"/>
+            <Button x:Name="btnCancel" Content="Скасувати" Width="120" Height="40" Margin="0,0,15,0" Style="{StaticResource Button3D}" Background="#6b7280" Click="BtnCancel_Click"/>
+            <Button x:Name="btnFinish" Content="✅ Завершити" Width="140" Height="40" Background="#059669" Style="{StaticResource Button3D}" Click="BtnFinish_Click"/>
         </StackPanel>
     </Grid>
 </Window>
