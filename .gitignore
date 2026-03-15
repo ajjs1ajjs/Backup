@@ -1,8 +1,14 @@
 # Build outputs
+build/
 bin/
 obj/
-build/
 publish/
+
+# Data directories
+data/
+*.db
+*.db-shm
+*.db-wal
 
 # IDE
 .vs/
