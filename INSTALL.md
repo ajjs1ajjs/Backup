@@ -1,114 +1,141 @@
-# 🚀 NovaBackup Enterprise v7.0 - Installation Guide
+# 🚀 NovaBackup Enterprise v7.0 - Інструкція з Встановлення
 
-## 📥 Швидка установка
+## 📥 Швидка Установка з GitHub
 
 ### Windows
 
-**Автоматична установка з GitHub:**
+#### Спосіб 1: Автоматична установка (Рекомендовано)
 
 ```powershell
-# Завантажити install.bat
+# 1. Завантажити інсталятор
 wget https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile install.bat
 
-# Запустити від імені адміністратора
+# 2. Запустити ВІД ІМЕНІ АДМІНІСТРАТОРА
 .\install.bat
 ```
 
-**Ручна установка:**
+#### Спосіб 2: Ручна установка
 
 ```powershell
-# Завантажити
+# 1. Завантажити останній реліз
 wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup-windows-amd64.exe -OutFile NovaBackup.exe
 
-# Встановити службу
+# 2. Встановити службу
 .\NovaBackup.exe install
 
-# Запустити
+# 3. Запустити службу
 .\NovaBackup.exe start
+
+# 4. Відкрити веб-інтерфейс
+start http://localhost:8050
 ```
 
 ---
 
 ### Linux (Ubuntu/Debian)
 
-**Автоматична установка:**
-
 ```bash
-# Завантажити
+# 1. Завантажити інсталятор
 wget https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh -O install.sh
 
-# Запустити
+# 2. Запустити від root
 sudo bash install.sh
-```
 
-**Ручна установка:**
-
-```bash
-# Завантажити
-wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup-linux-amd64 -O novabackup
-
-# Встановити
-chmod +x novabackup
-sudo cp novabackup /opt/novabackup/NovaBackup
-
-# Створити systemd службу
-sudo nano /etc/systemd/system/novabackup.service
-```
-
-Вміст служби:
-```ini
-[Unit]
-Description=NovaBackup Enterprise v7.0
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/novabackup
-ExecStart=/opt/novabackup/NovaBackup server
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-# Увімкнути та запустити
-sudo systemctl daemon-reload
-sudo systemctl enable novabackup
-sudo systemctl start novabackup
+# 3. Відкрити веб-інтерфейс
+xdg-open http://localhost:8050
 ```
 
 ---
 
-### macOS
+## 🔐 Перший Вхід
 
-**Homebrew (recommended):**
+1. **Відкрийте** http://localhost:8050
+2. **Увійдіть** як:
+   - Логін: `admin`
+   - Пароль: `admin123`
+3. **Змініть пароль** на надійний (обов'язково!)
+   - Мінімум 8 символів
+   - Великі та малі літери
+   - Цифри
 
-```bash
-# Install (coming soon)
-brew install novabackup
+---
 
-# Start
-brew services start novabackup
+## 📋 Перші Кроки
+
+### 1. Створіть Перше Резервне Копіювання
+
+**Швидкий спосіб:**
+1. Натисніть **"Швидке Резервне Копіювання"** в меню
+2. Оберіть тип джерела:
+   - 📁 **Локальні файли** - файли на цьому сервері
+   - 🌐 **Мережеве джерело** - SMB/CIFS частка
+   - 🖥️ **Віддалений сервер** - інший сервер
+   - ☁️ **Хмарне джерело** - S3, Azure, Google Cloud
+3. Вкажіть шлях (наприклад: `C:\Documents` або `\\server\share`)
+4. Оберіть сховище призначення (наприклад: `D:\Backups`)
+5. Налаштуйте політику зберігання:
+   - **Зберігати:** 30 днів
+   - **Макс. копій:** 10
+6. Натисніть **"Запустити Резервне Копіювання"**
+
+**Приклади шляхів:**
+```
+Локально:  C:\Users\Admin\Documents
+Мережа:    \\192.168.1.100\Backup
+S3:        my-backup-bucket (регіон: us-east-1)
 ```
 
-**Manual:**
+---
 
-```bash
-# Download
-wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup-macos-amd64 -O novabackup
-# For M1/M2/M3:
-# wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup-macos-arm64 -O novabackup
+### 2. Додайте Сховище
 
-# Install
-chmod +x novabackup
-sudo cp novabackup /usr/local/bin/NovaBackup
+1. Перейдіть в **"Сховища"**
+2. Натисніть **"➕ Додати сховище"**
+3. Оберіть тип:
+   - 📂 **Локальне** - папка на диску
+   - 🌐 **SMB/CIFS** - мережева частка
+   - ☁️ **Amazon S3** - хмарне сховище
+   - 🔷 **Azure Blob** - Microsoft Azure
+   - 📁 **NFS** - NFS сховище
+4. Заповніть параметри
+5. Натисніть **"Додати сховище"**
 
-# Run
-NovaBackup server
-```
+---
+
+### 3. Створіть Користувача
+
+1. Перейдіть в **"Користувачі"**
+2. Натисніть **"➕ Додати користувача"**
+3. Заповніть:
+   - **Ім'я користувача:** `ivan`
+   - **Пароль:** `Ivan1234!` (мінімум 6 символів)
+   - **Повне ім'я:** `Ivan Petrenko`
+   - **Email:** `ivan@example.com`
+   - **Роль:** `Backup User`
+4. Натисніть **"Додати користувача"**
+
+**Доступні ролі:**
+- 👑 **Адміністратор** - повний доступ
+- 🔧 **Адмін бекапів** - управління бекапами
+- 💾 **Користувач бекапів** - виконання бекапів
+- 📖 **Тільки читання** - перегляд
+
+---
+
+### 4. Налаштуйте Сповіщення
+
+1. Перейдіть в **"Сповіщення"**
+2. Оберіть канали:
+   - 📧 **Email** - SMTP сервер
+   - 💬 **Telegram** - бот токен + chat ID
+   - 🔷 **MS Teams** - webhook URL
+   - 💬 **Slack** - webhook URL
+3. Оберіть події:
+   - ✅ Початок бекапу
+   - ✅ Успішний бекап
+   - ❌ Помилка бекапу
+   - ⚠️ Мало місця
+4. Натисніть **"Зберегти налаштування"**
 
 ---
 
@@ -117,17 +144,17 @@ NovaBackup server
 ### Windows
 
 ```powershell
-# Завантажити
+# Завантажити оновлення
 wget https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat -OutFile update.bat
 
-# Запустити від імені адміністратора
+# Запустити від адміністратора
 .\update.bat
 ```
 
 ### Linux
 
 ```bash
-# Завантажити
+# Завантажити оновлення
 wget https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh -O update.sh
 
 # Запустити
@@ -136,20 +163,7 @@ sudo bash update.sh
 
 ---
 
-## 🌐 Доступ до веб-інтерфейсу
-
-Після встановлення відкрийте:
-
-```
-http://localhost:8050
-
-Login: admin
-Password: admin123
-```
-
----
-
-## 🔧 Команди
+## 🛠️ Команди
 
 ### Windows Service
 
@@ -165,6 +179,9 @@ NovaBackup.exe start
 
 # Зупинити службу
 NovaBackup.exe stop
+
+# Перезапустити службу
+NovaBackup.exe restart
 
 # Запустити в режимі консолі
 NovaBackup.exe debug
@@ -200,30 +217,32 @@ sudo journalctl -u novabackup -f
 ```
 C:\Program Files\NovaBackup\          # Програма
 C:\ProgramData\NovaBackup\            # Дані
-  ├── Logs\                           # Логи
+  ├── Config\                         # Конфігурація
+  ├── Logs\                           # Журнали
   ├── Backups\                        # Резервні копії
-  └── Config\                         # Конфігурація
+  └── novabackup.db                   # База даних
 ```
 
 ### Linux
 ```
 /opt/novabackup/                      # Програма
 /var/lib/novabackup/                  # Дані
-  ├── logs/                           # Логи
+  ├── config/                         # Конфігурація
+  ├── logs/                           # Журнали
   ├── backups/                        # Резервні копії
-  └── config/                         # Конфігурація
+  └── novabackup.db                   # База даних
 ```
 
 ---
 
 ## 🔐 Безпека
 
-### Змінити пароль за замовчуванням:
+### Зміна Паролю Адміна
 
-1. Відкрийте Web UI: http://localhost:8050
-2. Увійдіть як `admin` / `admin123`
-3. Перейдіть в ⚙️ Налаштування → 👥 Користувачі
-4. Змініть пароль
+1. Увійдіть як `admin` / `admin123`
+2. Система автоматично запропонує змінити пароль
+3. Введіть новий пароль (мінімум 8 символів)
+4. Збережіть
 
 ### Firewall Rules
 
@@ -246,7 +265,7 @@ sudo firewall-cmd --reload
 
 ---
 
-## 🐛 Вирішення проблем
+## 🐛 Вирішення Проблем
 
 ### Служба не запускається
 
@@ -266,9 +285,8 @@ NovaBackup.exe start
 # Перевірити логи
 sudo journalctl -u novabackup -n 50 --no-pager
 
-# Перевстановити службу
-sudo systemctl stop novabackup
-sudo /opt/novabackup/NovaBackup server
+# Перезапустити
+sudo systemctl restart novabackup
 ```
 
 ### Порт 8050 зайнятий
@@ -286,14 +304,40 @@ sudo /opt/novabackup/NovaBackup server
 }
 ```
 
+Перезапустіть службу після змін.
+
+### Веб-інтерфейс не вантажиться
+
+1. Перевірте чи працює служба:
+   ```powershell
+   Get-Service NovaBackup
+   ```
+
+2. Перевірте логи:
+   ```powershell
+   Get-Content "C:\ProgramData\NovaBackup\Logs\novabackup.log" -Tail 50
+   ```
+
+3. Перезапустіть службу:
+   ```powershell
+   Restart-Service NovaBackup
+   ```
+
 ---
 
 ## 📞 Підтримка
 
-- 📧 Email: support@novabackup.local
-- 💬 Telegram: @novabackup
-- 📚 Wiki: https://github.com/ajjs1ajjs/Backup/wiki
-- 🐛 Issues: https://github.com/ajjs1ajjs/Backup/issues
+- 📧 **Email:** support@novabackup.local
+- 💬 **Telegram:** @novabackup
+- 📚 **Wiki:** https://github.com/ajjs1ajjs/Backup/wiki
+- 🐛 **Issues:** https://github.com/ajjs1ajjs/Backup/issues
+- 💻 **GitHub:** https://github.com/ajjs1ajjs/Backup
+
+---
+
+## 📄 Ліцензія
+
+MIT License - див. файл LICENSE
 
 ---
 
@@ -301,7 +345,7 @@ sudo /opt/novabackup/NovaBackup server
 
 **NovaBackup Enterprise v7.0**
 
-[Завантажити](https://github.com/ajjs1ajjs/Backup/releases) • [Документація](https://github.com/ajjs1ajjs/Backup/wiki)
+[Завантажити](https://github.com/ajjs1ajjs/Backup/releases) • [Документація](https://github.com/ajjs1ajjs/Backup/wiki) • [Звіти](https://github.com/ajjs1ajjs/Backup/issues)
 
 🇺🇦 Зроблено в Україні
 
