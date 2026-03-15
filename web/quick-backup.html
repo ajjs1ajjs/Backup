@@ -183,6 +183,16 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label class="form-label">📝 Назва завдання</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-name"
+                    placeholder="Наприклад: Щоденний бекап документів"
+                />
+            </div>
+
             <!-- Source Selection -->
             <div class="form-group">
                 <label class="form-label">📂 Джерело даних</label>
@@ -406,7 +416,9 @@
             <div class="form-group">
                 <label class="form-label">💾 Сховище призначення</label>
                 <select class="form-select" id="destination">
-                    <option value="local">Локальне сховище (D:\Backups)</option>
+                    <option value="local">
+                        Локальне сховище (C:\ProgramData\NovaBackup\Backups)
+                    </option>
                     <option value="nas">NAS / Мережеве сховище</option>
                     <option value="cloud">Хмарне сховище</option>
                 </select>
@@ -501,7 +513,13 @@
         </div>
 
         <script>
+            const API_BASE = "/api";
+            const DEFAULT_DESTINATION =
+                "C:\\\\ProgramData\\\\NovaBackup\\\\Backups";
+            let selectedSourceType = "local";
+
             function selectSource(type) {
+                selectedSourceType = type;
                 document
                     .querySelectorAll(".source-card")
                     .forEach((c) => c.classList.remove("selected"));
@@ -513,41 +531,133 @@
                     "block";
             }
 
+            function getAuthHeaders() {
+                const token = localStorage.getItem("authToken");
+                const headers = { "Content-Type": "application/json" };
+                if (token) {
+                    headers.Authorization = token;
+                }
+                return headers;
+            }
+
+            function buildSources() {
+                switch (selectedSourceType) {
+                    case "local": {
+                        const raw = document
+                            .getElementById("local-path")
+                            .value.trim();
+                        const list = raw
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                        return list;
+                    }
+                    case "network": {
+                        const path = document
+                            .getElementById("network-path")
+                            .value.trim();
+                        return path ? [path] : [];
+                    }
+                    case "server":
+                    case "cloud":
+                        return [];
+                    default:
+                        return [];
+                }
+            }
+
+            function getDestination() {
+                const dest = document.getElementById("destination").value;
+                if (dest !== "local") {
+                    return null;
+                }
+                return DEFAULT_DESTINATION;
+            }
+
+            function defaultJobName() {
+                const now = new Date();
+                const stamp = now
+                    .toISOString()
+                    .replace("T", "_")
+                    .replace(/[:.]/g, "-")
+                    .slice(0, 19);
+                return `QuickBackup_${stamp}`;
+            }
+
             async function startBackup() {
-                const backup = {
-                    source_type: document
-                        .querySelector(".source-card.selected")
-                        .querySelector("strong").textContent,
+                if (
+                    selectedSourceType === "server" ||
+                    selectedSourceType === "cloud"
+                ) {
+                    alert("⚠️ Цей тип джерела поки не підтримується.");
+                    return;
+                }
+
+                const sources = buildSources();
+                if (sources.length === 0) {
+                    alert("Вкажіть шлях до даних для резервного копіювання.");
+                    return;
+                }
+
+                const destination = getDestination();
+                if (!destination) {
+                    alert("Наразі підтримується лише локальне сховище.");
+                    return;
+                }
+
+                const jobName =
+                    document.getElementById("job-name").value.trim() ||
+                    defaultJobName();
+
+                const job = {
+                    name: jobName,
+                    type: "file",
+                    sources: sources,
+                    destination: destination,
                     compression: document.getElementById("compression").checked,
                     encryption: document.getElementById("encryption").checked,
-                    dedup: document.getElementById("dedup").checked,
-                    retention_days:
-                        parseInt(
-                            document.getElementById("retention-days").value,
-                        ) || 30,
-                    retention_copies:
-                        parseInt(
-                            document.getElementById("retention-copies").value,
-                        ) || 10,
+                    schedule: "manual",
+                    enabled: true,
                 };
 
-                alert(
-                    "🚀 Резервне копіювання запущено!\n\n" +
-                        "Тип: " +
-                        backup.source_type +
-                        "\n" +
-                        "Стиснення: " +
-                        (backup.compression ? "✅" : "❌") +
-                        "\n" +
-                        "Шифрування: " +
-                        (backup.encryption ? "✅" : "❌") +
-                        "\n" +
-                        "Зберігати: " +
-                        backup.retention_days +
-                        " днів (макс. " +
-                        backup.retention_copies +
-                        " копій)",
-                );
+                try {
+                    const createRes = await fetch(`${API_BASE}/jobs`, {
+                        method: "POST",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(job),
+                    });
+                    const createData = await createRes.json();
+                    if (!createRes.ok) {
+                        alert(
+                            "❌ Помилка створення: " +
+                                (createData.error || createRes.statusText),
+                        );
+                        return;
+                    }
+
+                    const jobId = createData.job?.id;
+                    if (jobId) {
+                        const runRes = await fetch(
+                            `${API_BASE}/jobs/${jobId}/run`,
+                            { method: "POST", headers: getAuthHeaders() },
+                        );
+                        if (runRes.ok) {
+                            alert("✅ Завдання створено та запущено.");
+                        } else {
+                            const runData = await runRes
+                                .json()
+                                .catch(() => ({}));
+                            alert(
+                                "✅ Завдання створено, але запуск не вдався: " +
+                                    (runData.error || runRes.statusText),
+                            );
+                        }
+                    } else {
+                        alert("✅ Завдання створено.");
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
             }
         </script>
     </body>

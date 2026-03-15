@@ -717,9 +717,15 @@
                     const res = await fetch(`/api/jobs/${jobId}/run`, {
                         method: "POST",
                     });
+                    const data = await res.json().catch(() => ({}));
                     if (res.ok) {
                         alert("✅ Завдання запущено!");
                         loadDashboard();
+                    } else {
+                        alert(
+                            "❌ Помилка запуску: " +
+                                (data.error || res.statusText),
+                        );
                     }
                 } catch (error) {
                     alert("Помилка: " + error.message);

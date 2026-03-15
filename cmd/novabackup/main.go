@@ -5,7 +5,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -13,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"novabackup/internal/api"
 	"novabackup/internal/backup"
@@ -74,6 +77,21 @@ func main() {
 }
 
 func runServer() {
+	if runAsServiceIfNeeded() {
+		return
+	}
+
+	server, err := buildServer()
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+
+	if err := serveHTTP(server); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func buildServer() (*http.Server, error) {
 	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
 	fmt.Println("║         NovaBackup Enterprise v7.0                        ║")
 	fmt.Println("║         Modern Web-Based Backup Platform                  ║")
@@ -88,7 +106,7 @@ func runServer() {
 	dbPath := filepath.Join(dataDir, "novabackup.db")
 	db, err = database.NewDatabase(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 	fmt.Println("✓ Database initialized")
 
@@ -200,27 +218,16 @@ func runServer() {
 
 	// Serve web UI from disk
 	router.GET("/", func(c *gin.Context) {
-		indexFile := filepath.Join(webDir, "index.html")
-		c.File(indexFile)
+		serveWebFile(c, "index.html")
 	})
 
 	router.GET("/assets/:file", func(c *gin.Context) {
-		file := filepath.Join(webDir, "assets", c.Param("file"))
-		c.File(file)
+		serveWebFile(c, filepath.Join("assets", c.Param("file")))
 	})
 
 	// Serve other web pages
 	router.GET("/:filepath", func(c *gin.Context) {
-		file := c.Param("filepath")
-		filePath := filepath.Join(webDir, file)
-
-		// Check if file exists
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			c.JSON(404, gin.H{"error": "Page not found"})
-			return
-		}
-
-		c.File(filePath)
+		serveWebFile(c, c.Param("filepath"))
 	})
 
 	// Get server IP
@@ -244,8 +251,31 @@ func runServer() {
 
 	// Start server
 	addr := fmt.Sprintf(":%d", port)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	return &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}, nil
+}
+
+func serveHTTP(server *http.Server) error {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
+func shutdownServer(server *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_ = server.Shutdown(ctx)
+
+	if jobScheduler != nil {
+		jobScheduler.Stop()
+	}
+
+	if db != nil {
+		_ = db.Close()
 	}
 }
 
@@ -348,13 +378,4 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Web UI: http://localhost:8050")
 	fmt.Println("Default: admin / admin123")
-}
-
-func installService() {
-	fmt.Println("Service installation not yet implemented for this platform")
-	fmt.Println("Please run novabackup server to start manually")
-}
-
-func removeService() {
-	fmt.Println("Service removal not yet implemented for this platform")
 }

@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Швидке Резервне Копіювання - NovaBackup</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+            }
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+            }
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+            }
+            .source-selector {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+            .source-card {
+                background: var(--bg-secondary);
+                border: 2px solid var(--border);
+                border-radius: 0.75rem;
+                padding: 1.25rem;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            .source-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .source-card.selected {
+                border-color: var(--accent-blue);
+                background: rgba(59, 130, 246, 0.1);
+            }
+            .source-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0.5rem 0;
+            }
+            .checkbox-group input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent-blue);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2 class="card-title">🚀 Швидке Резервне Копіювання</h2>
+
+            <!-- Help Tip -->
+            <div
+                style="
+                    background: var(--bg-secondary);
+                    border-left: 3px solid var(--accent-blue);
+                    padding: 1rem 1.25rem;
+                    border-radius: 0.5rem;
+                    margin-bottom: 1.5rem;
+                "
+            >
+                <div
+                    style="
+                        font-weight: 600;
+                        color: var(--accent-blue);
+                        margin-bottom: 0.5rem;
+                    "
+                >
+                    💡 Як створити резервну копію?
+                </div>
+                <div
+                    style="
+                        color: var(--text-secondary);
+                        font-size: 0.875rem;
+                        line-height: 1.6;
+                    "
+                >
+                    <ol style="margin: 0.5rem 0 0 1.5rem">
+                        <li>
+                            Оберіть тип джерела (Локальні файли, Мережа, Сервер
+                            або Хмара)
+                        </li>
+                        <li>
+                            Вкажіть шлях до даних (наприклад:
+                            <code
+                                style="
+                                    background: var(--bg-card);
+                                    padding: 0.2rem 0.5rem;
+                                    border-radius: 0.25rem;
+                                    color: var(--accent-green);
+                                "
+                                >C:\Documents</code
+                            >)
+                        </li>
+                        <li>Оберіть сховище призначення</li>
+                        <li>Налаштуйте опції (стиснення, шифрування)</li>
+                        <li>
+                            Натисніть
+                            <strong>"Запустити Резервне Копіювання"</strong>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">📝 Назва завдання</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-name"
+                    placeholder="Наприклад: Щоденний бекап документів"
+                />
+            </div>
+
+            <!-- Source Selection -->
+            <div class="form-group">
+                <label class="form-label">📂 Джерело даних</label>
+                <div class="source-selector">
+                    <div
+                        class="source-card selected"
+                        onclick="selectSource('local')"
+                    >
+                        <div class="source-icon">📁</div>
+                        <strong>Локальні файли</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Файли та папки на цьому сервері
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('network')">
+                        <div class="source-icon">🌐</div>
+                        <strong>Мережеве джерело</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            SMB/CIFS частка або NFS
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('server')">
+                        <div class="source-icon">🖥️</div>
+                        <strong>Віддалений сервер</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Інший сервер по мережі
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('cloud')">
+                        <div class="source-icon">☁️</div>
+                        <strong>Хмарне джерело</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            S3, Azure, Google Cloud
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Local Source -->
+            <div id="local-source" class="source-fields">
+                <div class="form-group">
+                    <label class="form-label">Шлях до файлів</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="local-path"
+                        placeholder="C:\Data або D:\Documents"
+                    />
+                    <div class="form-hint">
+                        Можна вказати кілька шляхів через кому
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Source -->
+            <div
+                id="network-source"
+                class="source-fields"
+                style="display: none"
+            >
+                <div class="form-group">
+                    <label class="form-label">Мережевий шлях (UNC)</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-path"
+                        placeholder="\\server\share\folder"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label"
+                        >IP адреса сервера (опціонально)</label
+                    >
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-ip"
+                        placeholder="192.168.1.100"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Облікові дані</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-user"
+                        placeholder="Користувач"
+                        style="margin-bottom: 0.5rem"
+                    />
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="network-pass"
+                        placeholder="Пароль"
+                    />
+                </div>
+            </div>
+
+            <!-- Server Source -->
+            <div id="server-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">IP адреса або ім'я сервера</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="server-ip"
+                        placeholder="192.168.1.100 або server01"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Протокол</label>
+                    <select class="form-select" id="server-protocol">
+                        <option value="smb">SMB/CIFS</option>
+                        <option value="nfs">NFS</option>
+                        <option value="ssh">SSH/SFTP</option>
+                        <option value="winrm">WinRM</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Порт</label>
+                    <input
+                        type="number"
+                        class="form-input"
+                        id="server-port"
+                        placeholder="445"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Облікові дані</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="server-user"
+                        placeholder="Користувач"
+                        style="margin-bottom: 0.5rem"
+                    />
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="server-pass"
+                        placeholder="Пароль"
+                    />
+                </div>
+            </div>
+
+            <!-- Cloud Source -->
+            <div id="cloud-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">Хмарний провайдер</label>
+                    <select class="form-select" id="cloud-provider">
+                        <option value="s3">Amazon S3</option>
+                        <option value="azure">Microsoft Azure Blob</option>
+                        <option value="google">Google Cloud Storage</option>
+                        <option value="wasabi">Wasabi</option>
+                        <option value="minio">MinIO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bucket / Container</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-bucket"
+                        placeholder="my-backup-bucket"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Регіон</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-region"
+                        placeholder="us-east-1"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Access Key / Account</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-key"
+                        placeholder="AKI..."
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Secret Key</label>
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="cloud-secret"
+                        placeholder="••••••••"
+                    />
+                </div>
+            </div>
+
+            <!-- Destination -->
+            <div class="form-group">
+                <label class="form-label">💾 Сховище призначення</label>
+                <select class="form-select" id="destination">
+                    <option value="local">
+                        Локальне сховище (C:\ProgramData\NovaBackup\Backups)
+                    </option>
+                    <option value="nas">NAS / Мережеве сховище</option>
+                    <option value="cloud">Хмарне сховище</option>
+                </select>
+            </div>
+
+            <!-- Options -->
+            <div class="form-group">
+                <label class="form-label">⚙️ Опції</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="compression" checked />
+                    <label for="compression">🗜️ Стиснення даних</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="encryption" />
+                    <label for="encryption">🔐 Шифрування (AES-256)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="dedup" />
+                    <label for="dedup">💾 Дедуплікація</label>
+                </div>
+            </div>
+
+            <!-- Retention Policy -->
+            <div class="form-group">
+                <label class="form-label"
+                    >📅 Політика зберігання для цього завдання</label
+                >
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 1rem;
+                    "
+                >
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Зберігати (днів)</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-days"
+                            value="30"
+                            min="1"
+                            max="365"
+                            placeholder="30"
+                        />
+                        <div class="form-hint">1-365 днів</div>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Макс. копій</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-copies"
+                            value="10"
+                            min="1"
+                            max="100"
+                            placeholder="10"
+                        />
+                        <div class="form-hint">1-100 копій</div>
+                    </div>
+                </div>
+                <div
+                    style="
+                        background: var(--bg-secondary);
+                        border-left: 3px solid var(--accent-blue);
+                        padding: 0.75rem 1rem;
+                        border-radius: 0.5rem;
+                        margin-top: 1rem;
+                    "
+                >
+                    <div
+                        style="color: var(--text-secondary); font-size: 0.8rem"
+                    >
+                        💡 <strong>Порада:</strong> Політика зберігання
+                        застосовується індивідуально до кожного завдання. Старі
+                        бекапи будуть автоматично видалені.
+                    </div>
+                </div>
+            </div>
+
+            <button
+                class="btn btn-success"
+                onclick="startBackup()"
+                style="padding: 1rem 2rem; font-size: 1.1rem"
+            >
+                <span>▶️</span> Запустити Резервне Копіювання
+            </button>
+        </div>
+
+        <script>
+            const API_BASE = "/api";
+            const DEFAULT_DESTINATION =
+                "C:\\\\ProgramData\\\\NovaBackup\\\\Backups";
+            let selectedSourceType = "local";
+
+            function selectSource(type) {
+                selectedSourceType = type;
+                document
+                    .querySelectorAll(".source-card")
+                    .forEach((c) => c.classList.remove("selected"));
+                document
+                    .querySelectorAll(".source-fields")
+                    .forEach((f) => (f.style.display = "none"));
+                event.currentTarget.classList.add("selected");
+                document.getElementById(`${type}-source`).style.display =
+                    "block";
+            }
+
+            function getAuthHeaders() {
+                const token = localStorage.getItem("authToken");
+                const headers = { "Content-Type": "application/json" };
+                if (token) {
+                    headers.Authorization = token;
+                }
+                return headers;
+            }
+
+            function buildSources() {
+                switch (selectedSourceType) {
+                    case "local": {
+                        const raw = document
+                            .getElementById("local-path")
+                            .value.trim();
+                        const list = raw
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                        return list;
+                    }
+                    case "network": {
+                        const path = document
+                            .getElementById("network-path")
+                            .value.trim();
+                        return path ? [path] : [];
+                    }
+                    case "server":
+                    case "cloud":
+                        return [];
+                    default:
+                        return [];
+                }
+            }
+
+            function getDestination() {
+                const dest = document.getElementById("destination").value;
+                if (dest !== "local") {
+                    return null;
+                }
+                return DEFAULT_DESTINATION;
+            }
+
+            function defaultJobName() {
+                const now = new Date();
+                const stamp = now
+                    .toISOString()
+                    .replace("T", "_")
+                    .replace(/[:.]/g, "-")
+                    .slice(0, 19);
+                return `QuickBackup_${stamp}`;
+            }
+
+            async function startBackup() {
+                if (
+                    selectedSourceType === "server" ||
+                    selectedSourceType === "cloud"
+                ) {
+                    alert("⚠️ Цей тип джерела поки не підтримується.");
+                    return;
+                }
+
+                const sources = buildSources();
+                if (sources.length === 0) {
+                    alert("Вкажіть шлях до даних для резервного копіювання.");
+                    return;
+                }
+
+                const destination = getDestination();
+                if (!destination) {
+                    alert("Наразі підтримується лише локальне сховище.");
+                    return;
+                }
+
+                const jobName =
+                    document.getElementById("job-name").value.trim() ||
+                    defaultJobName();
+
+                const job = {
+                    name: jobName,
+                    type: "file",
+                    sources: sources,
+                    destination: destination,
+                    compression: document.getElementById("compression").checked,
+                    encryption: document.getElementById("encryption").checked,
+                    schedule: "manual",
+                    enabled: true,
+                };
+
+                try {
+                    const createRes = await fetch(`${API_BASE}/jobs`, {
+                        method: "POST",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(job),
+                    });
+                    const createData = await createRes.json();
+                    if (!createRes.ok) {
+                        alert(
+                            "❌ Помилка створення: " +
+                                (createData.error || createRes.statusText),
+                        );
+                        return;
+                    }
+
+                    const jobId = createData.job?.id;
+                    if (jobId) {
+                        const runRes = await fetch(
+                            `${API_BASE}/jobs/${jobId}/run`,
+                            { method: "POST", headers: getAuthHeaders() },
+                        );
+                        if (runRes.ok) {
+                            alert("✅ Завдання створено та запущено.");
+                        } else {
+                            const runData = await runRes
+                                .json()
+                                .catch(() => ({}));
+                            alert(
+                                "✅ Завдання створено, але запуск не вдався: " +
+                                    (runData.error || runRes.statusText),
+                            );
+                        }
+                    } else {
+                        alert("✅ Завдання створено.");
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+        </script>
+    </body>
+</html>

@@ -345,7 +345,8 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	}
 
 	for i, file := range files {
-		if err := e.addFileToZipWithDedup(zipWriter, file, blockCipher, blockSize, session); err != nil {
+		zipName := e.zipEntryName(file, job.Sources)
+		if err := e.addFileToZipWithDedup(zipWriter, file, zipName, blockCipher, blockSize, session); err != nil {
 			e.log(session, fmt.Sprintf("⚠️ Не вдалося додати %s: %v", file, err))
 			session.FilesSkipped++
 			continue
@@ -396,7 +397,7 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 }
 
 // addFileToZipWithDedup adds a file to zip with deduplication
-func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath string, blockCipher cipher.Block, blockSize int, session *BackupSession) error {
+func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName string, blockCipher cipher.Block, blockSize int, session *BackupSession) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -414,7 +415,7 @@ func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath string, bl
 	}
 
 	// Use relative path
-	header.Name = filePath
+	header.Name = zipName
 	header.Method = zip.Deflate
 
 	writer, err := zw.CreateHeader(header)
@@ -462,6 +463,33 @@ func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath string, bl
 	}
 
 	return nil
+}
+
+func (e *BackupEngine) zipEntryName(filePath string, sources []string) string {
+	cleanFile := filepath.Clean(filePath)
+	for _, src := range sources {
+		cleanSrc := filepath.Clean(src)
+		rel, err := filepath.Rel(cleanSrc, cleanFile)
+		if err != nil {
+			continue
+		}
+
+		// Ensure file is within source root
+		if rel == "." {
+			return filepath.ToSlash(filepath.Base(cleanFile))
+		}
+		if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." {
+			continue
+		}
+
+		base := filepath.Base(cleanSrc)
+		if base == "." || base == string(os.PathSeparator) {
+			base = "source"
+		}
+		return filepath.ToSlash(filepath.Join(base, rel))
+	}
+
+	return filepath.ToSlash(filepath.Base(cleanFile))
 }
 
 // encryptBlock encrypts a block using AES
