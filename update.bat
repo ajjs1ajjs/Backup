@@ -111,10 +111,12 @@ exit /b 0
 set "DOWNLOAD_URL=%~1"
 set "DOWNLOAD_OUT=%~2"
 powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%DOWNLOAD_OUT%' -UseBasicParsing"
+call :verify_exe "%DOWNLOAD_OUT%"
 if %errorLevel% equ 0 exit /b 0
 where curl.exe >nul 2>&1
 if %errorLevel% equ 0 (
     curl.exe -f -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    call :verify_exe "%DOWNLOAD_OUT%"
     if %errorLevel% equ 0 exit /b 0
 )
 exit /b 1

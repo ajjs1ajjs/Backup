@@ -90,13 +90,24 @@ exit /b 0
 set "DOWNLOAD_URL=%~1"
 set "DOWNLOAD_OUT=%~2"
 powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%DOWNLOAD_OUT%' -UseBasicParsing"
+call :check_file "%DOWNLOAD_OUT%" 100
 if %errorLevel% equ 0 exit /b 0
 where curl.exe >nul 2>&1
 if %errorLevel% equ 0 (
-    curl.exe -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    curl.exe -f -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    call :check_file "%DOWNLOAD_OUT%" 100
     if %errorLevel% equ 0 exit /b 0
 )
 exit /b 1
+
+:check_file
+set "CHECK_FILE=%~1"
+set "MIN_SIZE=%~2"
+if not exist "%CHECK_FILE%" exit /b 1
+for %%A in ("%CHECK_FILE%") do set "CHECK_SIZE=%%~zA"
+if "%CHECK_SIZE%"=="" exit /b 1
+if %CHECK_SIZE% lss %MIN_SIZE% exit /b 1
+exit /b 0
 
 :cleanup
 if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
