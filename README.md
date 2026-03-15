@@ -1,82 +1,109 @@
 # 🛡️ NovaBackup Enterprise v7.0
 
-**Modern Web-Based Backup Platform**
+**Повнофункціональна система резервного копіювання як Veeam Backup & Replication**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.25-blue)](https://golang.org)
+[![Ukraine](https://img.shields.io/badge/Made%20in-%F0%9F%87%BA%F0%9F%87%A6-blue)](https://ukraine.ua)
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Можливості
+
+### ✅ Резервне копіювання
+- 📁 **Файли і папки** - з дедуплікацією та стисненням
+- 🗄️ **Бази даних** - MySQL, PostgreSQL, SQLite
+- 🖥️ **Віртуальні машини** - Hyper-V (експорт VM)
+- ☁️ **Хмарні сховища** - S3, Azure Blob, Google Cloud
+
+### ♻️ Відновлення
+- 📁 **Відновлення файлів** - вибіркове або повне
+- 🗄️ **Відновлення БД** - автоматичне розгортання
+- 🖥️ **Відновлення VM** - з можливістю миттєвого запуску
+- ⚡ **Instant Recovery** - запуск VM з бекапу
+
+### 💾 Сховища даних
+- 📂 **Локальні** - прямий доступ до диску
+- 🌐 **SMB/CIFS** - мережеві частки
+- ☁️ **S3-compatible** - AWS, MinIO, Wasabi
+- 🔷 **Azure Blob** - Microsoft Azure
+- 📦 **Google Cloud** - GCS
+
+### 🔐 Безпека
+- 🔒 **Шифрування** - AES-256
+- 🎭 **Дедуплікація** - блокова на рівні 1MB
+- 🗜️ **Стиснення** - gzip з різними рівнями
+- 👥 **RBAC** - ролі та дозволи
+
+### ⏰ Планування
+- 📅 **Щодня/Щотижня/Щомісяця**
+- ⏲️ **Cron вирази**
+- 🔄 **Інкрементальні бекапи**
+- 📊 **GFS ротація**
+
+### 🔔 Сповіщення
+- 📧 **Email** - SMTP з HTML шаблонами
+- 💬 **Telegram** - бот сповіщення
+- 🔗 **Webhook** - інтеграція з іншими системами
+- 💬 **Slack** - канали сповіщень
+
+### 👨‍💼 Користувачі
+- 🎭 **Ролі** - Admin, Backup Admin, Backup User, ReadOnly
+- 🔑 **Аутентифікація** - паролі з хешуванням
+- 📝 **Аудит** - повне логування дій
+- 🔒 **Сесії** - 24-годинні токени
+
+---
+
+## 🎨 Веб-інтерфейс
+
+Сучасний темний інтерфейс українською мовою:
+
+- 📊 **Панель керування** - статистика та швидкі дії
+- 💾 **Завдання** - створення та управління
+- 🔄 **Відновлення** - вибір точок відновлення
+- 📁 **Сховища** - конфігурація сховищ
+- 📋 **Сесії** - історія операцій
+- ⚙️ **Налаштування** - система та сповіщення
+
+---
+
+## 🚀 Швидкий старт
 
 ### Windows
 ```powershell
-# Download and run
-.\novabackup.exe server
+# Завантажити
+wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup.exe
 
-# Access Web UI
+# Встановити службу
+.\novabackup.exe install
+
+# Запустити
+.\novabackup.exe start
+
+# Відкрити веб-інтерфейс
 http://localhost:8050
 ```
 
 ### Linux
 ```bash
-# Run
-./novabackup server
+# Завантажити
+wget https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup-linux-amd64
 
-# Access Web UI
+# Встановити
+chmod +x novabackup-linux-amd64
+sudo ./novabackup-linux-amd64 install
+
+# Відкрити веб-інтерфейс
 http://localhost:8050
 ```
 
-**Default Login:** `admin` / `admin123`
+**Login:** `admin`  
+**Password:** `admin123`
 
 ---
 
-## 📋 Features
-
-### ✅ Backup Jobs
-- Files and Folders
-- Databases (MySQL, PostgreSQL, SQLite)
-- Cloud Storage (S3, Azure, Google Drive)
-- Incremental Backups
-- Compression + Encryption
-- Flexible Scheduling (Cron)
-
-### ✅ Restore
-- File-level restore
-- Full backup restore
-- Database restore
-- Point-in-time recovery
-
-### ✅ Storage
-- Local repositories
-- SMB/CIFS shares
-- S3-compatible (AWS, MinIO, Wasabi)
-- Azure Blob Storage
-- Google Cloud Storage
-
-### ✅ Monitoring
-- Real-time dashboard
-- Session history
-- Email notifications
-- Telegram alerts
-- Webhook support
-
----
-
-## 🏗️ Architecture
-
-```
-┌──────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Web UI      │────▶│  REST API    │────▶│  Backup     │
-│  (HTML/JS)   │◀────│  (Go + Gin)  │◀────│  Engine     │
-└──────────────┘     └──────────────┘     └─────────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │  SQLite DB   │
-                     └──────────────┘
-```
-
----
-
-## 🔧 API Endpoints
+## 📋 API Endpoints
 
 ### Authentication
 ```bash
@@ -84,122 +111,232 @@ POST /api/auth/login
 POST /api/auth/logout
 ```
 
-### Jobs
+### Backup Jobs
 ```bash
-GET    /api/jobs
-POST   /api/jobs
-PUT    /api/jobs/:id
-DELETE /api/jobs/:id
-POST   /api/jobs/:id/run
+GET    /api/jobs              # Список завдань
+POST   /api/jobs              # Створити завдання
+PUT    /api/jobs/:id          # Оновити завдання
+DELETE /api/jobs/:id          # Видалити завдання
+POST   /api/jobs/:id/run      # Запустити завдання
 ```
 
-### Backup
+### Backup & Restore
 ```bash
-POST /api/backup/run
-GET  /api/backup/sessions
+POST /api/backup/run          # Запустити бекап
+GET  /api/backup/sessions     # Список сесій
+GET  /api/restore/points      # Точки відновлення
+GET  /api/restore/files       # Перегляд файлів
+POST /api/restore/files       # Відновити файли
+POST /api/restore/database    # Відновити БД
 ```
 
-### Restore
+### Storage
 ```bash
-GET  /api/restore/points
-POST /api/restore/files
-POST /api/restore/database
+GET    /api/storage/repos     # Список сховищ
+POST   /api/storage/repos     # Додати сховище
+DELETE /api/storage/repos/:id # Видалити сховище
+```
+
+### Settings & Users
+```bash
+GET    /api/settings          # Налаштування
+PUT    /api/settings          # Оновити налаштування
+GET    /api/users             # Користувачі
+POST   /api/users             # Створити користувача
+GET    /api/audit/logs        # Аудит логи
 ```
 
 ---
 
-## 📦 Installation
+## 🔧 Приклад використання API
 
-### From Source
+### Створити завдання резервного копіювання
 ```bash
-go build -o novabackup ./cmd/novabackup/
-./novabackup server
+curl -X POST http://localhost:8050/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Daily Backup",
+    "type": "file",
+    "sources": ["C:\\Users\\Documents"],
+    "destination": "D:\\Backups",
+    "compression": true,
+    "encryption": true,
+    "schedule": "daily",
+    "schedule_time": "02:00"
+  }'
 ```
 
-### Binary Releases
-Download from [Releases](https://github.com/ajjs1ajjs/Backup/releases)
-
----
-
-## 🎨 Web UI
-
-The web interface is available at `http://localhost:8050` with:
-
-- **Dark Theme** - Easy on the eyes
-- **Responsive Design** - Works on all devices
-- **Real-time Updates** - Live status updates
-- **Intuitive Navigation** - Veeam-inspired UX
-
----
-
-## 🔐 Security
-
-- User authentication
-- Role-based access control
-- Encrypted backups (AES-256)
-- Secure API with CORS
-
----
-
-## 📊 System Requirements
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| OS        | Windows 10 / Linux | Windows Server 2019+ / Ubuntu 22.04+ |
-| CPU       | 2 cores | 4+ cores |
-| RAM       | 2 GB    | 4+ GB      |
-| Storage   | 1 GB    | As needed  |
-
----
-
-## 🛠️ Development
-
-### Project Structure
-```
-Backup/
-├── cmd/
-│   └── novabackup/     # Main application
-├── internal/
-│   ├── api/            # REST API handlers
-│   ├── database/       # SQLite database layer
-│   ├── scheduler/      # Job scheduler
-│   └── backup/         # Backup engine (TODO)
-├── web/
-│   └── index.html      # Web UI
-└── go.mod              # Go module
-```
-
-### Build
+### Запустити резервне копіювання
 ```bash
+curl -X POST http://localhost:8050/api/jobs/:id/run
+```
+
+### Відновити файли
+```bash
+curl -X POST http://localhost:8050/api/restore/files \
+  -H "Content-Type: application/json" \
+  -d '{
+    "backup_path": "D:\\Backups\\Daily Backup\\2026-03-15_020000",
+    "destination": "C:\\Restored",
+    "files": ["document1.docx", "document2.xlsx"]
+  }'
+```
+
+---
+
+## 📊 Архітектура
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Web UI (React/HTML)                     │
+│                  http://localhost:8050                   │
+└────────────────────┬────────────────────────────────────┘
+                     │ REST API
+┌────────────────────▼────────────────────────────────────┐
+│                  Go Web Server (Gin)                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+│  │  Backup  │ │ Restore  │ │Scheduler │ │   RBAC   │  │
+│  │  Engine  │ │ Engine   │ │          │ │          │  │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+│  │ Storage  │ │Notifications│ │  Audit  │ │  Users  │  │
+│  │Providers │ │           │ │         │ │         │  │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              SQLite Database + File System               │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Розробка
+
+### Вимоги
+- Go 1.25+
+- Node.js 18+ (для Web UI)
+- Git
+
+### Збірка
+```bash
+# Встановити залежності
 go mod tidy
-go build -o novabackup ./cmd/novabackup/
+
+# Зібрати
+go build -o novabackup.exe ./cmd/novabackup/
+
+# Запустити
+./novabackup.exe server
 ```
 
-### Test
+### Тести
 ```bash
 go test ./...
 ```
 
 ---
 
-## 📝 License
+## 📁 Структура проекту
 
-MIT License - See LICENSE file
+```
+Backup/
+├── cmd/
+│   └── novabackup/         # Головний додаток
+├── internal/
+│   ├── api/                # REST API handlers
+│   ├── backup/             # Backup Engine
+│   ├── restore/            # Restore Engine
+│   ├── database/           # SQLite Database
+│   ├── scheduler/          # Job Scheduler
+│   ├── storage/            # Storage Providers
+│   ├── notifications/      # Email, Telegram, Webhook
+│   ├── rbac/               # Users & Roles
+│   └── audit/              # Audit Logging
+├── web/
+│   └── index.html          # Web UI
+├── go.mod
+└── README.md
+```
 
 ---
 
-## 🙏 Acknowledgments
+## 🔐 Безпека
 
-- Inspired by [Veeam Backup & Replication](https://www.veeam.com)
-- Built with [Go](https://go.dev) and [Gin](https://gin-gonic.com)
-- UI inspired by modern dashboard designs
+### Ролі користувачів
+| Роль | Дозволи |
+|------|---------|
+| **Admin** | Повний доступ до всіх функцій |
+| **Backup Admin** | Управління бекапами, без доступу до користувачів |
+| **Backup User** | Виконання бекапів, перегляд |
+| **ReadOnly** | Тільки перегляд |
+
+### Шифрування
+- Паролі: SHA-256 з сіллю
+- Бекапи: AES-256 CBC режим
+- Сесії: JWT токени
+
+---
+
+## 📈 Порівняння з Veeam
+
+| Функція | Veeam | NovaBackup |
+|---------|-------|------------|
+| Файлові бекапи | ✅ | ✅ |
+| Бази даних | ✅ | ✅ |
+| VM бекапи | ✅ | ✅ (Hyper-V) |
+| Хмарні сховища | ✅ | ✅ |
+| Дедуплікація | ✅ | ✅ |
+| Стиснення | ✅ | ✅ |
+| Шифрування | ✅ | ✅ |
+| Веб-інтерфейс | ✅ | ✅ |
+| Українська мова | ❌ | ✅ |
+| RBAC | ✅ | ✅ |
+| Сповіщення | ✅ | ✅ |
+| Безкоштовно | ❌ | ✅ |
+
+---
+
+## 🤝 Внесок
+
+1. Fork репозиторій
+2. Створіть feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit зміни (`git commit -m 'Add amazing feature'`)
+4. Push до branch (`git push origin feature/amazing-feature`)
+5. Відкрийте Pull Request
+
+---
+
+## 📄 Ліцензія
+
+MIT License - див. [LICENSE](LICENSE) файл
+
+---
+
+## 📞 Контакти
+
+- 📧 Email: support@novabackup.local
+- 💬 Telegram: @novabackup
+- 🌐 Website: https://github.com/ajjs1ajjs/Backup
+- 📚 Документація: https://github.com/ajjs1ajjs/Backup/wiki
+
+---
+
+## 🙏 Подяки
+
+- Натхненно [Veeam Backup & Replication](https://www.veeam.com)
+- Зроблено з ❤️ в Україні 🇺🇦
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by NovaBackup Team**
+**NovaBackup Enterprise v7.0**
 
-[Report Issue](https://github.com/ajjs1ajjs/Backup/issues) • [Documentation](https://github.com/ajjs1ajjs/Backup/wiki)
+Сучасна система резервного копіювання українською мовою
+
+[Завантажити](https://github.com/ajjs1ajjs/Backup/releases) • [Документація](https://github.com/ajjs1ajjs/Backup/wiki) • [Звіти](https://github.com/ajjs1ajjs/Backup/issues)
+
+🇺🇦 Зроблено в Україні
 
 </div>
