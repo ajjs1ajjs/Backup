@@ -1,1 +1,0 @@
-Note: MVVM integration patch plan for HomeView. Patch content applied in subsequent patches.

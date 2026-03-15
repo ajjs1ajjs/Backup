@@ -1,6 +1,4 @@
 # Build outputs
-desktop/wpf/bin/
-desktop/wpf/obj/
 bin/
 obj/
 build/
@@ -12,10 +10,6 @@ publish/
 *.user
 *.suo
 *.cache
-
-# NuGet
-packages/
-*.nupkg
 
 # Go
 *.exe
@@ -35,6 +29,7 @@ coverage.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+Icon?
 
 # Logs
 *.log
@@ -45,59 +40,8 @@ tmp/
 temp/
 *.tmp
 
-# Old project folders (not part of current structure)
-NovaBackup-*/
-NovaBackup.AIAnalytics/
-NovaBackup.API/
-NovaBackup.AdvancedCompliance/
-NovaBackup.AdvancedSecurity/
-NovaBackup.Agent/
-NovaBackup.BlockchainAudit/
-NovaBackup.Cloud/
-NovaBackup.Common/
-NovaBackup.Core/
-NovaBackup.Deduplication/
-NovaBackup.DisasterRecovery/
-NovaBackup.EdgeComputing/
-NovaBackup.Engine/
-NovaBackup.EnhancedReporting/
-NovaBackup.GUI/
-NovaBackup.Kubernetes/
-NovaBackup.Licensing/
-NovaBackup.MobileBackend/
-NovaBackup.MultiTenancy/
-NovaBackup.PluginArchitecture/
-NovaBackup.PowerShell/
-NovaBackup.PredictiveAnalytics/
-NovaBackup.QuantumResistant/
-NovaBackup.Replication/
-NovaBackup.Scheduler/
-NovaBackup.Serverless/
-NovaBackup.Storage/
-NovaBackup.TerraformProvider/
-NovaBackup.Virtualization/
-NovaBackup.WANAcceleration/
-NovaBackup.WebGUI/
-NovaBackup.WebUI/
-*.sln
-*.slnx
+# Database
+*.db
 
-# Documentation drafts
-*_UA.md
-*_COMPLETE.md
-*_FINAL.md
-FINAL_*.md
-RELEASE_*.md
-BUILD_*.md
-CHANGES_*.md
-FILES_LIST_*.md
-GIT_*.md
-IMPLEMENTATION_*.md
-INSTALL*.md
-QUICKSTART.md
-ROADMAP.md
-TODO_*.md
-v*_*.md
-*.bat
-Directory.Build.props
-monitoring/
+# Config (keep sample)
+# Config/*.json
