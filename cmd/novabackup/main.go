@@ -16,8 +16,12 @@ import (
 	"novabackup/internal/api"
 	"novabackup/internal/backup"
 	"novabackup/internal/database"
+	"novabackup/internal/notifications"
+	"novabackup/internal/rbac"
+	"novabackup/internal/reports"
 	"novabackup/internal/restore"
 	"novabackup/internal/scheduler"
+	"novabackup/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,13 +33,17 @@ const (
 )
 
 var (
-	configPath    string
-	dataDir       string
-	webDir        string
-	db            *database.Database
-	backupEngine  *backup.BackupEngine
-	restoreEngine *restore.RestoreEngine
-	jobScheduler  *scheduler.Scheduler
+	configPath         string
+	dataDir            string
+	webDir             string
+	db                 *database.Database
+	backupEngine       *backup.BackupEngine
+	restoreEngine      *restore.RestoreEngine
+	jobScheduler       *scheduler.Scheduler
+	storageEngine      *storage.StorageEngine
+	notificationEngine *notifications.NotificationEngine
+	rbacEngine         *rbac.RBACEngine
+	reportEngine       *reports.ReportEngine
 )
 
 func main() {
@@ -87,6 +95,14 @@ func runServer() {
 	// Set global DB for API
 	api.DB = db
 
+	// Initialize RBAC engine
+	rbacEngine = rbac.NewRBACEngine()
+	fmt.Println("✓ RBAC engine initialized")
+
+	// Initialize notification engine
+	notificationEngine = notifications.NewNotificationEngine()
+	fmt.Println("✓ Notification engine initialized")
+
 	// Initialize backup engine
 	backupEngine = backup.NewBackupEngine(dataDir)
 	fmt.Println("✓ Backup engine initialized")
@@ -95,12 +111,25 @@ func runServer() {
 	restoreEngine = restore.NewRestoreEngine(dataDir)
 	fmt.Println("✓ Restore engine initialized")
 
+	// Initialize storage engine
+	storageEngine = storage.NewStorageEngine(dataDir)
+	fmt.Println("✓ Storage engine initialized")
+
+	// Initialize report engine
+	reportEngine = reports.NewReportEngine(db)
+	fmt.Println("✓ Report engine initialized")
+
 	// Set engines for API
 	api.BackupEngine = backupEngine
 	api.RestoreEngine = restoreEngine
+	api.StorageEngine = storageEngine
+	api.NotificationEngine = notificationEngine
+	api.RBACEngine = rbacEngine
+	api.ReportEngine = reportEngine
 
 	// Initialize scheduler
 	jobScheduler = scheduler.NewScheduler(db)
+	jobScheduler.SetBackupEngine(backupEngine)
 	if err := jobScheduler.Start(); err != nil {
 		log.Printf("Warning: Failed to start scheduler: %v", err)
 	}

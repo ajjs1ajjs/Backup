@@ -162,7 +162,7 @@ func (e *RBACEngine) CreateSession(userID, ipAddress, userAgent string) (*Sessio
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	user, exists := e.users[userID]
+	_, exists := e.users[userID]
 	if !exists {
 		return nil, errors.New("користувача не знайдено")
 	}
@@ -473,7 +473,6 @@ func PasswordPolicy(password string) error {
 	hasUpper := false
 	hasLower := false
 	hasDigit := false
-	hasSpecial := false
 
 	for _, c := range password {
 		switch {
@@ -483,8 +482,6 @@ func PasswordPolicy(password string) error {
 			hasLower = true
 		case c >= '0' && c <= '9':
 			hasDigit = true
-		default:
-			hasSpecial = true
 		}
 	}
 

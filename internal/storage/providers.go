@@ -350,8 +350,6 @@ func (p *SMBProvider) Connect() error {
 
 func (p *SMBProvider) connectWindows() error {
 	// Use net use command
-	uncPath := fmt.Sprintf("\\\\%s\\%s", p.Server, p.Share)
-
 	// In production, use proper SMB library
 	// For now, just create a local mount point
 	p.mountPoint = filepath.Join(os.TempDir(), "novabackup_smb", p.Share)

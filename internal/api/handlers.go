@@ -5,16 +5,26 @@ import (
 
 	"novabackup/internal/backup"
 	"novabackup/internal/database"
+	"novabackup/internal/notifications"
+	"novabackup/internal/rbac"
+	"novabackup/internal/reports"
 	"novabackup/internal/restore"
+	"novabackup/internal/scheduler"
+	"novabackup/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 var (
-	DB            *database.Database
-	BackupEngine  *backup.BackupEngine
-	RestoreEngine *restore.RestoreEngine
+	DB                 *database.Database
+	BackupEngine       *backup.BackupEngine
+	RestoreEngine      *restore.RestoreEngine
+	Scheduler          *scheduler.Scheduler
+	StorageEngine      *storage.StorageEngine
+	NotificationEngine *notifications.NotificationEngine
+	RBACEngine         *rbac.RBACEngine
+	ReportEngine       *reports.ReportEngine
 )
 
 // Health check
@@ -38,20 +48,74 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if req.Username == "admin" && req.Password == "admin123" {
-		c.JSON(200, gin.H{
-			"success": true,
-			"token":   uuid.New().String(),
-			"user":    "admin",
-		})
+	user, err := RBACEngine.Authenticate(req.Username, req.Password)
+	if err != nil {
+		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(401, gin.H{"error": "Невірні облікові дані"})
+	session, err := RBACEngine.CreateSession(user.ID, c.ClientIP(), c.Request.UserAgent())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"token":   session.Token,
+		"user": gin.H{
+			"id":       user.ID,
+			"username": user.Username,
+			"role":     user.Role,
+		},
+	})
 }
 
 func Logout(c *gin.Context) {
+	token := c.GetHeader("Authorization")
+	RBACEngine.Logout(token)
 	c.JSON(200, gin.H{"success": true})
+}
+
+// Middleware for auth
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		if token == "" {
+			c.JSON(401, gin.H{"error": "Потрібен токен"})
+			c.Abort()
+			return
+		}
+
+		user, err := RBACEngine.ValidateSession(token)
+		if err != nil {
+			c.JSON(401, gin.H{"error": err.Error()})
+			c.Abort()
+			return
+		}
+
+		c.Set("user", user)
+		c.Next()
+	}
+}
+
+// Permission check middleware
+func RequirePermission(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userValue, _ := c.Get("user")
+		user, ok := userValue.(*rbac.User)
+		if !ok {
+			c.JSON(403, gin.H{"error": "Недостатньо прав"})
+			c.Abort()
+			return
+		}
+		if !RBACEngine.CheckPermission(user, permission) {
+			c.JSON(403, gin.H{"error": "Недостатньо прав"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // Jobs
@@ -79,6 +143,19 @@ func CreateJob(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Add to scheduler
+	backupJob := &backup.BackupJob{
+		ID:          job.ID,
+		Name:        job.Name,
+		Type:        job.Type,
+		Sources:     job.Sources,
+		Destination: job.Destination,
+		Compression: job.Compression,
+		Encryption:  job.Encryption,
+	}
+
+	Scheduler.AddJob(backupJob, job.Schedule, "", nil)
 
 	c.JSON(201, gin.H{"success": true, "job": job})
 }
@@ -123,6 +200,8 @@ func DeleteJob(c *gin.Context) {
 		return
 	}
 
+	Scheduler.RemoveJob(id)
+
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -135,6 +214,9 @@ func RunJob(c *gin.Context) {
 		return
 	}
 
+	// Send notification
+	NotificationEngine.SendBackupStarted(job.Name, job.Type)
+
 	// Convert database.Job to backup.BackupJob
 	backupJob := &backup.BackupJob{
 		ID:          job.ID,
@@ -144,16 +226,23 @@ func RunJob(c *gin.Context) {
 		Destination: job.Destination,
 		Compression: job.Compression,
 		Encryption:  job.Encryption,
-		Schedule:    job.Schedule,
-		Enabled:     job.Enabled,
 	}
 
 	// Execute backup
 	session, err := BackupEngine.ExecuteBackup(backupJob)
 	if err != nil {
+		NotificationEngine.SendBackupFailed(job.Name, err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Send success notification
+	NotificationEngine.SendBackupSuccess(
+		job.Name,
+		session.EndTime.Sub(session.StartTime),
+		session.FilesProcessed,
+		session.BytesWritten,
+	)
 
 	// Update job last run
 	nextRun := time.Now().Add(24 * time.Hour)
@@ -289,11 +378,15 @@ func RestoreFiles(c *gin.Context) {
 		Overwrite:       req.Overwrite,
 	}
 
+	NotificationEngine.SendRestoreStarted("Відновлення файлів", "files")
+
 	session, err := RestoreEngine.ExecuteRestore(restoreReq)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	NotificationEngine.SendRestoreSuccess("Відновлення файлів", session.FilesRestored)
 
 	c.JSON(200, gin.H{
 		"success": true,
@@ -341,14 +434,36 @@ func RestoreDatabase(c *gin.Context) {
 
 // Storage
 func ListRepos(c *gin.Context) {
-	c.JSON(200, gin.H{"repos": []interface{}{}})
+	repos := StorageEngine.ListRepos()
+	c.JSON(200, gin.H{"repos": repos})
 }
 
 func CreateRepo(c *gin.Context) {
-	c.JSON(201, gin.H{"success": true})
+	var repo storage.StorageRepo
+	if err := c.ShouldBindJSON(&repo); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	repo.ID = uuid.New().String()
+	repo.CreatedAt = time.Now()
+
+	if err := StorageEngine.AddRepo(&repo); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(201, gin.H{"success": true, "repo": repo})
 }
 
 func DeleteRepo(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := StorageEngine.RemoveRepo(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -375,4 +490,141 @@ func UpdateSettings(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"success": true})
+}
+
+// Reports & Statistics
+func GetStatistics(c *gin.Context) {
+	stats, err := ReportEngine.GetStatistics()
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"statistics": stats})
+}
+
+func GetDailyReport(c *gin.Context) {
+	dateStr := c.Query("date")
+	date := time.Now()
+	if dateStr != "" {
+		date, _ = time.Parse("2006-01-02", dateStr)
+	}
+
+	report, err := ReportEngine.GenerateDailyReport(date)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"report": report})
+}
+
+func GetWeeklyReport(c *gin.Context) {
+	report, err := ReportEngine.GenerateWeeklyReport(time.Now())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"report": report})
+}
+
+func GetMonthlyReport(c *gin.Context) {
+	report, err := ReportEngine.GenerateMonthlyReport(time.Now())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"report": report})
+}
+
+func ExportReport(c *gin.Context) {
+	var req struct {
+		ReportID string `json:"report_id"`
+		Format   string `json:"format"` // json, html, pdf
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Generate report data
+	report, err := ReportEngine.GenerateDailyReport(time.Now())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	data, err := ReportEngine.ExportReport(report, req.Format)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Data(200, "application/"+req.Format, data)
+}
+
+// Users (Admin only)
+func ListUsers(c *gin.Context) {
+	users := RBACEngine.ListUsers()
+	c.JSON(200, gin.H{"users": users})
+}
+
+func CreateUser(c *gin.Context) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
+		FullName string `json:"full_name"`
+		Role     string `json:"role"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := RBACEngine.CreateUser(req.Username, req.Password, req.Email, req.FullName, req.Role)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(201, gin.H{"success": true, "user": user})
+}
+
+func DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := RBACEngine.DeleteUser(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"success": true})
+}
+
+// Audit Logs
+func GetAuditLogs(c *gin.Context) {
+	c.JSON(200, gin.H{"logs": "TODO"})
+}
+
+// Scheduler
+func GetSchedule(c *gin.Context) {
+	nextRuns := Scheduler.GetNextRuns()
+	c.JSON(200, gin.H{"schedule": nextRuns})
+}
+
+func GetJobStatus(c *gin.Context) {
+	id := c.Param("id")
+
+	status, err := Scheduler.GetJobStatus(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"status": status})
 }

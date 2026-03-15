@@ -134,7 +134,7 @@ func (s *Scheduler) executeJob(job *ScheduledJob) {
 	fmt.Printf("🕐 Запуск запланованого завдання: %s\n", job.JobName)
 
 	// Execute backup
-	session, err := s.backupEngine.ExecuteBackup(job.job)
+	_, err := s.backupEngine.ExecuteBackup(job.job)
 
 	// Update job in database
 	now := time.Now()
@@ -273,8 +273,6 @@ func (s *Scheduler) loadJobs() error {
 			JobID:        job.ID,
 			JobName:      job.Name,
 			ScheduleType: job.Schedule,
-			ScheduleTime: job.ScheduleTime,
-			ScheduleDays: job.ScheduleDays,
 			Enabled:      job.Enabled,
 			job: &backup.BackupJob{
 				ID:          job.ID,
