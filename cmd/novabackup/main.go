@@ -167,6 +167,7 @@ func runServer() {
 		// Auth
 		apiGroup.POST("/auth/login", api.Login)
 		apiGroup.POST("/auth/logout", api.Logout)
+		apiGroup.POST("/auth/change-password", api.ChangePassword)
 
 		// Jobs
 		apiGroup.GET("/jobs", api.ListJobs)

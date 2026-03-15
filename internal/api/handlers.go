@@ -95,6 +95,47 @@ func Logout(c *gin.Context) {
 	c.JSON(200, gin.H{"success": true})
 }
 
+// ChangePassword changes user password
+func ChangePassword(c *gin.Context) {
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get user from token
+	userValue, _ := c.Get("user")
+	user, ok := userValue.(*rbac.User)
+	if !ok {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Verify current password
+	if !RBACEngine.CheckPassword(req.CurrentPassword, user.PasswordHash) {
+		c.JSON(401, gin.H{"error": "Невірний поточний пароль"})
+		return
+	}
+
+	// Validate new password
+	if len(req.NewPassword) < 6 {
+		c.JSON(400, gin.H{"error": "Пароль має бути не менше 6 символів"})
+		return
+	}
+
+	// Update password
+	if err := RBACEngine.ChangePassword(user.ID, req.CurrentPassword, req.NewPassword); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"success": true, "message": "Пароль змінено"})
+}
+
 // Settings
 func GetSettings(c *gin.Context) {
 	config := loadConfig()
