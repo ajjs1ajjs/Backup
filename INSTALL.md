@@ -14,6 +14,25 @@ wget https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFil
 .\install.bat
 ```
 
+#### Одна команда (ВІД ІМЕНІ АДМІНІСТРАТОРА)
+
+```powershell
+# Встановити
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat" -OutFile "install.bat"; .\install.bat
+
+# Оновити
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat" -OutFile "update.bat"; .\update.bat
+```
+
+#### Один скрипт (інтерактивно)
+
+```powershell
+# Завантажити та запустити (встановлення/оновлення/видалення)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/novabackup-setup.bat" -OutFile "novabackup-setup.bat"; .\novabackup-setup.bat
+```
+
+Примітка: якщо ви не використовуєте GitHub Releases, тримайте `novabackup.exe` оновленим у корені репозиторію.
+
 #### Спосіб 2: Ручна установка
 
 ```powershell
@@ -43,6 +62,16 @@ sudo bash install.sh
 
 # 3. Відкрити веб-інтерфейс
 xdg-open http://localhost:8050
+```
+
+#### Одна команда
+
+```bash
+# Встановити
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash
+
+# Оновити
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh | sudo bash
 ```
 
 ---

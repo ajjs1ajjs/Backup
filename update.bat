@@ -20,6 +20,7 @@ echo.
 
 set "INSTALL_DIR=C:\Program Files\NovaBackup"
 set "GITHUB_URL=https://github.com/ajjs1ajjs/Backup/releases/latest/download"
+set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
 echo [*] Checking current version...
 if exist "%INSTALL_DIR%\NovaBackup.exe" (
@@ -48,7 +49,11 @@ taskkill /F /IM NovaBackup.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 echo [*] Downloading novabackup-windows-amd64.exe...
-powershell -Command "Invoke-WebRequest -Uri '%GITHUB_URL%/novabackup-windows-amd64.exe' -OutFile '%TEMP_DIR%\novabackup.exe'" -UseBasicParsing
+call :download "%GITHUB_URL%/novabackup-windows-amd64.exe" "%TEMP_DIR%\novabackup.exe"
+if %errorLevel% neq 0 (
+    echo [WARNING] Release download failed. Trying raw repository...
+    call :download "%RAW_URL%/novabackup.exe" "%TEMP_DIR%\novabackup.exe"
+)
 if %errorLevel% neq 0 (
     echo [ERROR] Download failed!
     echo.
@@ -90,3 +95,16 @@ start "" http://localhost:8050
 
 echo.
 pause
+exit /b 0
+
+:download
+set "DOWNLOAD_URL=%~1"
+set "DOWNLOAD_OUT=%~2"
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%DOWNLOAD_OUT%' -UseBasicParsing"
+if %errorLevel% equ 0 exit /b 0
+where curl.exe >nul 2>&1
+if %errorLevel% equ 0 (
+    curl.exe -L --retry 3 --retry-delay 2 -o "%DOWNLOAD_OUT%" "%DOWNLOAD_URL%"
+    if %errorLevel% equ 0 exit /b 0
+)
+exit /b 1
