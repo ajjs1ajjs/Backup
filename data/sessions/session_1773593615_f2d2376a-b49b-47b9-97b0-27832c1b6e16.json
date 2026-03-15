@@ -1,0 +1,38 @@
+{
+  "id": "session_1773593615_f2d2376a-b49b-47b9-97b0-27832c1b6e16",
+  "job_id": "f2d2376a-b49b-47b9-97b0-27832c1b6e16",
+  "job_name": "1",
+  "type": "file",
+  "start_time": "2026-03-15T18:53:35.4797998+02:00",
+  "end_time": "2026-03-15T18:53:35.4824166+02:00",
+  "status": "failed",
+  "is_incremental": false,
+  "is_full": true,
+  "files_total": 0,
+  "files_processed": 0,
+  "files_skipped": 0,
+  "bytes_total": 0,
+  "bytes_written": 0,
+  "bytes_read": 0,
+  "compression_ratio": 0,
+  "deduplication_ratio": 0,
+  "error": "не знайдено файлів для резервного копіювання",
+  "warnings": [
+    "Failed to scan : Stat : The system cannot find the path specified."
+  ],
+  "backup_path": "1\\2026-03-15_185335",
+  "backup_size": 0,
+  "logs": [
+    "[2026-03-15 18:53:35] ════════════════════════════════════════",
+    "[2026-03-15 18:53:35] 🚀 Запуск резервного копіювання: 1",
+    "[2026-03-15 18:53:35] Тип: file, Ідентифікатор: session_1773593615_f2d2376a-b49b-47b9-97b0-27832c1b6e16",
+    "[2026-03-15 18:53:35] Інкрементальне: false, Стиснення: false",
+    "[2026-03-15 18:53:35] 📁 Початок резервного копіювання файлів...",
+    "[2026-03-15 18:53:35] 🔍 Сканування джерела: ",
+    "[2026-03-15 18:53:35] ⚠️ Помилка сканування : Stat : The system cannot find the path specified.",
+    "[2026-03-15 18:53:35] ✅ Знайдено 0 файлів (0 B)",
+    "[2026-03-15 18:53:35] ❌ Резервне копіювання НЕ ВДАЛОСЬ: не знайдено файлів для резервного копіювання"
+  ],
+  "processed_blocks": 0,
+  "deduplicated_blocks": 0
+}

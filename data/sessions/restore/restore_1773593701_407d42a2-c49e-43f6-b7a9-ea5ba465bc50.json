@@ -1,0 +1,23 @@
+{
+  "id": "restore_1773593701_407d42a2-c49e-43f6-b7a9-ea5ba465bc50",
+  "request_id": "407d42a2-c49e-43f6-b7a9-ea5ba465bc50",
+  "type": "files",
+  "start_time": "2026-03-15T18:55:01.4542996+02:00",
+  "end_time": "2026-03-15T18:55:01.4554388+02:00",
+  "status": "failed",
+  "files_total": 0,
+  "files_restored": 0,
+  "files_skipped": 0,
+  "bytes_total": 0,
+  "bytes_restored": 0,
+  "error": "помилка відкриття архіву: open backup.zip: The system cannot find the file specified.",
+  "warnings": null,
+  "logs": [
+    "[2026-03-15 18:55:01] ════════════════════════════════════════",
+    "[2026-03-15 18:55:01] 🔄 Початок відновлення: files",
+    "[2026-03-15 18:55:01] Ідентифікатор: restore_1773593701_407d42a2-c49e-43f6-b7a9-ea5ba465bc50",
+    "[2026-03-15 18:55:01] 📁 Початок відновлення файлів...",
+    "[2026-03-15 18:55:01] ❌ Відновлення НЕ ВДАЛОСЬ: помилка відкриття архіву: open backup.zip: The system cannot find the file specified."
+  ],
+  "duration": "1.1392ms"
+}
