@@ -21,24 +21,11 @@ namespace NovaBackup.WPF
             var selectedBackup = lstBackups.SelectedItem as ListBoxItem;
             if (selectedBackup == null)
             {
-                MessageBox.Show("Please select a backup to restore from", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Оберіть резервну копію", "Не обрано", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            var destination = rbOriginal.IsChecked == true
-                ? "Original location"
-                : txtPath.Text;
-
-            MessageBox.Show(
-                $"Restore started!\n\n" +
-                $"From: {selectedBackup.Content}\n" +
-                $"To: {destination}\n\n" +
-                "Monitor progress in the Monitoring tab.",
-                "Restore Started",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
+            MessageBox.Show($"Відновлення запущено!\n\nЗ: {selectedBackup.Content}\nВ: {txtPath.Text}", "Відновлення", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }

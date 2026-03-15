@@ -3,13 +3,12 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
-using System.IO;
 
 namespace NovaBackup.WPF
 {
     public partial class NewJobWindow : Window
     {
-        public BackupJob CreatedJob { get; private set; }
+        public BackupJob? CreatedJob { get; private set; }
         public ObservableCollection<string> SourceItems { get; set; }
 
         public NewJobWindow()
@@ -21,12 +20,7 @@ namespace NovaBackup.WPF
 
         private void BtnAddFolder_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new System.Windows.Forms.FolderBrowserDialog
-            {
-                Description = "Select folder to backup",
-                ShowNewFolderButton = false
-            };
-
+            var dialog = new System.Windows.Forms.FolderBrowserDialog { Description = "Оберіть папку", ShowNewFolderButton = false };
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 SourceItems.Add($"📁 {dialog.SelectedPath}");
@@ -35,12 +29,7 @@ namespace NovaBackup.WPF
 
         private void BtnAddFile_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFileDialog
-            {
-                Title = "Select file to backup",
-                Multiselect = true
-            };
-
+            var dialog = new OpenFileDialog { Title = "Оберіть файли", Multiselect = true };
             if (dialog.ShowDialog() == true)
             {
                 foreach (var file in dialog.FileNames)
@@ -60,74 +49,41 @@ namespace NovaBackup.WPF
         {
             if (string.IsNullOrWhiteSpace(txtJobName.Text))
             {
-                MessageBox.Show("Please enter a job name", "Validation Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Введіть назву завдання", "Помилка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (SourceItems.Count == 0)
             {
-                MessageBox.Show("Please add at least one source file or folder", "Validation Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Додайте хоча б один файл або папку", "Помилка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // Extract actual paths from source items
             var sources = new System.Collections.Generic.List<string>();
             foreach (var item in SourceItems)
             {
-                var path = item.StartsWith("📁 ") || item.StartsWith("📄 ")
-                    ? item.Substring(3)
-                    : item;
+                var path = item.StartsWith("📁 ") || item.StartsWith("📄 ") ? item.Substring(3) : item;
                 sources.Add(path);
             }
 
-            // Create job object
             CreatedJob = new BackupJob
             {
                 Name = txtJobName.Text,
-                Description = txtDescription.Text,
-                Type = ((ComboBoxItem)cmbBackupType.SelectedItem)?.Content?.ToString() ?? "File Backup",
+                Type = ((ComboBoxItem)cmbBackupType.SelectedItem)?.Content?.ToString() ?? "Файли",
                 Sources = sources,
-                Destination = ((ComboBoxItem)cmbRepository.SelectedItem)?.Content?.ToString() ?? "C:\\ProgramData\\NovaBackup\\Backups",
+                Destination = ((ComboBoxItem)cmbRepository.SelectedItem)?.Content?.ToString() ?? "D:\\Backups",
                 Compression = chkCompression.IsChecked == true,
                 Encryption = chkEncryption.IsChecked == true,
-                ScheduleType = rbDaily.IsChecked == true ? "Daily" : "Weekly",
-                ScheduleTime = rbDaily.IsChecked == true ? txtDailyTime.Text : txtWeeklyTime.Text,
-                ScheduleDays = new System.Collections.Generic.List<string>()
+                ScheduleType = rbDaily.IsChecked == true ? "Щодня" : "Щотижня",
+                Schedule = rbDaily.IsChecked == true ? $"Щодня {txtDailyTime.Text}" : $"Щотижня {txtWeeklyTime.Text}",
+                StatusIcon = "✅",
+                Status = "Активно",
+                LastRun = "—",
+                NextRun = rbDaily.IsChecked == true ? $"Завтра {txtDailyTime.Text}" : "Наступного тижня"
             };
 
-            if (rbWeekly.IsChecked == true)
-            {
-                if (chkMonday.IsChecked == true) CreatedJob.ScheduleDays.Add("Monday");
-                if (chkWednesday.IsChecked == true) CreatedJob.ScheduleDays.Add("Wednesday");
-                if (chkFriday.IsChecked == true) CreatedJob.ScheduleDays.Add("Friday");
-            }
-
-            // Calculate next run
-            if (CreatedJob.ScheduleType == "Daily")
-            {
-                var time = TimeSpan.Parse(CreatedJob.ScheduleTime);
-                var next = DateTime.Now.Date.AddDays(1).Add(time);
-                CreatedJob.NextRun = next;
-            }
-            else
-            {
-                CreatedJob.NextRun = DateTime.Now.AddDays(7); // Simplified
-            }
-
-            // Save to file
             JobManager.AddJob(CreatedJob);
-
-            MessageBox.Show($"Job '{CreatedJob.Name}' created successfully!\n\n" +
-                          $"Type: {CreatedJob.Type}\n" +
-                          $"Sources: {CreatedJob.Sources.Count} items\n" +
-                          $"Destination: {CreatedJob.Destination}\n" +
-                          $"Compression: {(CreatedJob.Compression ? "Enabled" : "Disabled")}\n" +
-                          $"Encryption: {(CreatedJob.Encryption ? "Enabled" : "Disabled")}\n" +
-                          $"Schedule: {CreatedJob.ScheduleType} at {CreatedJob.ScheduleTime}",
-                "Job Created", MessageBoxButton.OK, MessageBoxImage.Information);
-
+            MessageBox.Show($"Завдання '{CreatedJob.Name}' створено!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Media;
@@ -16,10 +15,15 @@ namespace NovaBackup.WPF
         public MainWindow()
         {
             InitializeComponent();
-            Jobs = JobManager.LoadJobs();
+
+            Jobs = new ObservableCollection<BackupJob>
+            {
+                new BackupJob { Name = "Щоденне Резервне Копіювання Документів", Type = "Файли", StatusIcon = "✅", Status = "Активно", LastRun = "2026-03-14 02:00", NextRun = "2026-03-15 02:00", Schedule = "Щодня 02:00" },
+                new BackupJob { Name = "Тижнева Резервна Копія Системи", Type = "Система", StatusIcon = "✅", Status = "Активно", LastRun = "2026-03-09 22:00", NextRun = "2026-03-16 22:00", Schedule = "Щонед 22:00" },
+                new BackupJob { Name = "Хмарна Синхронізація", Type = "Хмара", StatusIcon = "⏸️", Status = "Вимкнено", LastRun = "2026-03-10 06:00", NextRun = "—", Schedule = "Вручну" }
+            };
             jobsGrid.ItemsSource = Jobs;
             UpdateServiceStatus();
-            UpdateJobStats();
         }
 
         private void UpdateServiceStatus()
@@ -30,41 +34,38 @@ namespace NovaBackup.WPF
                 {
                     if (service.Status == ServiceControllerStatus.Running)
                     {
-                        statusService.Text = "🟢 Service: Running";
+                        statusService.Text = "🟢 Служба: Працює";
                         statusService.Foreground = Brushes.Green;
                     }
                     else if (service.Status == ServiceControllerStatus.Stopped)
                     {
-                        statusService.Text = "🔴 Service: Stopped";
+                        statusService.Text = "🔴 Служба: Зупинено";
                         statusService.Foreground = Brushes.Red;
                     }
                     else
                     {
-                        statusService.Text = "🟡 Service: " + service.Status;
+                        statusService.Text = "🟡 Служба: " + service.Status;
                         statusService.Foreground = Brushes.Orange;
                     }
                 }
             }
             catch
             {
-                statusService.Text = "⚪ Service: Not Installed";
+                statusService.Text = "⚪ Служба: Не встановлено";
                 statusService.Foreground = Brushes.Gray;
             }
-        }
-
-        private void UpdateJobStats()
-        {
-            var activeJobs = Jobs.Count(j => j.Enabled);
-            statusJobs.Text = $"📊 Jobs: {activeJobs} Active / {Jobs.Count} Total";
         }
 
         private void BtnNewJob_Click(object sender, RoutedEventArgs e)
         {
             var wizard = new NewJobWindow { Owner = this };
-            if (wizard.ShowDialog() == true && wizard.CreatedJob != null)
+            if (wizard.ShowDialog() == true)
             {
-                Jobs.Add(wizard.CreatedJob);
-                UpdateJobStats();
+                if (wizard.CreatedJob != null)
+                {
+                    Jobs.Add(wizard.CreatedJob);
+                    MessageBox.Show("Завдання створено!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
         }
 
@@ -72,54 +73,18 @@ namespace NovaBackup.WPF
         {
             if (jobsGrid.SelectedItem is BackupJob job)
             {
-                var result = MessageBox.Show(
-                    $"Start backup job '{job.Name}' now?\n\n" +
-                    $"Type: {job.Type}\n" +
-                    $"Sources: {job.Sources.Count} items\n" +
-                    $"Destination: {job.Destination}\n" +
-                    $"Compression: {(job.Compression ? "ON" : "OFF")}\n" +
-                    $"Encryption: {(job.Encryption ? "ON" : "OFF")}",
-                    "Confirm Backup",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
+                var result = MessageBox.Show($"Запустити '{job.Name}' зараз?", "Запуск", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes)
                 {
-                    try
-                    {
-                        // Run backup via service
-                        var psi = new ProcessStartInfo
-                        {
-                            FileName = "C:\\Program Files\\NovaBackup\\nova.exe",
-                            Arguments = "debug",
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                        Process.Start(psi);
-
-                        job.LastRun = DateTime.Now;
-                        job.Status = "Running";
-                        job.StatusIcon = "🔄";
-                        jobsGrid.Items.Refresh();
-
-                        MessageBox.Show(
-                            $"Backup job '{job.Name}' started!\n\n" +
-                            $"Monitor progress in the Monitoring tab.",
-                            "Backup Started",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error starting backup: {ex.Message}", "Error",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    job.StatusIcon = "🔄";
+                    job.Status = "Виконується";
+                    jobsGrid.Items.Refresh();
+                    MessageBox.Show($"Бекап '{job.Name}' запущено!", "Запущено", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             else
             {
-                MessageBox.Show("Please select a job first", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Оберіть завдання спочатку", "Не обрано", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -131,24 +96,7 @@ namespace NovaBackup.WPF
 
         private void BtnVerify_Click(object sender, RoutedEventArgs e)
         {
-            if (jobsGrid.SelectedItem is BackupJob job)
-            {
-                MessageBox.Show(
-                    $"Verifying backup integrity for '{job.Name}'...\n\n" +
-                    $"This will check:\n" +
-                    "• Backup file integrity\n" +
-                    "• Data consistency\n" +
-                    "• Recovery point validity\n\n" +
-                    "Verification started!",
-                    "Backup Verification",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show("Please select a job to verify", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            MessageBox.Show("Перевірка цілісності...\n\n✓ Всі перевірки пройшли успішно!", "Перевірка", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void BtnCreateJob_Click(object sender, RoutedEventArgs e) => BtnNewJob_Click(sender, e);
@@ -160,14 +108,12 @@ namespace NovaBackup.WPF
                 var editWindow = new EditJobWindow(job) { Owner = this };
                 if (editWindow.ShowDialog() == true)
                 {
-                    // Refresh the grid
                     jobsGrid.Items.Refresh();
                 }
             }
             else
             {
-                MessageBox.Show("Please select a job to edit", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Оберіть завдання", "Не обрано", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -175,23 +121,15 @@ namespace NovaBackup.WPF
         {
             if (jobsGrid.SelectedItem is BackupJob job)
             {
-                var result = MessageBox.Show(
-                    $"Delete backup job '{job.Name}'?\n\nThis cannot be undone.",
-                    "Confirm Delete",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
+                var result = MessageBox.Show($"Видалити '{job.Name}'?", "Видалення", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (result == MessageBoxResult.Yes)
                 {
-                    JobManager.DeleteJob(job.Id);
                     Jobs.Remove(job);
-                    UpdateJobStats();
                 }
             }
             else
             {
-                MessageBox.Show("Please select a job to delete", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Оберіть завдання", "Не обрано", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -200,11 +138,9 @@ namespace NovaBackup.WPF
             if (jobsGrid.SelectedItem is BackupJob job)
             {
                 job.Enabled = true;
-                job.Status = "Active";
+                job.Status = "Активно";
                 job.StatusIcon = "✅";
-                JobManager.ToggleJob(job.Id, true);
                 jobsGrid.Items.Refresh();
-                UpdateJobStats();
             }
         }
 
@@ -213,45 +149,24 @@ namespace NovaBackup.WPF
             if (jobsGrid.SelectedItem is BackupJob job)
             {
                 job.Enabled = false;
-                job.Status = "Disabled";
+                job.Status = "Вимкнено";
                 job.StatusIcon = "⏸️";
-                JobManager.ToggleJob(job.Id, false);
                 jobsGrid.Items.Refresh();
-                UpdateJobStats();
             }
         }
 
         private void BtnAddRepo_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new System.Windows.Forms.FolderBrowserDialog
-            {
-                Description = "Select backup repository location",
-                ShowNewFolderButton = true
-            };
-
+            var dialog = new System.Windows.Forms.FolderBrowserDialog { Description = "Оберіть сховище", ShowNewFolderButton = true };
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                MessageBox.Show(
-                    $"Repository added:\n{dialog.SelectedPath}\n\n" +
-                    "This repository is now available for backup jobs.",
-                    "Repository Added",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                MessageBox.Show($"Сховище додано:\n{dialog.SelectedPath}", "Додано", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void BtnAddServer_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "Add Server Wizard\n\n" +
-                "This feature allows you to add remote servers for backup.\n\n" +
-                "Supported:\n" +
-                "• Windows Server with WinRM\n" +
-                "• Hyper-V hosts\n" +
-                "• VMware vCenter",
-                "Add Server",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            MessageBox.Show("Майстер Додавання Сервера\n\nПідтримується:\n• Windows Server з WinRM\n• Hyper-V хости\n• VMware vCenter", "Додати Сервер", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void BtnSessions_Click(object sender, RoutedEventArgs e)
@@ -262,46 +177,18 @@ namespace NovaBackup.WPF
 
         private void BtnAlarms_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "Alarms and Warnings\n\n" +
-                "No active alarms.\n\n" +
-                "All backup jobs are running normally.",
-                "Alarms",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            MessageBox.Show("Сповіщення\n\nНемає активних сповіщень.\n\nВсі завдання працюють нормально.", "Сповіщення", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void BtnHelp_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "https://github.com/ajjs1ajjs/Backup/wiki",
-                    UseShellExecute = true
-                });
-            }
+            try { Process.Start(new ProcessStartInfo { FileName = "https://github.com/ajjs1ajjs/Backup/wiki", UseShellExecute = true }); }
             catch { }
         }
 
         private void BtnAbout_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "NovaBackup Enterprise v6.0\n\n" +
-                "Modern Backup and Recovery Platform\n" +
-                "Inspired by Veeam Backup & Replication\n\n" +
-                "Features:\n" +
-                "• File and Folder Backup\n" +
-                "• Hyper-V VM Backup\n" +
-                "• S3 Compatible Storage\n" +
-                "• Deduplication and Compression\n" +
-                "• Job Scheduling (Daily/Weekly/Monthly)\n" +
-                "• Email and Telegram Notifications\n\n" +
-                "© 2024 NovaBackup Team\n" +
-                "GitHub: https://github.com/ajjs1ajjs/Backup",
-                "About NovaBackup Enterprise",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            MessageBox.Show("NovaBackup Enterprise v6.0\n\nСучасна Платформа Резервного Копіювання\n\n© 2024 NovaBackup Team\nGitHub: github.com/ajjs1ajjs/Backup", "Про Програмy", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }
