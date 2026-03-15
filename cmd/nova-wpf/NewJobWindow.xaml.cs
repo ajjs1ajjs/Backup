@@ -1,12 +1,15 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using System.IO;
 
 namespace NovaBackup.WPF
 {
     public partial class NewJobWindow : Window
     {
+        public BackupJob CreatedJob { get; private set; }
         public ObservableCollection<string> SourceItems { get; set; }
 
         public NewJobWindow()
@@ -69,24 +72,60 @@ namespace NovaBackup.WPF
                 return;
             }
 
-            // Save job configuration
-            var jobConfig = new
+            // Extract actual paths from source items
+            var sources = new System.Collections.Generic.List<string>();
+            foreach (var item in SourceItems)
+            {
+                var path = item.StartsWith("📁 ") || item.StartsWith("📄 ")
+                    ? item.Substring(3)
+                    : item;
+                sources.Add(path);
+            }
+
+            // Create job object
+            CreatedJob = new BackupJob
             {
                 Name = txtJobName.Text,
                 Description = txtDescription.Text,
-                Type = ((ComboBoxItem)cmbBackupType.SelectedItem)?.Content?.ToString(),
-                Sources = SourceItems,
-                Repository = ((ComboBoxItem)cmbRepository.SelectedItem)?.Content?.ToString(),
+                Type = ((ComboBoxItem)cmbBackupType.SelectedItem)?.Content?.ToString() ?? "File Backup",
+                Sources = sources,
+                Destination = ((ComboBoxItem)cmbRepository.SelectedItem)?.Content?.ToString() ?? "C:\\ProgramData\\NovaBackup\\Backups",
                 Compression = chkCompression.IsChecked == true,
                 Encryption = chkEncryption.IsChecked == true,
-                Schedule = rbDaily.IsChecked == true ? "Daily" : "Weekly"
+                ScheduleType = rbDaily.IsChecked == true ? "Daily" : "Weekly",
+                ScheduleTime = rbDaily.IsChecked == true ? txtDailyTime.Text : txtWeeklyTime.Text,
+                ScheduleDays = new System.Collections.Generic.List<string>()
             };
 
-            // In real implementation, save to database
-            MessageBox.Show($"Job '{jobConfig.Name}' created successfully!\n\n" +
-                          $"Sources: {jobConfig.Sources.Count} items\n" +
-                          $"Compression: {(jobConfig.Compression ? "Enabled" : "Disabled")}\n" +
-                          $"Encryption: {(jobConfig.Encryption ? "Enabled" : "Disabled")}",
+            if (rbWeekly.IsChecked == true)
+            {
+                if (chkMonday.IsChecked == true) CreatedJob.ScheduleDays.Add("Monday");
+                if (chkWednesday.IsChecked == true) CreatedJob.ScheduleDays.Add("Wednesday");
+                if (chkFriday.IsChecked == true) CreatedJob.ScheduleDays.Add("Friday");
+            }
+
+            // Calculate next run
+            if (CreatedJob.ScheduleType == "Daily")
+            {
+                var time = TimeSpan.Parse(CreatedJob.ScheduleTime);
+                var next = DateTime.Now.Date.AddDays(1).Add(time);
+                CreatedJob.NextRun = next;
+            }
+            else
+            {
+                CreatedJob.NextRun = DateTime.Now.AddDays(7); // Simplified
+            }
+
+            // Save to file
+            JobManager.AddJob(CreatedJob);
+
+            MessageBox.Show($"Job '{CreatedJob.Name}' created successfully!\n\n" +
+                          $"Type: {CreatedJob.Type}\n" +
+                          $"Sources: {CreatedJob.Sources.Count} items\n" +
+                          $"Destination: {CreatedJob.Destination}\n" +
+                          $"Compression: {(CreatedJob.Compression ? "Enabled" : "Disabled")}\n" +
+                          $"Encryption: {(CreatedJob.Encryption ? "Enabled" : "Disabled")}\n" +
+                          $"Schedule: {CreatedJob.ScheduleType} at {CreatedJob.ScheduleTime}",
                 "Job Created", MessageBoxButton.OK, MessageBoxImage.Information);
 
             DialogResult = true;
