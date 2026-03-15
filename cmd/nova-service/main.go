@@ -327,7 +327,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	command := strings.ToLower(os.Args[0])
+	command := strings.ToLower(os.Args[1])
 
 	switch command {
 	case "install":
