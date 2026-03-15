@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="NovaBackup Enterprise v6.0"
+           Language="1033"
+           Version="6.0.0.0"
+           Manufacturer="NovaBackup Team"
+           UpgradeCode="{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="x64"
+             Description="NovaBackup Enterprise - Modern Backup and Recovery Platform"/>
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of NovaBackup is already installed."/>
+    <MediaTemplate EmbedCab="yes"/>
+
+    <Property Id="ARPHELPLINK" Value="https://github.com/ajjs1ajjs/Backup"/>
+    <Property Id="ARPCOMMENTS" Value="Enterprise Backup Solution"/>
+
+    <!-- UI Customization -->
+    <WixVariable Id="WixUILicenseRtf" Value="installer\License.rtf"/>
+    <WixVariable Id="WixUIBannerBmp" Value="installer\Banner.bmp"/>
+    <WixVariable Id="WixUIDialogBmp" Value="installer\Dialog.bmp"/>
+
+    <UI>
+      <UIRef Id="WixUI_InstallDir"/>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">1</Publish>
+    </UI>
+
+    <Feature Id="MainApplication" Title="NovaBackup Enterprise" Level="1">
+      <ComponentGroupRef Id="ProductComponents"/>
+      <ComponentGroupRef Id="Shortcuts"/>
+    </Feature>
+
+    <!-- Custom Actions -->
+    <CustomAction Id="InstallService"
+                  FileKey="NovaBackupService"
+                  ExeCommand="install"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no"/>
+
+    <CustomAction Id="StartService"
+                  FileKey="NovaBackupService"
+                  ExeCommand="start"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no"/>
+
+    <CustomAction Id="UninstallService"
+                  FileKey="NovaBackupService"
+                  ExeCommand="remove"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no"/>
+
+    <InstallExecuteSequence>
+      <Custom Action="InstallService" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="StartService" After="InstallService">NOT Installed</Custom>
+      <Custom Action="UninstallService" Before="RemoveFiles">Installed AND REMOVE="ALL"</Custom>
+    </InstallExecuteSequence>
+  </Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="NovaBackup">
+          <Directory Id="LogsFolder" Name="Logs"/>
+          <Directory Id="ConfigFolder" Name="Config"/>
+          <Directory Id="BackupsFolder" Name="Backups"/>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="NovaBackup Enterprise"/>
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop"/>
+    </Directory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Main GUI Application -->
+      <Component Id="MainGUI" Guid="{11111111-1111-1111-1111-111111111111}">
+        <File Id="NovaBackupGUI" Source="!(wix.SourcePath)\build\installer\NovaBackup.exe" KeyPath="yes"/>
+        <File Id="NovaBackupDLL" Source="!(wix.SourcePath)\build\installer\NovaBackup.dll"/>
+        <File Id="NovaBackupPDB" Source="!(wix.SourcePath)\build\installer\NovaBackup.pdb"/>
+      </Component>
+
+      <!-- Windows Service -->
+      <Component Id="WindowsService" Guid="{22222222-2222-2222-2222-222222222222}">
+        <File Id="NovaBackupService" Source="!(wix.SourcePath)\build\installer\nova.exe" KeyPath="yes"/>
+      </Component>
+
+      <!-- Dependencies -->
+      <Component Id="Dependencies" Guid="{33333333-3333-3333-3333-333333333333}">
+        <File Id="MaterialDesignColors" Source="!(wix.SourcePath)\build\installer\MaterialDesignColors.dll"/>
+        <File Id="MaterialDesignThemes" Source="!(wix.SourcePath)\build\installer\MaterialDesignThemes.Wpf.dll"/>
+        <File Id="MicrosoftXaml" Source="!(wix.SourcePath)\build\installer\Microsoft.Xaml.Behaviors.dll"/>
+        <File Id="SystemServiceController" Source="!(wix.SourcePath)\build\installer\System.ServiceProcess.ServiceController.dll"/>
+      </Component>
+
+      <!-- Configuration -->
+      <Component Id="Configuration" Guid="{44444444-4444-4444-4444-444444444444}">
+        <File Id="ConfigFile" Source="!(wix.SourcePath)\installer\config.json" KeyPath="yes"/>
+        <CreateFolder Directory="ConfigFolder"/>
+      </Component>
+    </ComponentGroup>
+
+    <!-- Shortcuts -->
+    <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcuts" Guid="{66666666-6666-6666-6666-666666666666}">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="NovaBackup Enterprise"
+                  Description="NovaBackup Enterprise Console"
+                  Target="[INSTALLFOLDER]NovaBackup.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="NovaBackupIcon"/>
+
+        <Shortcut Id="UninstallShortcut"
+                  Name="Uninstall NovaBackup"
+                  Description="Uninstall NovaBackup Enterprise"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]"/>
+
+        <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\NovaBackup\Enterprise" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+
+      <Component Id="DesktopShortcut" Guid="{77777777-7777-7777-7777-777777777777}" Directory="DesktopFolder">
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Name="NovaBackup Enterprise"
+                  Description="NovaBackup Enterprise Console"
+                  Target="[INSTALLFOLDER]NovaBackup.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="NovaBackupIcon"/>
+        <RegistryValue Root="HKCU" Key="Software\NovaBackup\Enterprise\Desktop" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

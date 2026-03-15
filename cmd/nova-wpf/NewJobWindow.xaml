@@ -1,0 +1,118 @@
+<Window x:Class="NovaBackup.WPF.NewJobWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New Backup Job Wizard" Height="600" Width="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#0078D7" Padding="15,10" Margin="-20,-20,-20,20">
+            <TextBlock Text="💾 New Backup Job Wizard" FontSize="20" FontWeight="Bold" Foreground="White"/>
+        </Border>
+
+        <!-- Wizard Steps -->
+        <TabControl Grid.Row="1" Margin="0,0,0,20">
+            <TabItem Header="1. General">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Job Name:" VerticalAlignment="Center" Margin="0,0,0,15"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtJobName" Height="30" Margin="0,0,0,15"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,0,0,15"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtDescription" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,15"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Backup Type:" VerticalAlignment="Center" Margin="0,0,0,15"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbBackupType" Height="30" Margin="0,0,0,15">
+                        <ComboBoxItem Content="File and Folder Backup" IsSelected="True"/>
+                        <ComboBoxItem Content="System Backup"/>
+                        <ComboBoxItem Content="Hyper-V VM Backup"/>
+                    </ComboBox>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="2. Source">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="btnAddFolder" Content="➕ Add Folder" Padding="15,8" Margin="0,0,10,0" Click="BtnAddFolder_Click"/>
+                        <Button x:Name="btnAddFile" Content="📄 Add File" Padding="15,8" Click="BtnAddFile_Click"/>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="1" x:Name="lstSource" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="3. Destination">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Select Backup Repository:" Margin="0,0,0,15"/>
+                    <ComboBox Grid.Row="1" x:Name="cmbRepository" Height="30" Margin="0,0,0,15">
+                        <ComboBoxItem Content="C:\ProgramData\NovaBackup\Backups" IsSelected="True"/>
+                        <ComboBoxItem Content="D:\Backups"/>
+                        <ComboBoxItem Content="\\Server\BackupShare"/>
+                    </ComboBox>
+
+                    <CheckBox Grid.Row="2" x:Name="chkCompression" Content="Enable Compression" IsChecked="True" Margin="0,5"/>
+                    <CheckBox Grid.Row="3" x:Name="chkEncryption" Content="Enable Encryption (AES-256)" Margin="0,5"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="4. Schedule">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <RadioButton Grid.Row="0" x:Name="rbDaily" Content="Daily" GroupName="Schedule" IsChecked="True" Margin="0,0,0,10"/>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,0,15">
+                        <TextBlock Text="Run at:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox x:Name="txtDailyTime" Width="60" Text="02:00"/>
+                    </StackPanel>
+
+                    <RadioButton Grid.Row="2" x:Name="rbWeekly" Content="Weekly" GroupName="Schedule" Margin="0,0,0,10"/>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,0,0,0">
+                        <CheckBox x:Name="chkMonday" Content="Mon"/>
+                        <CheckBox x:Name="chkWednesday" Content="Wed" Margin="10,0"/>
+                        <CheckBox x:Name="chkFriday" Content="Fri"/>
+                        <TextBox x:Name="txtWeeklyTime" Width="60" Text="22:00" Margin="20,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="btnCancel" Content="Cancel" Width="100" Height="35" Margin="0,0,10,0" Click="BtnCancel_Click"/>
+            <Button x:Name="btnFinish" Content="Finish" Width="100" Height="35" Background="#388E3C" Foreground="White" Click="BtnFinish_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

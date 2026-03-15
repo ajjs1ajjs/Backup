@@ -55,11 +55,20 @@ namespace NovaBackup.WPF
             }
         }
 
-        private void BtnNewJob_Click(object sender, RoutedEventArgs e) => ShowMessage("New Backup Job Wizard");
+        private void BtnNewJob_Click(object sender, RoutedEventArgs e)
+        {
+            var wizard = new NewJobWindow { Owner = this };
+            if (wizard.ShowDialog() == true)
+            {
+                // Refresh jobs list
+                MessageBox.Show("Backup job created! It will appear in the jobs list.", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
         private void BtnRunNow_Click(object sender, RoutedEventArgs e) => RunSelectedJob();
         private void BtnRestore_Click(object sender, RoutedEventArgs e) => ShowMessage("Restore Wizard");
         private void BtnVerify_Click(object sender, RoutedEventArgs e) => ShowMessage("Backup Verification");
-        private void BtnCreateJob_Click(object sender, RoutedEventArgs e) => ShowMessage("Create Job Wizard");
+        private void BtnCreateJob_Click(object sender, RoutedEventArgs e) => BtnNewJob_Click(sender, e);
         private void BtnEditJob_Click(object sender, RoutedEventArgs e) => ShowMessage("Edit Job");
         private void BtnDeleteJob_Click(object sender, RoutedEventArgs e) => ShowMessage("Delete Job Confirmation");
         private void BtnEnableJob_Click(object sender, RoutedEventArgs e) => ShowMessage("Job Enabled");
