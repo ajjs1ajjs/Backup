@@ -197,7 +197,9 @@
                 border-radius: 1rem;
                 padding: 2rem;
                 width: 100%;
-                max-width: 500px;
+                max-width: 800px;
+                max-height: 90vh;
+                overflow-y: auto;
                 border: 1px solid var(--border);
             }
 
@@ -735,11 +737,29 @@
 
             // Edit user
             function editUser(id) {
-                alert(
-                    "Редагування користувача: " +
-                        id +
-                        "\n\n(Функціонал в розробці)",
-                );
+                const user = users.find((u) => u.id === id);
+                if (!user) return;
+
+                // Fill form
+                document.getElementById("user-username").value = user.username;
+                document.getElementById("user-password").value = "";
+                document.getElementById("user-password").placeholder =
+                    "Залиште пустим щоб не змінювати";
+                document.getElementById("user-fullname").value =
+                    user.full_name || "";
+                document.getElementById("user-email").value = user.email || "";
+                document.getElementById("user-role").value =
+                    user.role || "readonly";
+                document.getElementById("user-enabled").checked = user.enabled;
+
+                // Store editing ID
+                window.editingUserId = id;
+
+                // Change button text
+                const btn = document.querySelector("#add-modal .btn-primary");
+                if (btn) btn.textContent = "💾 Зберегти зміни";
+
+                openAddModal();
             }
 
             // Delete user
