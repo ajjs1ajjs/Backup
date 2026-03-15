@@ -14,7 +14,9 @@ import (
 	"strings"
 
 	"novabackup/internal/api"
+	"novabackup/internal/backup"
 	"novabackup/internal/database"
+	"novabackup/internal/restore"
 	"novabackup/internal/scheduler"
 
 	"github.com/gin-gonic/gin"
@@ -27,11 +29,13 @@ const (
 )
 
 var (
-	configPath   string
-	dataDir      string
-	webDir       string
-	db           *database.Database
-	jobScheduler *scheduler.Scheduler
+	configPath    string
+	dataDir       string
+	webDir        string
+	db            *database.Database
+	backupEngine  *backup.BackupEngine
+	restoreEngine *restore.RestoreEngine
+	jobScheduler  *scheduler.Scheduler
 )
 
 func main() {
@@ -82,6 +86,18 @@ func runServer() {
 
 	// Set global DB for API
 	api.DB = db
+
+	// Initialize backup engine
+	backupEngine = backup.NewBackupEngine(dataDir)
+	fmt.Println("✓ Backup engine initialized")
+
+	// Initialize restore engine
+	restoreEngine = restore.NewRestoreEngine(dataDir)
+	fmt.Println("✓ Restore engine initialized")
+
+	// Set engines for API
+	api.BackupEngine = backupEngine
+	api.RestoreEngine = restoreEngine
 
 	// Initialize scheduler
 	jobScheduler = scheduler.NewScheduler(db)

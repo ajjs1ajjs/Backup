@@ -3,13 +3,19 @@ package api
 import (
 	"time"
 
+	"novabackup/internal/backup"
 	"novabackup/internal/database"
+	"novabackup/internal/restore"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-var DB *database.Database
+var (
+	DB            *database.Database
+	BackupEngine  *backup.BackupEngine
+	RestoreEngine *restore.RestoreEngine
+)
 
 // Health check
 func GetHealth(c *gin.Context) {
@@ -20,7 +26,7 @@ func GetHealth(c *gin.Context) {
 	})
 }
 
-// Auth (simple for now)
+// Auth
 func Login(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
@@ -28,11 +34,10 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		c.JSON(400, gin.H{"error": "Невірний запит"})
 		return
 	}
 
-	// Simple auth (TODO: implement proper auth)
 	if req.Username == "admin" && req.Password == "admin123" {
 		c.JSON(200, gin.H{
 			"success": true,
@@ -42,7 +47,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(401, gin.H{"error": "Invalid credentials"})
+	c.JSON(401, gin.H{"error": "Невірні облікові дані"})
 }
 
 func Logout(c *gin.Context) {
@@ -83,7 +88,7 @@ func UpdateJob(c *gin.Context) {
 
 	job, err := DB.GetJob(id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Job not found"})
+		c.JSON(404, gin.H{"error": "Завдання не знайдено"})
 		return
 	}
 
@@ -126,23 +131,26 @@ func RunJob(c *gin.Context) {
 
 	job, err := DB.GetJob(id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Job not found"})
+		c.JSON(404, gin.H{"error": "Завдання не знайдено"})
 		return
 	}
 
-	// TODO: Implement actual backup execution
-	session := &database.Session{
-		ID:             uuid.New().String(),
-		JobID:          job.ID,
-		JobName:        job.Name,
-		StartTime:      time.Now(),
-		EndTime:        time.Now(),
-		Status:         "success",
-		FilesProcessed: 0,
-		BytesWritten:   0,
+	// Convert database.Job to backup.BackupJob
+	backupJob := &backup.BackupJob{
+		ID:          job.ID,
+		Name:        job.Name,
+		Type:        job.Type,
+		Sources:     job.Sources,
+		Destination: job.Destination,
+		Compression: job.Compression,
+		Encryption:  job.Encryption,
+		Schedule:    job.Schedule,
+		Enabled:     job.Enabled,
 	}
 
-	if err := DB.CreateSession(session); err != nil {
+	// Execute backup
+	session, err := BackupEngine.ExecuteBackup(backupJob)
+	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -153,7 +161,7 @@ func RunJob(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"success": true,
-		"message": "Backup job started",
+		"message": "Резервне копіювання запущено",
 		"session": session,
 	})
 }
@@ -173,19 +181,17 @@ func RunBackup(c *gin.Context) {
 		return
 	}
 
-	// Create ad-hoc session
-	session := &database.Session{
-		ID:             uuid.New().String(),
-		JobID:          "adhoc",
-		JobName:        req.Name,
-		StartTime:      time.Now(),
-		EndTime:        time.Now(),
-		Status:         "success",
-		FilesProcessed: 0,
-		BytesWritten:   0,
+	backupJob := &backup.BackupJob{
+		ID:          uuid.New().String(),
+		Name:        req.Name,
+		Type:        req.Type,
+		Sources:     req.Sources,
+		Destination: req.Destination,
+		Compression: req.Compression,
 	}
 
-	if err := DB.CreateSession(session); err != nil {
+	session, err := BackupEngine.ExecuteBackup(backupJob)
+	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -193,7 +199,7 @@ func RunBackup(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"success": true,
 		"session": session,
-		"message": "Backup started",
+		"message": "Резервне копіювання запущено",
 	})
 }
 
@@ -223,32 +229,49 @@ func GetSession(c *gin.Context) {
 		}
 	}
 
-	c.JSON(404, gin.H{"error": "Session not found"})
+	c.JSON(404, gin.H{"error": "Сесію не знайдено"})
 }
 
 // Restore
 func ListRestorePoints(c *gin.Context) {
-	sessions, err := DB.ListSessions()
+	backupPath := c.Query("backup_path")
+	if backupPath == "" {
+		c.JSON(400, gin.H{"error": "Потрібно вказати backup_path"})
+		return
+	}
+
+	points, err := RestoreEngine.ListRestorePoints(backupPath)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Filter successful sessions
-	var points []database.Session
-	for _, s := range sessions {
-		if s.Status == "success" {
-			points = append(points, s)
-		}
+	c.JSON(200, gin.H{"restore_points": points})
+}
+
+func BrowseBackupFiles(c *gin.Context) {
+	backupPath := c.Query("backup_path")
+	if backupPath == "" {
+		c.JSON(400, gin.H{"error": "Потрібно вказати backup_path"})
+		return
 	}
 
-	c.JSON(200, gin.H{"restore_points": points})
+	files, err := RestoreEngine.BrowseBackupFiles(backupPath)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"files": files})
 }
 
 func RestoreFiles(c *gin.Context) {
 	var req struct {
-		BackupPath  string `json:"backup_path"`
-		Destination string `json:"destination"`
+		BackupPath      string   `json:"backup_path"`
+		Destination     string   `json:"destination"`
+		Files           []string `json:"files"`
+		RestoreOriginal bool     `json:"restore_original"`
+		Overwrite       bool     `json:"overwrite"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -256,18 +279,36 @@ func RestoreFiles(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual restore
+	restoreReq := &restore.RestoreRequest{
+		ID:              uuid.New().String(),
+		Type:            restore.RestoreFiles,
+		BackupPath:      req.BackupPath,
+		Destination:     req.Destination,
+		Files:           req.Files,
+		RestoreOriginal: req.RestoreOriginal,
+		Overwrite:       req.Overwrite,
+	}
+
+	session, err := RestoreEngine.ExecuteRestore(restoreReq)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"success": true,
-		"message": "Restore started",
+		"session": session,
+		"message": "Відновлення запущено",
 	})
 }
 
 func RestoreDatabase(c *gin.Context) {
 	var req struct {
-		DBType   string `json:"db_type"`
-		DumpFile string `json:"dump_file"`
-		ConnStr  string `json:"conn_str"`
+		BackupPath     string `json:"backup_path"`
+		DBType         string `json:"db_type"`
+		ConnStr        string `json:"conn_str"`
+		TargetDatabase string `json:"target_database"`
+		EncryptionKey  string `json:"encryption_key"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -275,10 +316,26 @@ func RestoreDatabase(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual database restore
+	restoreReq := &restore.RestoreRequest{
+		ID:             uuid.New().String(),
+		Type:           restore.RestoreDatabase,
+		BackupPath:     req.BackupPath,
+		DBType:         req.DBType,
+		ConnStr:        req.ConnStr,
+		TargetDatabase: req.TargetDatabase,
+		EncryptionKey:  req.EncryptionKey,
+	}
+
+	session, err := RestoreEngine.ExecuteRestore(restoreReq)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"success": true,
-		"message": "Database restore started",
+		"session": session,
+		"message": "Відновлення бази даних запущено",
 	})
 }
 
@@ -302,6 +359,7 @@ func GetSettings(c *gin.Context) {
 		"data_dir":   "/data",
 		"backup_dir": "/data/backups",
 		"log_level":  "info",
+		"language":   "uk",
 		"notifications": gin.H{
 			"email":    false,
 			"telegram": false,
@@ -316,6 +374,5 @@ func UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	// TODO: Save settings to database
 	c.JSON(200, gin.H{"success": true})
 }
