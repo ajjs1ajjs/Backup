@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -92,8 +93,12 @@ func runServer() {
 	defer db.Close()
 	fmt.Println("✓ Database initialized")
 
-	// Set global DB for API
-	api.DB = db
+	// Set config path for API
+	api.ConfigPath = configPath
+
+	// Load configuration
+	_ = loadConfig()
+	fmt.Println("✓ Configuration loaded")
 
 	// Initialize RBAC engine
 	rbacEngine = rbac.NewRBACEngine()
@@ -234,7 +239,7 @@ func initDirectories() {
 	// Check if running from Program Files
 	if strings.Contains(exeDir, "Program Files") {
 		dataDir = filepath.Join("C:\\ProgramData", "NovaBackup")
-		configPath = filepath.Join(dataDir, "config")
+		configPath = filepath.Join(dataDir, "Config")
 		webDir = filepath.Join(exeDir, "web")
 	} else {
 		dataDir = filepath.Join(exeDir, "data")
@@ -246,7 +251,49 @@ func initDirectories() {
 	os.MkdirAll(configPath, 0755)
 	os.MkdirAll(filepath.Join(dataDir, "backups"), 0755)
 	os.MkdirAll(filepath.Join(dataDir, "logs"), 0755)
+	os.MkdirAll(filepath.Join(dataDir, "sessions"), 0755)
 	os.MkdirAll(webDir, 0755)
+}
+
+// loadConfig loads configuration from file
+func loadConfig() map[string]interface{} {
+	configFile := filepath.Join(configPath, "config.json")
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		// Create default config
+		defaultConfig := map[string]interface{}{
+			"server": map[string]interface{}{
+				"ip":         "0.0.0.0",
+				"port":       8050,
+				"https":      false,
+				"https_port": 8443,
+			},
+			"notifications": map[string]interface{}{
+				"channels": map[string]interface{}{},
+				"events":   map[string]bool{},
+			},
+			"retention": map[string]interface{}{
+				"type":  "days",
+				"value": 30,
+			},
+			"directories": map[string]interface{}{
+				"data_dir":   dataDir,
+				"backup_dir": filepath.Join(dataDir, "backups"),
+				"logs_dir":   filepath.Join(dataDir, "logs"),
+			},
+		}
+
+		// Save default config
+		configData, _ := json.MarshalIndent(defaultConfig, "", "  ")
+		os.WriteFile(configFile, configData, 0644)
+
+		return defaultConfig
+	}
+
+	var config map[string]interface{}
+	json.Unmarshal(data, &config)
+	return config
 }
 
 func getLocalIP() string {
