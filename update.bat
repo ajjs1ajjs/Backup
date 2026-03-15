@@ -110,6 +110,7 @@ exit /b 0
 :download
 set "DOWNLOAD_URL=%~1"
 set "DOWNLOAD_OUT=%~2"
+for %%D in ("%DOWNLOAD_OUT%") do if not exist "%%~dpD" mkdir "%%~dpD"
 powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%DOWNLOAD_OUT%' -UseBasicParsing"
 call :verify_exe "%DOWNLOAD_OUT%"
 if %errorLevel% equ 0 exit /b 0
