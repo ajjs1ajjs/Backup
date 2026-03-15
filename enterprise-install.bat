@@ -69,16 +69,27 @@ echo.
 echo [3/7] Downloading NovaBackup from GitHub...
 set "DOWNLOAD_FILE=%TEMP%\novabackup.zip"
 
+set "DOWNLOAD_OK=0"
 call :download "%GITHUB_URL%/novabackup-windows-amd64.zip" "%DOWNLOAD_FILE%"
-if %errorLevel% neq 0 (
+if %errorLevel% equ 0 (
+    call :verify_zip "%DOWNLOAD_FILE%"
+    if %errorLevel% equ 0 set "DOWNLOAD_OK=1"
+)
+if "%DOWNLOAD_OK%"=="0" (
     echo [WARNING] Release download failed. Trying raw repository...
     call :download "%RAW_URL%/novabackup.exe" "%TEMP%\novabackup.exe"
     if %errorLevel% equ 0 (
-        copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\\NovaBackup.exe"
-    ) else (
+        call :verify_exe "%TEMP%\novabackup.exe"
+        if %errorLevel% equ 0 (
+            copy /Y "%TEMP%\novabackup.exe" "%INSTALL_DIR%\\NovaBackup.exe"
+            set "DOWNLOAD_OK=2"
+        )
+    )
+    if "%DOWNLOAD_OK%"=="0" (
         echo [WARNING] Raw download failed! Using local build...
         if exist "novabackup.exe" (
             copy /Y "novabackup.exe" "%INSTALL_DIR%\"
+            set "DOWNLOAD_OK=2"
         ) else (
             echo [ERROR] No local build found!
             pause
@@ -213,3 +224,23 @@ if %errorLevel% equ 0 (
     if %errorLevel% equ 0 exit /b 0
 )
 exit /b 1
+
+:verify_exe
+set "VERIFY_FILE=%~1"
+if not exist "%VERIFY_FILE%" exit /b 1
+for %%A in ("%VERIFY_FILE%") do set "VERIFY_SIZE=%%~zA"
+if "%VERIFY_SIZE%"=="" exit /b 1
+if %VERIFY_SIZE% lss 1000000 exit /b 1
+powershell -Command "$b=Get-Content -Encoding Byte -TotalCount 2 -Path '%VERIFY_FILE%'; if ($b.Length -lt 2 -or $b[0] -ne 77 -or $b[1] -ne 90) { exit 1 }"
+if %errorLevel% neq 0 exit /b 1
+exit /b 0
+
+:verify_zip
+set "VERIFY_FILE=%~1"
+if not exist "%VERIFY_FILE%" exit /b 1
+for %%A in ("%VERIFY_FILE%") do set "VERIFY_SIZE=%%~zA"
+if "%VERIFY_SIZE%"=="" exit /b 1
+if %VERIFY_SIZE% lss 100000 exit /b 1
+powershell -Command "$b=Get-Content -Encoding Byte -TotalCount 2 -Path '%VERIFY_FILE%'; if ($b.Length -lt 2 -or $b[0] -ne 80 -or $b[1] -ne 75) { exit 1 }"
+if %errorLevel% neq 0 exit /b 1
+exit /b 0

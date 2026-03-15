@@ -38,6 +38,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/
 ```
 
 Note: If you do not use GitHub Releases, keep `novabackup.exe` updated in the repository root.
+If the raw download returns a tiny file (for example "Not Found"), update the binary in the repo or use Releases.
 
 **Linux**
 ```bash

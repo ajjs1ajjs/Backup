@@ -32,6 +32,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/
 ```
 
 Примітка: якщо ви не використовуєте GitHub Releases, тримайте `novabackup.exe` оновленим у корені репозиторію.
+Якщо raw-завантаження повертає маленький файл (наприклад "Not Found"), оновіть бінарник у репозиторії або використайте Releases.
 
 #### Спосіб 2: Ручна установка
 
