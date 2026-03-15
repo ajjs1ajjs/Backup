@@ -429,6 +429,68 @@
                 </div>
             </div>
 
+            <!-- Retention Policy -->
+            <div class="form-group">
+                <label class="form-label"
+                    >📅 Політика зберігання для цього завдання</label
+                >
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 1rem;
+                    "
+                >
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Зберігати (днів)</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-days"
+                            value="30"
+                            min="1"
+                            max="365"
+                            placeholder="30"
+                        />
+                        <div class="form-hint">1-365 днів</div>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Макс. копій</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-copies"
+                            value="10"
+                            min="1"
+                            max="100"
+                            placeholder="10"
+                        />
+                        <div class="form-hint">1-100 копій</div>
+                    </div>
+                </div>
+                <div
+                    style="
+                        background: var(--bg-secondary);
+                        border-left: 3px solid var(--accent-blue);
+                        padding: 0.75rem 1rem;
+                        border-radius: 0.5rem;
+                        margin-top: 1rem;
+                    "
+                >
+                    <div
+                        style="color: var(--text-secondary); font-size: 0.8rem"
+                    >
+                        💡 <strong>Порада:</strong> Політика зберігання
+                        застосовується індивідуально до кожного завдання. Старі
+                        бекапи будуть автоматично видалені.
+                    </div>
+                </div>
+            </div>
+
             <button
                 class="btn btn-success"
                 onclick="startBackup()"
@@ -459,6 +521,14 @@
                     compression: document.getElementById("compression").checked,
                     encryption: document.getElementById("encryption").checked,
                     dedup: document.getElementById("dedup").checked,
+                    retention_days:
+                        parseInt(
+                            document.getElementById("retention-days").value,
+                        ) || 30,
+                    retention_copies:
+                        parseInt(
+                            document.getElementById("retention-copies").value,
+                        ) || 10,
                 };
 
                 alert(
@@ -470,7 +540,13 @@
                         (backup.compression ? "✅" : "❌") +
                         "\n" +
                         "Шифрування: " +
-                        (backup.encryption ? "✅" : "❌"),
+                        (backup.encryption ? "✅" : "❌") +
+                        "\n" +
+                        "Зберігати: " +
+                        backup.retention_days +
+                        " днів (макс. " +
+                        backup.retention_copies +
+                        " копій)",
                 );
             }
         </script>

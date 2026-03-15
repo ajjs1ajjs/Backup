@@ -13,18 +13,22 @@ type Database struct {
 }
 
 type Job struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Type        string     `json:"type"`
-	Sources     []string   `json:"sources"`
-	Destination string     `json:"destination"`
-	Compression bool       `json:"compression"`
-	Encryption  bool       `json:"encryption"`
-	Schedule    string     `json:"schedule"`
-	Enabled     bool       `json:"enabled"`
-	CreatedAt   time.Time  `json:"created_at"`
-	LastRun     *time.Time `json:"last_run,omitempty"`
-	NextRun     *time.Time `json:"next_run,omitempty"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Type            string     `json:"type"`
+	Sources         []string   `json:"sources"`
+	Destination     string     `json:"destination"`
+	Compression     bool       `json:"compression"`
+	Encryption      bool       `json:"encryption"`
+	Schedule        string     `json:"schedule"`
+	ScheduleTime    string     `json:"schedule_time"`
+	ScheduleDays    []string   `json:"schedule_days"`
+	Enabled         bool       `json:"enabled"`
+	RetentionDays   int        `json:"retention_days"`   // Індивідуальна політика зберігання
+	RetentionCopies int        `json:"retention_copies"` // Індивідуальна політика
+	CreatedAt       time.Time  `json:"created_at"`
+	LastRun         *time.Time `json:"last_run,omitempty"`
+	NextRun         *time.Time `json:"next_run,omitempty"`
 }
 
 type Session struct {
