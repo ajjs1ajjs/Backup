@@ -206,6 +206,20 @@ func runServer() {
 		c.File(file)
 	})
 
+	// Serve other web pages
+	router.GET("/:filepath", func(c *gin.Context) {
+		file := c.Param("filepath")
+		filePath := filepath.Join(webDir, file)
+
+		// Check if file exists
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			c.JSON(404, gin.H{"error": "Page not found"})
+			return
+		}
+
+		c.File(filePath)
+	})
+
 	// Get server IP
 	serverIP := getLocalIP()
 	port := DefaultPort

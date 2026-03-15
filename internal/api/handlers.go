@@ -110,6 +110,24 @@ func UpdateSettings(c *gin.Context) {
 	c.JSON(200, gin.H{"success": true})
 }
 
+// ServeWebFile serves static web files
+func ServeWebFile(c *gin.Context) {
+	file := c.Param("filepath")
+	if file == "" || file == "/" {
+		file = "index.html"
+	}
+
+	filePath := filepath.Join("web", file)
+
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(404, gin.H{"error": "File not found"})
+		return
+	}
+
+	c.File(filePath)
+}
+
 func UpdateServerSettings(c *gin.Context) {
 	var config ServerConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
