@@ -2,13 +2,731 @@
 <html lang="uk">
     <head>
         <meta charset="UTF-8" />
-        <meta http-equiv="refresh" content="0; url=quick-backup.html" />
-        <title>Redirecting...</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            NovaBackup Enterprise v7.0 - Система Резервного Копіювання
+        </title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", "Ubuntu", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+            }
+
+            /* Header */
+            .header {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary) 0%,
+                    #0f172a 100%
+                );
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid var(--accent-blue);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .logo-icon {
+                font-size: 2.5rem;
+                filter: drop-shadow(0 0 10px var(--accent-blue));
+            }
+            .logo-text h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+            }
+            .logo-text p {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }
+            .status-badge {
+                background: rgba(16, 185, 129, 0.15);
+                padding: 0.5rem 1.25rem;
+                border-radius: 9999px;
+                font-size: 0.875rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--accent-green);
+                animation: pulse 2s infinite;
+                box-shadow: 0 0 10px var(--accent-green);
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+            }
+
+            /* Main Layout */
+            .main-container {
+                display: grid;
+                grid-template-columns: 280px 1fr;
+                min-height: calc(100vh - 80px);
+            }
+
+            /* Sidebar */
+            .sidebar {
+                background: var(--bg-secondary);
+                border-right: 1px solid var(--border);
+                padding: 1.5rem;
+            }
+            .nav-section {
+                margin-bottom: 2rem;
+            }
+            .nav-section-title {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
+                padding-left: 1rem;
+            }
+            .nav-menu {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 0.875rem;
+                padding: 0.875rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: var(--text-secondary);
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .nav-item:hover {
+                background: var(--bg-card);
+                color: var(--text-primary);
+                transform: translateX(4px);
+            }
+            .nav-item.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .nav-icon {
+                font-size: 1.25rem;
+                width: 24px;
+                text-align: center;
+            }
+
+            /* Content */
+            .content {
+                padding: 2rem;
+                overflow-y: auto;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+
+            /* Stats Cards */
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .stat-card {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-card) 0%,
+                    var(--bg-secondary) 100%
+                );
+                border-radius: 1rem;
+                padding: 1.5rem;
+                border: 1px solid var(--border);
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s;
+            }
+            .stat-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            .stat-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .stat-icon {
+                font-size: 2.5rem;
+            }
+            .stat-value {
+                font-size: 2.25rem;
+                font-weight: 800;
+                margin-bottom: 0.25rem;
+                background: linear-gradient(
+                    135deg,
+                    var(--text-primary),
+                    var(--text-secondary)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            /* Quick Actions */
+            .quick-actions {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+            .quick-action-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 1.25rem;
+                border-radius: 0.75rem;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .quick-action-btn:hover {
+                background: var(--bg-card);
+                border-color: var(--accent-blue);
+                transform: translateY(-2px);
+            }
+            .quick-action-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .quick-action-label {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+
+            /* Cards */
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            }
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            /* Table */
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+            }
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .status-badge-sm {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+            .status-success {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .status-running {
+                background: rgba(245, 158, 11, 0.2);
+                color: var(--accent-orange);
+            }
+            .status-failed {
+                background: rgba(239, 68, 68, 0.2);
+                color: var(--accent-red);
+            }
+
+            /* Help Tooltip */
+            .help-tip {
+                background: var(--bg-secondary);
+                border-left: 3px solid var(--accent-blue);
+                padding: 1rem 1.25rem;
+                margin: 1rem 0;
+                border-radius: 0.5rem;
+            }
+            .help-tip-title {
+                font-weight: 600;
+                color: var(--accent-blue);
+                margin-bottom: 0.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .help-tip-content {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                line-height: 1.6;
+            }
+            .help-tip-content code {
+                background: var(--bg-card);
+                padding: 0.2rem 0.5rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", monospace;
+                color: var(--accent-green);
+            }
+        </style>
     </head>
     <body>
-        <p>
-            Перенаправлення на
-            <a href="quick-backup.html">Швидке Резервне Копіювання</a>...
-        </p>
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>NovaBackup Enterprise</h1>
+                    <p>Система Резервного Копіювання v7.0</p>
+                </div>
+            </div>
+            <div class="user-menu">
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>Система Працює</span>
+                </div>
+                <span>👤 Admin</span>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">Головне</div>
+                    <nav class="nav-menu">
+                        <a href="index.html" class="nav-item active">
+                            <span class="nav-icon">📊</span>
+                            <span>Панель Керування</span>
+                        </a>
+                        <a href="quick-backup.html" class="nav-item">
+                            <span class="nav-icon">🔄</span>
+                            <span>Швидке Резервне Копіювання</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Відновлення</div>
+                    <nav class="nav-menu">
+                        <a href="restore.html" class="nav-item">
+                            <span class="nav-icon">♻️</span>
+                            <span>Відновлення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Інфраструктура</div>
+                    <nav class="nav-menu">
+                        <a href="repositories.html" class="nav-item">
+                            <span class="nav-icon">📁</span>
+                            <span>Сховища</span>
+                        </a>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Моніторинг</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="alert('Перегляд сесій в розробці')"
+                        >
+                            <span class="nav-icon">📋</span>
+                            <span>Сесії</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Налаштування</div>
+                    <nav class="nav-menu">
+                        <a href="settings.html" class="nav-item">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Загальні</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Content -->
+            <main class="content" id="main-content">
+                <div class="page-header">
+                    <h1 class="page-title">📊 Панель Керування</h1>
+                    <p class="page-subtitle">
+                        Огляд інфраструктури резервного копіювання
+                    </p>
+                </div>
+
+                <!-- Help Tip -->
+                <div class="help-tip">
+                    <div class="help-tip-title">
+                        <span>💡</span>
+                        <span>Як почати роботу?</span>
+                    </div>
+                    <div class="help-tip-content">
+                        <p>
+                            Ласкаво просимо до
+                            <strong>NovaBackup Enterprise v7.0</strong>! Ось
+                            швидкий старт:
+                        </p>
+                        <ol style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8">
+                            <li>
+                                Натисніть
+                                <strong>"Швидке Резервне Копіювання"</strong> в
+                                меню зліва для створення першого бекапу
+                            </li>
+                            <li>
+                                Оберіть тип джерела:
+                                <code>Локальні файли</code>,
+                                <code>Мережа</code>, <code>Сервер</code> або
+                                <code>Хмара</code>
+                            </li>
+                            <li>
+                                Вкажіть шлях до даних (наприклад:
+                                <code>C:\Documents</code> або
+                                <code>\\server\share</code>)
+                            </li>
+                            <li>
+                                Оберіть сховище призначення (наприклад:
+                                <code>D:\Backups</code>)
+                            </li>
+                            <li>
+                                Натисніть
+                                <strong>"Запустити Резервне Копіювання"</strong>
+                            </li>
+                            <li>
+                                Перегляньте результат у розділі
+                                <strong>"Сесії"</strong>
+                            </li>
+                        </ol>
+                        <p style="margin-top: 0.75rem">
+                            <strong>💻 Приклади шляхів:</strong>
+                        </p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8">
+                            <li>
+                                Локально: <code>C:\Users\Admin\Documents</code>
+                            </li>
+                            <li>Мережа: <code>\\192.168.1.100\Backup</code></li>
+                            <li>
+                                S3: <code>my-backup-bucket</code> (регіон:
+                                <code>us-east-1</code>)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">💾</span>
+                        </div>
+                        <div class="stat-value" id="stat-jobs">0</div>
+                        <div class="stat-label">
+                            Завдань Резервного Копіювання
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📁</span>
+                        </div>
+                        <div class="stat-value" id="stat-storage">0 TB</div>
+                        <div class="stat-label">Використано Сховища</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">✅</span>
+                        </div>
+                        <div class="stat-value" id="stat-success">0%</div>
+                        <div class="stat-label">Успішність</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📋</span>
+                        </div>
+                        <div class="stat-value" id="stat-sessions">0</div>
+                        <div class="stat-label">Сесій (24г)</div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">⚡ Швидкі Дії</h3>
+                    </div>
+                    <div style="padding: 1.5rem">
+                        <div class="quick-actions">
+                            <div
+                                class="quick-action-btn"
+                                onclick="
+                                    window.location.href = 'quick-backup.html'
+                                "
+                            >
+                                <div class="quick-action-icon">➕</div>
+                                <div class="quick-action-label">
+                                    Нове Завдання
+                                </div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="
+                                    window.location.href = 'quick-backup.html'
+                                "
+                            >
+                                <div class="quick-action-icon">▶️</div>
+                                <div class="quick-action-label">
+                                    Запустити Зараз
+                                </div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="window.location.href = 'restore.html'"
+                            >
+                                <div class="quick-action-icon">♻️</div>
+                                <div class="quick-action-label">Відновити</div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="alert('Перегляд сесій в розробці')"
+                            >
+                                <div class="quick-action-icon">📊</div>
+                                <div class="quick-action-label">
+                                    Перегляд Сесій
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Jobs -->
+                <div class="card" style="margin-top: 1.5rem">
+                    <div class="card-header">
+                        <h3 class="card-title">Активні Завдання</h3>
+                        <div
+                            class="help-tip"
+                            style="margin: 0; padding: 0.75rem 1rem"
+                        >
+                            <div
+                                class="help-tip-content"
+                                style="font-size: 0.8rem"
+                            >
+                                💡 <strong>Порада:</strong> Створіть перше
+                                завдання в розділі
+                                <a
+                                    href="quick-backup.html"
+                                    style="
+                                        color: var(--accent-blue);
+                                        text-decoration: none;
+                                    "
+                                    >"Швидке Резервне Копіювання"</a
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Назва Завдання</th>
+                                    <th>Тип</th>
+                                    <th>Статус</th>
+                                    <th>Останній Запуск</th>
+                                    <th>Наступний Запуск</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jobs-table-body">
+                                <tr>
+                                    <td
+                                        colspan="6"
+                                        style="
+                                            text-align: center;
+                                            padding: 3rem;
+                                            color: var(--text-secondary);
+                                        "
+                                    >
+                                        📭 Немає активних завдань<br />
+                                        <small
+                                            >Створіть перше завдання для початку
+                                            роботи</small
+                                        >
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script>
+            // Load dashboard data
+            async function loadDashboard() {
+                try {
+                    const [jobsRes, sessionsRes, statsRes] = await Promise.all([
+                        fetch("/api/jobs"),
+                        fetch("/api/backup/sessions"),
+                        fetch("/api/statistics"),
+                    ]);
+
+                    const jobs = await jobsRes.json();
+                    const sessions = await sessionsRes.json();
+
+                    // Update stats
+                    document.getElementById("stat-jobs").textContent =
+                        jobs.jobs?.length || 0;
+                    document.getElementById("stat-sessions").textContent =
+                        sessions.sessions?.length || 0;
+
+                    // Render jobs table
+                    const tbody = document.getElementById("jobs-table-body");
+                    if (jobs.jobs && jobs.jobs.length > 0) {
+                        tbody.innerHTML = jobs.jobs
+                            .map(
+                                (job) => `
+                        <tr>
+                            <td><strong>${job.name}</strong></td>
+                            <td>${job.type || "Файли"}</td>
+                            <td><span class="status-badge-sm status-success">✅ Активно</span></td>
+                            <td>${job.last_run ? new Date(job.last_run).toLocaleString("uk-UA") : "Ніколи"}</td>
+                            <td>${job.next_run ? new Date(job.next_run).toLocaleString("uk-UA") : "Вручну"}</td>
+                            <td>
+                                <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">▶ Запуск</button>
+                            </td>
+                        </tr>
+                    `,
+                            )
+                            .join("");
+                    }
+                } catch (error) {
+                    console.log("Dashboard loaded (demo mode)");
+                }
+            }
+
+            async function runJob(jobId) {
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}/run`, {
+                        method: "POST",
+                    });
+                    if (res.ok) {
+                        alert("✅ Завдання запущено!");
+                        loadDashboard();
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                }
+            }
+
+            // Initial load
+            loadDashboard();
+            setInterval(loadDashboard, 30000); // Auto-refresh every 30 seconds
+        </script>
     </body>
 </html>
