@@ -93,6 +93,9 @@ func runServer() {
 	defer db.Close()
 	fmt.Println("✓ Database initialized")
 
+	// Set global DB for API
+	api.DB = db
+
 	// Set config path for API
 	api.ConfigPath = configPath
 
