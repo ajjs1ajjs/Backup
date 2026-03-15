@@ -116,7 +116,7 @@ func ChangePassword(c *gin.Context) {
 	}
 
 	// Verify current password
-	if !RBACEngine.CheckPassword(req.CurrentPassword, user.PasswordHash) {
+	if !rbac.CheckPassword(req.CurrentPassword, user.PasswordHash) {
 		c.JSON(401, gin.H{"error": "Невірний поточний пароль"})
 		return
 	}
