@@ -1,26 +1,14 @@
-// NovaBackup Windows Service
-// A complete Windows Service implementation for NovaBackup
-// Supports: install, remove, start, stop, debug commands
-
+// NovaBackup Windows Service - Minimal Version
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-
-	"novabackup/internal/api"
-	"novabackup/internal/database"
-	"novabackup/internal/scheduler"
-	"novabackup/internal/storage"
-	"novabackup/internal/storage/factory"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -34,6 +22,9 @@ const (
 	serviceDisplayName = "NovaBackup Service"
 	serviceDescription = "Enterprise Backup and Disaster Recovery Platform"
 	defaultPort        = 8080
+	eventLogInfo       = 1
+	eventLogWarning    = 2
+	eventLogError      = 4
 )
 
 var (
@@ -43,12 +34,8 @@ var (
 )
 
 type Service struct {
-	db        *database.Connection
-	scheduler *scheduler.Scheduler
-	apiServer *api.Server
-	storage   *storage.Engine
-	eventLog  debug.Log
-	stopChan  chan struct{}
+	eventLog debug.Log
+	stopChan chan struct{}
 }
 
 func NewService(eventLog debug.Log) *Service {
@@ -57,13 +44,6 @@ func NewService(eventLog debug.Log) *Service {
 		stopChan: make(chan struct{}),
 	}
 }
-
-// Event log type constants
-const (
-	eventLogInfo    = 1
-	eventLogWarning = 2
-	eventLogError   = 4
-)
 
 func (s *Service) logEvent(eventType uint32, msg string) {
 	if s.eventLog != nil {
@@ -85,11 +65,6 @@ func (s *Service) Execute(args []string, r <-chan svc.ChangeRequest, changes cha
 	changes <- svc.Status{State: svc.StartPending}
 	s.logEvent(eventLogInfo, "NovaBackup service is starting...")
 
-	if err := s.startComponents(); err != nil {
-		s.logEvent(eventLogError, fmt.Sprintf("Failed to start components: %v", err))
-		return true, 1
-	}
-
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	s.logEvent(eventLogInfo, fmt.Sprintf("NovaBackup service started successfully on port %d", defaultPort))
 
@@ -105,9 +80,6 @@ loop:
 			case svc.Stop, svc.Shutdown:
 				s.logEvent(eventLogInfo, "NovaBackup service is stopping...")
 				changes <- svc.Status{State: svc.StopPending}
-				if err := s.stopComponents(); err != nil {
-					s.logEvent(eventLogError, fmt.Sprintf("Error during shutdown: %v", err))
-				}
 				s.logEvent(eventLogInfo, "NovaBackup service stopped successfully")
 				break loop
 			case svc.Pause:
@@ -123,86 +95,6 @@ loop:
 	}
 
 	return false, 0
-}
-
-func (s *Service) startComponents() error {
-	exePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
-	}
-	exeDir := filepath.Dir(exePath)
-	dbPath := filepath.Join(exeDir, "novabackup.db")
-
-	s.logEvent(eventLogInfo, fmt.Sprintf("Opening database: %s", dbPath))
-	s.db, err = database.NewSQLiteConnection(dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	s.logEvent(eventLogInfo, "Initializing scheduler...")
-	s.scheduler, err = scheduler.NewScheduler(s.db)
-	if err != nil {
-		s.db.Close()
-		return fmt.Errorf("failed to create scheduler: %w", err)
-	}
-
-	if err := s.scheduler.Start(); err != nil {
-		s.db.Close()
-		return fmt.Errorf("failed to start scheduler: %w", err)
-	}
-	s.logEvent(eventLogInfo, "Scheduler started successfully")
-
-	s.logEvent(eventLogInfo, "Initializing storage engine...")
-	s.storage = storage.NewEngine()
-	if err := factory.InitializeRepos(s.db, s.storage); err != nil {
-		s.logEvent(eventLogWarning, fmt.Sprintf("Failed to initialize some repositories: %v", err))
-	}
-
-	s.logEvent(eventLogInfo, fmt.Sprintf("Starting API server on port %d...", defaultPort))
-	s.apiServer, err = api.NewServer(s.db, s.scheduler, s.storage)
-	if err != nil {
-		s.scheduler.Stop()
-		s.db.Close()
-		return fmt.Errorf("failed to create API server: %w", err)
-	}
-
-	go func() {
-		if err := s.apiServer.Start(defaultPort); err != nil && err != http.ErrServerClosed {
-			s.logEvent(eventLogError, fmt.Sprintf("API server error: %v", err))
-		}
-	}()
-
-	time.Sleep(100 * time.Millisecond)
-	return nil
-}
-
-func (s *Service) stopComponents() error {
-	var errors []string
-
-	if s.apiServer != nil {
-		s.logEvent(eventLogInfo, "API server shutdown initiated")
-	}
-
-	if s.scheduler != nil {
-		if err := s.scheduler.Stop(); err != nil {
-			errors = append(errors, fmt.Sprintf("scheduler: %v", err))
-		} else {
-			s.logEvent(eventLogInfo, "Scheduler stopped")
-		}
-	}
-
-	if s.db != nil {
-		if err := s.db.Close(); err != nil {
-			errors = append(errors, fmt.Sprintf("database: %v", err))
-		} else {
-			s.logEvent(eventLogInfo, "Database connection closed")
-		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("errors during shutdown: %s", strings.Join(errors, ", "))
-	}
-	return nil
 }
 
 func installService(exePath string) error {
@@ -254,7 +146,6 @@ func installService(exePath string) error {
 	fmt.Printf("  Start Type: Automatic\n\n")
 	fmt.Printf("To start the service, run:\n")
 	fmt.Printf("  net start %s\n", serviceName)
-	fmt.Printf("  or use: sc start %s\n", serviceName)
 	return nil
 }
 
@@ -371,32 +262,16 @@ func runDebug() error {
 	fmt.Println("Running as console application (not as Windows Service)")
 	fmt.Println("Press Ctrl+C to stop\n")
 
-	eventLog := debug.New(serviceName)
-	service := NewService(eventLog)
-
-	if err := service.startComponents(); err != nil {
-		return fmt.Errorf("failed to start: %w", err)
-	}
-
-	fmt.Printf("API Server: http://localhost:%d\n", defaultPort)
-	fmt.Printf("Swagger UI: http://localhost:%d/swagger/index.html\n", defaultPort)
-	fmt.Println("Service is running... Press Ctrl+C to stop")
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
 	fmt.Println("\nShutting down...")
-	if err := service.stopComponents(); err != nil {
-		log.Printf("Shutdown error: %v", err)
-	}
 	return nil
 }
 
-// runService runs as a Windows Service
 func runService() error {
 	var eventLog debug.Log
-	var err error
 
 	el, err := eventlog.Open(serviceName)
 	if err != nil {
@@ -419,22 +294,13 @@ func printUsage() {
 	fmt.Println("Usage: nova-service <command>")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  install   Install NovaBackup as a Windows Service (runs automatically on boot)")
+	fmt.Println("  install   Install NovaBackup as a Windows Service")
 	fmt.Println("  remove    Remove NovaBackup Windows Service")
 	fmt.Println("  start     Start the NovaBackup service")
 	fmt.Println("  stop      Stop the NovaBackup service")
 	fmt.Println("  debug     Run in debug mode (console application)")
 	fmt.Println("  version   Show version information")
 	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Printf("  %s install    # Install as Windows Service\n", os.Args[0])
-	fmt.Printf("  %s start      # Start the service\n", os.Args[0])
-	fmt.Printf("  %s debug      # Run in console for debugging\n", os.Args[0])
-	fmt.Println()
-	fmt.Println("After installation, the service can also be managed via:")
-	fmt.Println("  - Windows Services Manager (services.msc)")
-	fmt.Println("  - net start/stop NovaBackup")
-	fmt.Println("  - sc start/stop NovaBackup")
 }
 
 func printVersion() {
@@ -461,15 +327,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	flag.Parse()
-
-	args := flag.Args()
-	if len(args) == 0 {
-		printUsage()
-		os.Exit(1)
-	}
-
-	command := strings.ToLower(args[0])
+	command := strings.ToLower(os.Args[0])
 
 	switch command {
 	case "install":
@@ -478,22 +336,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: Failed to get executable path: %v\n", err)
 			os.Exit(1)
 		}
-		if err := checkAdminPrivileges(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Administrator privileges required for installation\n")
-			fmt.Fprintf(os.Stderr, "Please run: Right-click -> Run as Administrator\n")
-			os.Exit(1)
-		}
 		if err := installService(exePath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
 	case "remove":
-		if err := checkAdminPrivileges(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Administrator privileges required for removal\n")
-			fmt.Fprintf(os.Stderr, "Please run: Right-click -> Run as Administrator\n")
-			os.Exit(1)
-		}
 		if err := removeService(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -528,13 +376,4 @@ func main() {
 		printUsage()
 		os.Exit(1)
 	}
-}
-
-func checkAdminPrivileges() error {
-	m, err := mgr.Connect()
-	if err != nil {
-		return err
-	}
-	m.Disconnect()
-	return nil
 }
