@@ -90,10 +90,9 @@ func runServer() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 	fmt.Println("✓ Database initialized")
 
-	// Set global DB for API
+	// Set global DB for API - DON'T CLOSE, keep open for entire app lifetime
 	api.DB = db
 
 	// Set config path for API
