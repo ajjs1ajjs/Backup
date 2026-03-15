@@ -1,876 +1,1797 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NovaBackup Enterprise v7.0</title>
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-card: #334155;
-            --accent-blue: #3b82f6;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-orange: #f59e0b;
-            --accent-purple: #8b5cf6;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #475569;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-        }
-
-        /* Header */
-        .header {
-            background: var(--bg-secondary);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo-icon {
-            font-size: 2.5rem;
-        }
-
-        .logo-text h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .logo-text p {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .user-menu {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .status-badge {
-            background: var(--bg-card);
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent-green);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Main Layout */
-        .main-container {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            min-height: calc(100vh - 80px);
-        }
-
-        /* Sidebar */
-        .sidebar {
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem;
-        }
-
-        .nav-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.875rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--text-secondary);
-            text-decoration: none;
-        }
-
-        .nav-item:hover {
-            background: var(--bg-card);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            background: var(--accent-blue);
-            color: white;
-        }
-
-        .nav-icon {
-            font-size: 1.25rem;
-        }
-
-        /* Content */
-        .content {
-            padding: 2rem;
-        }
-
-        .page-header {
-            margin-bottom: 2rem;
-        }
-
-        .page-title {
-            font-size: 1.875rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .page-subtitle {
-            color: var(--text-secondary);
-        }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            border: 1px solid var(--border);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .stat-icon {
-            font-size: 2rem;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-
-        /* Jobs Table */
-        .card {
-            background: var(--bg-card);
-            border-radius: 1rem;
-            border: 1px solid var(--border);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: var(--accent-blue);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2563eb;
-        }
-
-        .btn-success {
-            background: var(--accent-green);
-            color: white;
-        }
-
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 1rem 1.5rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background: var(--bg-secondary);
-            font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        tr:hover {
-            background: var(--bg-secondary);
-        }
-
-        .status-badge-sm {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-success {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--accent-green);
-        }
-
-        .status-running {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--accent-orange);
-        }
-
-        .status-failed {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--accent-red);
-        }
-
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal {
-            background: var(--bg-card);
-            border-radius: 1rem;
-            padding: 2rem;
-            width: 100%;
-            max-width: 600px;
-            border: 1px solid var(--border);
-        }
-
-        .modal-header {
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            color: var(--text-primary);
-            font-size: 1rem;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--accent-blue);
-        }
-
-        .modal-footer {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-        }
-
-        .btn-secondary {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-        }
-
-        /* Notifications */
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: var(--bg-card);
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid var(--accent-green);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            NovaBackup Enterprise v7.0 - Система Резервного Копіювання
+        </title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
             }
-            to {
-                transform: translateX(0);
-                opacity: 1;
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
-        }
+            body {
+                font-family: "Segoe UI", "Ubuntu", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+            }
 
-        /* Loading */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 3rem;
-        }
+            /* Header */
+            .header {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary) 0%,
+                    #0f172a 100%
+                );
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid var(--accent-blue);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .logo-icon {
+                font-size: 2.5rem;
+                filter: drop-shadow(0 0 10px var(--accent-blue));
+            }
+            .logo-text h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+            }
+            .logo-text p {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }
+            .status-badge {
+                background: rgba(16, 185, 129, 0.15);
+                padding: 0.5rem 1.25rem;
+                border-radius: 9999px;
+                font-size: 0.875rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--accent-green);
+                animation: pulse 2s infinite;
+                box-shadow: 0 0 10px var(--accent-green);
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+            }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--border);
-            border-top-color: var(--accent-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+            /* Main Layout */
+            .main-container {
+                display: grid;
+                grid-template-columns: 280px 1fr;
+                min-height: calc(100vh - 80px);
+            }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <!-- Header -->
-    <header class="header">
-        <div class="logo">
-            <span class="logo-icon">🛡️</span>
-            <div class="logo-text">
-                <h1>NovaBackup Enterprise</h1>
-                <p>Modern Backup Platform v7.0</p>
+            /* Sidebar */
+            .sidebar {
+                background: var(--bg-secondary);
+                border-right: 1px solid var(--border);
+                padding: 1.5rem;
+            }
+            .nav-section {
+                margin-bottom: 2rem;
+            }
+            .nav-section-title {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
+                padding-left: 1rem;
+            }
+            .nav-menu {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 0.875rem;
+                padding: 0.875rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: var(--text-secondary);
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .nav-item:hover {
+                background: var(--bg-card);
+                color: var(--text-primary);
+                transform: translateX(4px);
+            }
+            .nav-item.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .nav-icon {
+                font-size: 1.25rem;
+                width: 24px;
+                text-align: center;
+            }
+
+            /* Content */
+            .content {
+                padding: 2rem;
+                overflow-y: auto;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+                font-size: 1rem;
+            }
+
+            /* Stats Cards */
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .stat-card {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-card) 0%,
+                    var(--bg-secondary) 100%
+                );
+                border-radius: 1rem;
+                padding: 1.5rem;
+                border: 1px solid var(--border);
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s;
+            }
+            .stat-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            .stat-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .stat-icon {
+                font-size: 2.5rem;
+            }
+            .stat-value {
+                font-size: 2.25rem;
+                font-weight: 800;
+                margin-bottom: 0.25rem;
+                background: linear-gradient(
+                    135deg,
+                    var(--text-primary),
+                    var(--text-secondary)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            /* Cards */
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            }
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            /* Buttons */
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+                font-size: 0.9rem;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+            .btn-danger {
+                background: linear-gradient(135deg, var(--accent-red), #dc2626);
+                color: white;
+            }
+            .btn-warning {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-orange),
+                    #d97706
+                );
+                color: white;
+            }
+            .btn-secondary {
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+            }
+
+            /* Table */
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .status-badge-sm {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+            .status-success {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .status-running {
+                background: rgba(245, 158, 11, 0.2);
+                color: var(--accent-orange);
+            }
+            .status-failed {
+                background: rgba(239, 68, 68, 0.2);
+                color: var(--accent-red);
+            }
+            .status-warning {
+                background: rgba(245, 158, 11, 0.2);
+                color: var(--accent-orange);
+            }
+
+            /* Modal */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                backdrop-filter: blur(4px);
+            }
+            .modal {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                padding: 2rem;
+                width: 100%;
+                max-width: 700px;
+                border: 1px solid var(--border);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            }
+            .modal-header {
+                margin-bottom: 1.5rem;
+            }
+            .modal-title {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+                font-size: 0.9rem;
+            }
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            }
+            .form-hint {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .modal-footer {
+                display: flex;
+                gap: 1rem;
+                justify-content: flex-end;
+                margin-top: 2rem;
+            }
+
+            /* Toast */
+            .toast {
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                background: var(--bg-card);
+                padding: 1rem 1.5rem;
+                border-radius: 0.75rem;
+                border-left: 4px solid var(--accent-green);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+                animation: slideIn 0.3s ease-out;
+                z-index: 2000;
+            }
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            /* Loading */
+            .loading {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 3rem;
+            }
+            .spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid var(--border);
+                border-top-color: var(--accent-blue);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* Progress Bar */
+            .progress-bar {
+                height: 8px;
+                background: var(--bg-secondary);
+                border-radius: 4px;
+                overflow: hidden;
+                margin-top: 0.5rem;
+            }
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(
+                    90deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                transition: width 0.3s;
+            }
+
+            /* Quick Actions */
+            .quick-actions {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+            .quick-action-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 1.25rem;
+                border-radius: 0.75rem;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .quick-action-btn:hover {
+                background: var(--bg-card);
+                border-color: var(--accent-blue);
+                transform: translateY(-2px);
+            }
+            .quick-action-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .quick-action-label {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+
+            /* Checkbox */
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0.5rem 0;
+            }
+            .checkbox-group input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent-blue);
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>NovaBackup Enterprise</h1>
+                    <p>Система Резервного Копіювання v7.0</p>
+                </div>
+            </div>
+            <div class="user-menu">
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>Система Працює</span>
+                </div>
+                <span>👤 Admin</span>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">Головне</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item active"
+                            onclick="showPage('dashboard')"
+                        >
+                            <span class="nav-icon">📊</span>
+                            <span>Панель Керування</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('jobs')">
+                            <span class="nav-icon">💾</span>
+                            <span>Завдання Резервного Копіювання</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('backup')"
+                        >
+                            <span class="nav-icon">🔄</span>
+                            <span>Резервне Копіювання</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Відновлення</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('restore')"
+                        >
+                            <span class="nav-icon">♻️</span>
+                            <span>Відновлення Файлів</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('restore-db')"
+                        >
+                            <span class="nav-icon">🗄️</span>
+                            <span>Відновлення Баз Даних</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Інфраструктура</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('repositories')"
+                        >
+                            <span class="nav-icon">📁</span>
+                            <span>Сховища</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('servers')"
+                        >
+                            <span class="nav-icon">🖥️</span>
+                            <span>Сервери</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Моніторинг</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('sessions')"
+                        >
+                            <span class="nav-icon">📋</span>
+                            <span>Сесії</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('alarms')"
+                        >
+                            <span class="nav-icon">⚠️</span>
+                            <span>Сповіщення</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('reports')"
+                        >
+                            <span class="nav-icon">📈</span>
+                            <span>Звіти</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Налаштування</div>
+                    <nav class="nav-menu">
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('settings')"
+                        >
+                            <span class="nav-icon">⚙️</span>
+                            <span>Загальні</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('notifications')"
+                        >
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                        <a
+                            href="#"
+                            class="nav-item"
+                            onclick="showPage('users')"
+                        >
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Content -->
+            <main class="content" id="main-content">
+                <!-- Dashboard Page -->
+                <div id="page-dashboard">
+                    <div class="page-header">
+                        <h2 class="page-title">Панель Керування</h2>
+                        <p class="page-subtitle">
+                            Огляд інфраструктури резервного копіювання
+                        </p>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-icon">💾</span>
+                            </div>
+                            <div class="stat-value" id="stat-jobs">0</div>
+                            <div class="stat-label">
+                                Завдань Резервного Копіювання
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-icon">📁</span>
+                            </div>
+                            <div class="stat-value" id="stat-storage">0 TB</div>
+                            <div class="stat-label">Використано Сховища</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-icon">✅</span>
+                            </div>
+                            <div class="stat-value" id="stat-success">0%</div>
+                            <div class="stat-label">Успішність</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-icon">📋</span>
+                            </div>
+                            <div class="stat-value" id="stat-sessions">0</div>
+                            <div class="stat-label">Сесій (24г)</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Швидкі Дії</h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="quick-actions">
+                                <div
+                                    class="quick-action-btn"
+                                    onclick="openNewJobModal()"
+                                >
+                                    <div class="quick-action-icon">➕</div>
+                                    <div class="quick-action-label">
+                                        Нове Завдання
+                                    </div>
+                                </div>
+                                <div
+                                    class="quick-action-btn"
+                                    onclick="runBackupNow()"
+                                >
+                                    <div class="quick-action-icon">▶️</div>
+                                    <div class="quick-action-label">
+                                        Запустити Зараз
+                                    </div>
+                                </div>
+                                <div
+                                    class="quick-action-btn"
+                                    onclick="showPage('restore')"
+                                >
+                                    <div class="quick-action-icon">♻️</div>
+                                    <div class="quick-action-label">
+                                        Відновити
+                                    </div>
+                                </div>
+                                <div
+                                    class="quick-action-btn"
+                                    onclick="showPage('sessions')"
+                                >
+                                    <div class="quick-action-icon">📊</div>
+                                    <div class="quick-action-label">
+                                        Перегляд Сесій
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jobs Table -->
+                    <div class="card" style="margin-top: 1.5rem">
+                        <div class="card-header">
+                            <h3 class="card-title">Активні Завдання</h3>
+                            <button
+                                class="btn btn-primary"
+                                onclick="openNewJobModal()"
+                            >
+                                <span>➕</span> Нове Завдання
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Назва Завдання</th>
+                                        <th>Тип</th>
+                                        <th>Статус</th>
+                                        <th>Останній Запуск</th>
+                                        <th>Наступний Запуск</th>
+                                        <th>Дії</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jobs-table-body">
+                                    <tr>
+                                        <td
+                                            colspan="6"
+                                            style="
+                                                text-align: center;
+                                                padding: 3rem;
+                                            "
+                                        >
+                                            <div class="loading">
+                                                <div class="spinner"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jobs Management Page -->
+                <div id="page-jobs" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">
+                            Завдання Резервного Копіювання
+                        </h2>
+                        <p class="page-subtitle">
+                            Керування завданнями резервного копіювання
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Всі Завдання</h3>
+                            <button
+                                class="btn btn-primary"
+                                onclick="openNewJobModal()"
+                            >
+                                <span>➕</span> Створити Завдання
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Назва</th>
+                                        <th>Тип</th>
+                                        <th>Розклад</th>
+                                        <th>Увімкнено</th>
+                                        <th>Дії</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jobs-manage-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backup Page -->
+                <div id="page-backup" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Резервне Копіювання</h2>
+                        <p class="page-subtitle">
+                            Запуск резервного копіювання
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                Швидке Резервне Копіювання
+                            </h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Оберіть джерело</label
+                                >
+                                <select class="form-select" id="backup-source">
+                                    <option value="files">Файли і Папки</option>
+                                    <option value="database">База Даних</option>
+                                    <option value="vm">
+                                        Віртуальна Машина
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Шлях до даних</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="backup-path"
+                                    placeholder="C:\Data або D:\Documents"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Сховище призначення</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="backup-dest"
+                                    placeholder="D:\Backups"
+                                />
+                            </div>
+                            <div class="checkbox-group">
+                                <input
+                                    type="checkbox"
+                                    id="backup-compression"
+                                    checked
+                                />
+                                <label for="backup-compression"
+                                    >Увімкнути стиснення</label
+                                >
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="backup-encryption" />
+                                <label for="backup-encryption"
+                                    >Увімкнути шифрування (AES-256)</label
+                                >
+                            </div>
+                            <button
+                                class="btn btn-success"
+                                onclick="runBackupNow()"
+                                style="margin-top: 1.5rem"
+                            >
+                                <span>▶️</span> Запустити Резервне Копіювання
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore Files Page -->
+                <div id="page-restore" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Відновлення Файлів</h2>
+                        <p class="page-subtitle">
+                            Відновлення файлів з резервної копії
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                Оберіть Точку Відновлення
+                            </h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="form-group">
+                                <label class="form-label">Резервна Копія</label>
+                                <select class="form-select" id="restore-backup">
+                                    <option value="">
+                                        Оберіть резервну копію...
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Шлях відновлення</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="restore-dest"
+                                    placeholder="C:\Restored або залиште пустим для оригінального місця"
+                                />
+                                <div class="form-hint">
+                                    Залиште пустим для відновлення в оригінальне
+                                    розташування
+                                </div>
+                            </div>
+                            <button
+                                class="btn btn-warning"
+                                onclick="restoreFiles()"
+                                style="margin-top: 1rem"
+                            >
+                                <span>♻️</span> Відновити Файли
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore Database Page -->
+                <div id="page-restore-db" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Відновлення Баз Даних</h2>
+                        <p class="page-subtitle">
+                            Відновлення баз даних з резервної копії
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Відновлення Бази Даних</h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="form-group">
+                                <label class="form-label">Тип Бази Даних</label>
+                                <select
+                                    class="form-select"
+                                    id="restore-db-type"
+                                >
+                                    <option value="mysql">MySQL</option>
+                                    <option value="postgresql">
+                                        PostgreSQL
+                                    </option>
+                                    <option value="sqlite">SQLite</option>
+                                    <option value="mssql">
+                                        Microsoft SQL Server
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Файл Дампу</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="restore-dump-file"
+                                    placeholder="D:\Backups\mysql_dump.sql"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Рядок Підключення</label
+                                >
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="restore-conn-str"
+                                    placeholder="user:password@tcp(host:port)/database"
+                                />
+                                <div class="form-hint">
+                                    Наприклад:
+                                    root:password@tcp(localhost:3306)/mydb
+                                </div>
+                            </div>
+                            <button
+                                class="btn btn-warning"
+                                onclick="restoreDatabase()"
+                                style="margin-top: 1rem"
+                            >
+                                <span>🗄️</span> Відновити Базу Даних
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Repositories Page -->
+                <div id="page-repositories" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Сховища</h2>
+                        <p class="page-subtitle">
+                            Керування сховищами резервних копій
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Сховища Резервних Копій</h3>
+                            <button
+                                class="btn btn-primary"
+                                onclick="addRepository()"
+                            >
+                                <span>➕</span> Додати Сховище
+                            </button>
+                        </div>
+                        <div
+                            style="
+                                padding: 3rem;
+                                text-align: center;
+                                color: var(--text-secondary);
+                            "
+                        >
+                            <p>Сховища ще не налаштовані</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Servers Page -->
+                <div id="page-servers" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Сервери</h2>
+                        <p class="page-subtitle">
+                            Керування віддаленими серверами
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Віддалені Сервери</h3>
+                            <button
+                                class="btn btn-primary"
+                                onclick="addServer()"
+                            >
+                                <span>➕</span> Додати Сервер
+                            </button>
+                        </div>
+                        <div
+                            style="
+                                padding: 3rem;
+                                text-align: center;
+                                color: var(--text-secondary);
+                            "
+                        >
+                            <p>Сервери ще не додані</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sessions Page -->
+                <div id="page-sessions" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Сесії</h2>
+                        <p class="page-subtitle">
+                            Історія сесій резервного копіювання
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Останні Сесії</h3>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Завдання</th>
+                                        <th>Час Початку</th>
+                                        <th>Тривалість</th>
+                                        <th>Статус</th>
+                                        <th>Файлів</th>
+                                        <th>Розмір</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessions-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alarms Page -->
+                <div id="page-alarms" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Сповіщення</h2>
+                        <p class="page-subtitle">
+                            Попередження та сповіщення системи
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Активні Сповіщення</h3>
+                        </div>
+                        <div
+                            style="
+                                padding: 3rem;
+                                text-align: center;
+                                color: var(--text-secondary);
+                            "
+                        >
+                            <p>✅ Немає активних сповіщень</p>
+                            <p style="margin-top: 0.5rem">
+                                Всі завдання резервного копіювання працюють
+                                нормально
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Page -->
+                <div id="page-reports" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Звіти</h2>
+                        <p class="page-subtitle">
+                            Звіти та аналітика резервного копіювання
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Статистика</h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div
+                                        class="stat-value"
+                                        id="report-total-jobs"
+                                    >
+                                        0
+                                    </div>
+                                    <div class="stat-label">Всього Завдань</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div
+                                        class="stat-value"
+                                        id="report-success-rate"
+                                    >
+                                        0%
+                                    </div>
+                                    <div class="stat-label">
+                                        Успішність (7 днів)
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div
+                                        class="stat-value"
+                                        id="report-total-backups"
+                                    >
+                                        0
+                                    </div>
+                                    <div class="stat-label">
+                                        Резервних Копій
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="page-settings" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Налаштування</h2>
+                        <p class="page-subtitle">
+                            Загальні налаштування системи
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Загальні Налаштування</h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="form-group">
+                                <label class="form-label">Порт Сервера</label>
+                                <input
+                                    type="number"
+                                    class="form-input"
+                                    id="settings-port"
+                                    value="8050"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Мова Інтерфейсу</label
+                                >
+                                <select
+                                    class="form-select"
+                                    id="settings-language"
+                                >
+                                    <option value="uk" selected>
+                                        Українська
+                                    </option>
+                                    <option value="en">English</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Рівень Логування</label
+                                >
+                                <select
+                                    class="form-select"
+                                    id="settings-log-level"
+                                >
+                                    <option value="info">Інформація</option>
+                                    <option value="debug">Налагодження</option>
+                                    <option value="error">Помилки</option>
+                                </select>
+                            </div>
+                            <button
+                                class="btn btn-primary"
+                                onclick="saveSettings()"
+                            >
+                                Зберегти Зміни
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications Page -->
+                <div id="page-notifications" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Сповіщення</h2>
+                        <p class="page-subtitle">Налаштування сповіщень</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Канали Сповіщень</h3>
+                        </div>
+                        <div style="padding: 1.5rem">
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Email Сповіщення</label
+                                >
+                                <div class="checkbox-group">
+                                    <input
+                                        type="checkbox"
+                                        id="notify-email-enabled"
+                                    />
+                                    <label for="notify-email-enabled"
+                                        >Увімкнути Email сповіщення</label
+                                    >
+                                </div>
+                                <input
+                                    type="email"
+                                    class="form-input"
+                                    id="notify-email"
+                                    placeholder="admin@example.com"
+                                    style="margin-top: 0.5rem"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    >Telegram Сповіщення</label
+                                >
+                                <div class="checkbox-group">
+                                    <input
+                                        type="checkbox"
+                                        id="notify-telegram-enabled"
+                                    />
+                                    <label for="notify-telegram-enabled"
+                                        >Увімкнути Telegram сповіщення</label
+                                    >
+                                </div>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="notify-telegram-token"
+                                    placeholder="Bot Token"
+                                    style="margin-top: 0.5rem"
+                                />
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="notify-telegram-chat"
+                                    placeholder="Chat ID"
+                                    style="margin-top: 0.5rem"
+                                />
+                            </div>
+                            <button
+                                class="btn btn-primary"
+                                onclick="saveNotifications()"
+                            >
+                                Зберегти Налаштування
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Page -->
+                <div id="page-users" style="display: none">
+                    <div class="page-header">
+                        <h2 class="page-title">Користувачі</h2>
+                        <p class="page-subtitle">
+                            Керування користувачами та правами доступу
+                        </p>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Користувачі Системи</h3>
+                            <button class="btn btn-primary" onclick="addUser()">
+                                <span>➕</span> Додати Користувача
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Користувач</th>
+                                        <th>Роль</th>
+                                        <th>Останній Вхід</th>
+                                        <th>Дії</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>👤 admin</td>
+                                        <td>
+                                            <span
+                                                class="status-badge-sm status-success"
+                                                >Адміністратор</span
+                                            >
+                                        </td>
+                                        <td>Зараз</td>
+                                        <td>—</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- New Job Modal -->
+        <div id="new-job-modal" class="modal-overlay" style="display: none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Створити Нове Завдання</h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Назва Завдання</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="job-name"
+                        placeholder="Щоденне Резервне Копіювання"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Тип Резервної Копії</label>
+                    <select class="form-select" id="job-type">
+                        <option value="file">Файли і Папки</option>
+                        <option value="database">База Даних</option>
+                        <option value="vm">Віртуальна Машина (Hyper-V)</option>
+                        <option value="cloud">Хмарне Сховище</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Джерело (шлях до даних)</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="job-source"
+                        placeholder="C:\Data або D:\Documents"
+                    />
+                    <div class="form-hint">
+                        Можна вказати кілька шляхів через кому
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Сховище Призначення</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="job-destination"
+                        placeholder="D:\Backups"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Розклад</label>
+                    <select class="form-select" id="job-schedule">
+                        <option value="daily">Щодня</option>
+                        <option value="weekly">Щотижня</option>
+                        <option value="monthly">Щомісяця</option>
+                        <option value="manual">Тільки Вручну</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Час Запуску</label>
+                    <input
+                        type="time"
+                        class="form-input"
+                        id="job-time"
+                        value="02:00"
+                    />
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="job-compression" checked />
+                    <label for="job-compression"
+                        >Увімкнути стиснення даних</label
+                    >
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="job-encryption" />
+                    <label for="job-encryption"
+                        >Увімкнути шифрування (AES-256)</label
+                    >
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="job-incremental" />
+                    <label for="job-incremental"
+                        >Інкрементальне резервне копіювання</label
+                    >
+                </div>
+                <div class="modal-footer">
+                    <button
+                        class="btn btn-secondary"
+                        onclick="closeNewJobModal()"
+                    >
+                        Скасувати
+                    </button>
+                    <button class="btn btn-primary" onclick="createJob()">
+                        Створити Завдання
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="user-menu">
-            <div class="status-badge">
-                <span class="status-dot"></span>
-                <span>System Online</span>
-            </div>
-            <span>👤 Admin</span>
-        </div>
-    </header>
 
-    <!-- Main Container -->
-    <div class="main-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <nav class="nav-menu">
-                <a href="#" class="nav-item active" onclick="showPage('dashboard')">
-                    <span class="nav-icon">📊</span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('jobs')">
-                    <span class="nav-icon">💾</span>
-                    <span>Backup Jobs</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('restore')">
-                    <span class="nav-icon">🔄</span>
-                    <span>Restore</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('repositories')">
-                    <span class="nav-icon">📁</span>
-                    <span>Repositories</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('sessions')">
-                    <span class="nav-icon">📋</span>
-                    <span>Sessions</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('settings')">
-                    <span class="nav-icon">⚙️</span>
-                    <span>Settings</span>
-                </a>
-            </nav>
-        </aside>
+        <script>
+            const API_BASE = "/api";
 
-        <!-- Content -->
-        <main class="content" id="main-content">
-            <!-- Dashboard Page -->
-            <div id="page-dashboard">
-                <div class="page-header">
-                    <h2 class="page-title">Dashboard</h2>
-                    <p class="page-subtitle">Overview of your backup infrastructure</p>
-                </div>
+            // Navigation
+            function showPage(pageId) {
+                document
+                    .querySelectorAll('[id^="page-"]')
+                    .forEach((page) => (page.style.display = "none"));
+                document.getElementById(`page-${pageId}`).style.display =
+                    "block";
+                document
+                    .querySelectorAll(".nav-item")
+                    .forEach((item) => item.classList.remove("active"));
+                event.target.closest(".nav-item").classList.add("active");
+                if (pageId === "dashboard") loadDashboard();
+                if (pageId === "sessions") loadSessions();
+                if (pageId === "reports") loadReports();
+            }
 
-                <!-- Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">💾</span>
-                        </div>
-                        <div class="stat-value" id="stat-jobs">0</div>
-                        <div class="stat-label">Backup Jobs</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📁</span>
-                        </div>
-                        <div class="stat-value" id="stat-storage">0 TB</div>
-                        <div class="stat-label">Storage Used</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">✅</span>
-                        </div>
-                        <div class="stat-value" id="stat-success">0%</div>
-                        <div class="stat-label">Success Rate</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📋</span>
-                        </div>
-                        <div class="stat-value" id="stat-sessions">0</div>
-                        <div class="stat-label">Sessions (24h)</div>
-                    </div>
-                </div>
+            // Modal
+            function openNewJobModal() {
+                document.getElementById("new-job-modal").style.display = "flex";
+            }
+            function closeNewJobModal() {
+                document.getElementById("new-job-modal").style.display = "none";
+            }
 
-                <!-- Jobs Table -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Active Backup Jobs</h3>
-                        <button class="btn btn-primary" onclick="openNewJobModal()">
-                            <span>➕</span> New Job
-                        </button>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Job Name</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Last Run</th>
-                                    <th>Next Run</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="jobs-table-body">
-                                <tr>
-                                    <td colspan="6" style="text-align: center; padding: 3rem;">
-                                        <div class="loading">
-                                            <div class="spinner"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            // API Functions
+            async function loadDashboard() {
+                try {
+                    const [jobsRes, sessionsRes] = await Promise.all([
+                        fetch(`${API_BASE}/jobs`),
+                        fetch(`${API_BASE}/backup/sessions`),
+                    ]);
+                    const jobs = await jobsRes.json();
+                    const sessions = await sessionsRes.json();
 
-            <!-- Other pages (hidden by default) -->
-            <div id="page-jobs" style="display: none;">
-                <div class="page-header">
-                    <h2 class="page-title">Backup Jobs</h2>
-                    <p class="page-subtitle">Manage your backup jobs</p>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">All Jobs</h3>
-                        <button class="btn btn-primary" onclick="openNewJobModal()">
-                            <span>➕</span> New Job
-                        </button>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Job Name</th>
-                                    <th>Type</th>
-                                    <th>Schedule</th>
-                                    <th>Enabled</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="jobs-manage-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+                    document.getElementById("stat-jobs").textContent =
+                        jobs.jobs?.length || 0;
+                    document.getElementById("stat-sessions").textContent =
+                        sessions.sessions?.length || 0;
 
-            <div id="page-restore" style="display: none;">
-                <div class="page-header">
-                    <h2 class="page-title">Restore</h2>
-                    <p class="page-subtitle">Restore files from backups</p>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Select Backup</h3>
-                    </div>
-                    <div style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-                        <p>Select a backup point to restore from</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="page-repositories" style="display: none;">
-                <div class="page-header">
-                    <h2 class="page-title">Repositories</h2>
-                    <p class="page-subtitle">Manage backup storage locations</p>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Storage Repositories</h3>
-                        <button class="btn btn-primary" onclick="alert('Coming soon!')">
-                            <span>➕</span> Add Repository
-                        </button>
-                    </div>
-                    <div style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-                        <p>No repositories configured yet</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="page-sessions" style="display: none;">
-                <div class="page-header">
-                    <h2 class="page-title">Sessions</h2>
-                    <p class="page-subtitle">Backup session history</p>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Recent Sessions</h3>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Job</th>
-                                    <th>Start Time</th>
-                                    <th>Duration</th>
-                                    <th>Status</th>
-                                    <th>Files</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sessions-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="page-settings" style="display: none;">
-                <div class="page-header">
-                    <h2 class="page-title">Settings</h2>
-                    <p class="page-subtitle">System configuration</p>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">General Settings</h3>
-                    </div>
-                    <div style="padding: 1.5rem;">
-                        <div class="form-group">
-                            <label class="form-label">Server Port</label>
-                            <input type="number" class="form-input" value="8050">
-                        </div>
-                        <button class="btn btn-primary" onclick="showToast('Settings saved!')">Save Changes</button>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- New Job Modal -->
-    <div id="new-job-modal" class="modal-overlay" style="display: none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Create New Backup Job</h3>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Job Name</label>
-                <input type="text" class="form-input" id="job-name" placeholder="Daily Backup">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Backup Type</label>
-                <select class="form-input" id="job-type">
-                    <option value="file">Files and Folders</option>
-                    <option value="database">Database</option>
-                    <option value="cloud">Cloud Storage</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Source Path</label>
-                <input type="text" class="form-input" id="job-source" placeholder="C:\Data or D:\Documents">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Destination</label>
-                <input type="text" class="form-input" id="job-destination" placeholder="D:\Backups">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Schedule</label>
-                <select class="form-input" id="job-schedule">
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="manual">Manual Only</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeNewJobModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="createJob()">Create Job</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // API Base URL
-        const API_BASE = '/api';
-
-        // Page Navigation
-        function showPage(pageId) {
-            // Hide all pages
-            document.querySelectorAll('[id^="page-"]').forEach(page => {
-                page.style.display = 'none';
-            });
-
-            // Show selected page
-            document.getElementById(`page-${pageId}`).style.display = 'block';
-
-            // Update nav
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            event.target.closest('.nav-item').classList.add('active');
-
-            // Load page data
-            if (pageId === 'dashboard') loadDashboard();
-            if (pageId === 'sessions') loadSessions();
-        }
-
-        // Modal Functions
-        function openNewJobModal() {
-            document.getElementById('new-job-modal').style.display = 'flex';
-        }
-
-        function closeNewJobModal() {
-            document.getElementById('new-job-modal').style.display = 'none';
-        }
-
-        // API Functions
-        async function loadDashboard() {
-            try {
-                const [jobsRes, sessionsRes] = await Promise.all([
-                    fetch(`${API_BASE}/jobs`),
-                    fetch(`${API_BASE}/backup/sessions`)
-                ]);
-
-                const jobs = await jobsRes.json();
-                const sessions = await sessionsRes.json();
-
-                // Update stats
-                document.getElementById('stat-jobs').textContent = jobs.jobs?.length || 0;
-                document.getElementById('stat-sessions').textContent = sessions.sessions?.length || 0;
-
-                // Update jobs table
-                const tbody = document.getElementById('jobs-table-body');
-                if (jobs.jobs && jobs.jobs.length > 0) {
-                    tbody.innerHTML = jobs.jobs.map(job => `
+                    const tbody = document.getElementById("jobs-table-body");
+                    if (jobs.jobs && jobs.jobs.length > 0) {
+                        tbody.innerHTML = jobs.jobs
+                            .map(
+                                (job) => `
                         <tr>
                             <td>${job.name}</td>
-                            <td>${job.type || 'File'}</td>
-                            <td><span class="status-badge-sm status-success">✅ Ready</span></td>
-                            <td>${job.last_run || 'Never'}</td>
-                            <td>${job.next_run || 'Manual'}</td>
+                            <td>${getJobTypeUA(job.type)}</td>
+                            <td><span class="status-badge-sm status-success">✅ Готове</span></td>
+                            <td>${job.last_run ? formatDate(job.last_run) : "Ніколи"}</td>
+                            <td>${job.next_run ? formatDate(job.next_run) : "Вручну"}</td>
                             <td>
-                                <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.875rem;">▶ Run</button>
+                                <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">▶ Запуск</button>
                             </td>
                         </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `
+                    `,
+                            )
+                            .join("");
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">Немає завдань. Натисніть "Нове Завдання" для створення.</td></tr>`;
+                    }
+                } catch (error) {
+                    console.error("Failed to load dashboard:", error);
+                }
+            }
+
+            async function loadSessions() {
+                try {
+                    const res = await fetch(`${API_BASE}/backup/sessions`);
+                    const sessions = await res.json();
+                    const tbody = document.getElementById("sessions-body");
+                    if (sessions.sessions && sessions.sessions.length > 0) {
+                        tbody.innerHTML = sessions.sessions
+                            .map(
+                                (s) => `
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                No backup jobs configured. Click "New Job" to create one.
-                            </td>
+                            <td>${s.job_name}</td>
+                            <td>${formatDateTime(s.start_time)}</td>
+                            <td>${calculateDuration(s.start_time, s.end_time)}</td>
+                            <td><span class="status-badge-sm ${s.status === "success" ? "status-success" : "status-failed"}">${s.status === "success" ? "✅" : "❌"} ${s.status === "success" ? "Успішно" : "Помилка"}</span></td>
+                            <td>${s.files_processed || 0}</td>
+                            <td>${formatBytes(s.bytes_written || 0)}</td>
                         </tr>
-                    `;
+                    `,
+                            )
+                            .join("");
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">Сесій ще немає</td></tr>`;
+                    }
+                } catch (error) {
+                    console.error("Failed to load sessions:", error);
                 }
-            } catch (error) {
-                console.error('Failed to load dashboard:', error);
             }
-        }
 
-        async function loadSessions() {
-            try {
-                const res = await fetch(`${API_BASE}/backup/sessions`);
-                const sessions = await res.json();
+            async function loadReports() {
+                try {
+                    const [jobsRes, sessionsRes] = await Promise.all([
+                        fetch(`${API_BASE}/jobs`),
+                        fetch(`${API_BASE}/backup/sessions`),
+                    ]);
+                    const jobs = await jobsRes.json();
+                    const sessions = await sessionsRes.json();
 
-                const tbody = document.getElementById('sessions-body');
-                if (sessions.sessions && sessions.sessions.length > 0) {
-                    tbody.innerHTML = sessions.sessions.map(session => `
-                        <tr>
-                            <td>${session.job_name}</td>
-                            <td>${new Date(session.start_time).toLocaleString()}</td>
-                            <td>${calculateDuration(session.start_time, session.end_time)}</td>
-                            <td><span class="status-badge-sm ${session.status === 'success' ? 'status-success' : 'status-failed'}">${session.status === 'success' ? '✅' : '❌'} ${session.status}</span></td>
-                            <td>${session.files_processed || 0}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                No sessions yet
-                            </td>
-                        </tr>
-                    `;
+                    document.getElementById("report-total-jobs").textContent =
+                        jobs.jobs?.length || 0;
+                    document.getElementById(
+                        "report-total-backups",
+                    ).textContent = sessions.sessions?.length || 0;
+
+                    const successCount =
+                        sessions.sessions?.filter((s) => s.status === "success")
+                            .length || 0;
+                    const total = sessions.sessions?.length || 1;
+                    document.getElementById("report-success-rate").textContent =
+                        Math.round((successCount / total) * 100) + "%";
+                } catch (error) {
+                    console.error("Failed to load reports:", error);
                 }
-            } catch (error) {
-                console.error('Failed to load sessions:', error);
             }
-        }
 
-        function calculateDuration(start, end) {
-            if (!start || !end) return '-';
-            const diff = new Date(end) - new Date(start);
-            const minutes = Math.floor(diff / 60000);
-            if (minutes < 60) return `${minutes} min`;
-            const hours = Math.floor(minutes / 60);
-            return `${hours}h ${minutes % 60}m`;
-        }
-
-        async function createJob() {
-            const job = {
-                name: document.getElementById('job-name').value,
-                type: document.getElementById('job-type').value,
-                sources: [document.getElementById('job-source').value],
-                destination: document.getElementById('job-destination').value,
-                schedule: document.getElementById('job-schedule').value,
-                enabled: true
-            };
-
-            try {
-                const res = await fetch(`${API_BASE}/jobs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(job)
-                });
-
-                if (res.ok) {
-                    showToast('Job created successfully!');
-                    closeNewJobModal();
-                    loadDashboard();
-                } else {
-                    showToast('Failed to create job');
+            async function createJob() {
+                const job = {
+                    name: document.getElementById("job-name").value,
+                    type: document.getElementById("job-type").value,
+                    sources: [document.getElementById("job-source").value],
+                    destination:
+                        document.getElementById("job-destination").value,
+                    schedule: document.getElementById("job-schedule").value,
+                    compression:
+                        document.getElementById("job-compression").checked,
+                    encryption:
+                        document.getElementById("job-encryption").checked,
+                    enabled: true,
+                };
+                try {
+                    const res = await fetch(`${API_BASE}/jobs`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(job),
+                    });
+                    if (res.ok) {
+                        showToast("✅ Завдання створено успішно!");
+                        closeNewJobModal();
+                        loadDashboard();
+                    } else {
+                        showToast("❌ Помилка створення завдання");
+                    }
+                } catch (error) {
+                    showToast("❌ Помилка: " + error.message);
                 }
-            } catch (error) {
-                showToast('Error: ' + error.message);
             }
-        }
 
-        async function runJob(jobId) {
-            try {
-                const res = await fetch(`${API_BASE}/jobs/${jobId}/run`, {
-                    method: 'POST'
-                });
-
-                if (res.ok) {
-                    showToast('Backup job started!');
-                    loadDashboard();
-                } else {
-                    showToast('Failed to start job');
+            async function runJob(jobId) {
+                try {
+                    const res = await fetch(`${API_BASE}/jobs/${jobId}/run`, {
+                        method: "POST",
+                    });
+                    if (res.ok) {
+                        showToast("✅ Завдання запущено!");
+                        loadDashboard();
+                    } else {
+                        showToast("❌ Помилка запуску");
+                    }
+                } catch (error) {
+                    showToast("❌ Помилка: " + error.message);
                 }
-            } catch (error) {
-                showToast('Error: ' + error.message);
             }
-        }
 
-        // Toast Notification
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            document.body.appendChild(toast);
+            async function runBackupNow() {
+                const backup = {
+                    name: "Швидке Резервне Копіювання",
+                    type:
+                        document.getElementById("backup-source")?.value ||
+                        "file",
+                    sources: [
+                        document.getElementById("backup-path")?.value ||
+                            "C:\\Data",
+                    ],
+                    destination:
+                        document.getElementById("backup-dest")?.value ||
+                        "D:\\Backups",
+                    compression:
+                        document.getElementById("backup-compression")
+                            ?.checked || true,
+                };
+                try {
+                    const res = await fetch(`${API_BASE}/backup/run`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(backup),
+                    });
+                    if (res.ok) {
+                        showToast("✅ Резервне копіювання запущено!");
+                    } else {
+                        showToast("❌ Помилка запуску");
+                    }
+                } catch (error) {
+                    showToast("❌ Помилка: " + error.message);
+                }
+            }
 
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
+            async function restoreFiles() {
+                const restore = {
+                    backup_path:
+                        document.getElementById("restore-backup").value,
+                    destination: document.getElementById("restore-dest").value,
+                };
+                try {
+                    const res = await fetch(`${API_BASE}/restore/files`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(restore),
+                    });
+                    if (res.ok) {
+                        showToast("✅ Відновлення запущено!");
+                    } else {
+                        showToast("❌ Помилка відновлення");
+                    }
+                } catch (error) {
+                    showToast("❌ Помилка: " + error.message);
+                }
+            }
 
-        // Initial load
-        loadDashboard();
+            async function restoreDatabase() {
+                const restore = {
+                    db_type: document.getElementById("restore-db-type").value,
+                    dump_file:
+                        document.getElementById("restore-dump-file").value,
+                    conn_str: document.getElementById("restore-conn-str").value,
+                };
+                try {
+                    const res = await fetch(`${API_BASE}/restore/database`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(restore),
+                    });
+                    if (res.ok) {
+                        showToast("✅ Відновлення бази даних запущено!");
+                    } else {
+                        showToast("❌ Помилка відновлення");
+                    }
+                } catch (error) {
+                    showToast("❌ Помилка: " + error.message);
+                }
+            }
 
-        // Auto-refresh every 30 seconds
-        setInterval(loadDashboard, 30000);
-    </script>
-</body>
+            function saveSettings() {
+                showToast("✅ Налаштування збережено!");
+            }
+            function saveNotifications() {
+                showToast("✅ Налаштування сповіщень збережено!");
+            }
+            function addRepository() {
+                showToast("🚧 Функція в розробці");
+            }
+            function addServer() {
+                showToast("🚧 Функція в розробці");
+            }
+            function addUser() {
+                showToast("🚧 Функція в розробці");
+            }
+
+            // Helpers
+            function getJobTypeUA(type) {
+                const types = {
+                    file: "Файли",
+                    database: "База Даних",
+                    vm: "ВМ Hyper-V",
+                    cloud: "Хмара",
+                };
+                return types[type] || type;
+            }
+            function formatDate(dateStr) {
+                return dateStr
+                    ? new Date(dateStr).toLocaleDateString("uk-UA")
+                    : "—";
+            }
+            function formatDateTime(dateStr) {
+                return dateStr
+                    ? new Date(dateStr).toLocaleString("uk-UA")
+                    : "—";
+            }
+            function calculateDuration(start, end) {
+                if (!start || !end) return "—";
+                const diff = Math.floor(
+                    (new Date(end) - new Date(start)) / 60000,
+                );
+                if (diff < 60) return `${diff} хв`;
+                const hours = Math.floor(diff / 60);
+                return `${hours}г ${diff % 60}хв`;
+            }
+            function formatBytes(bytes) {
+                if (!bytes) return "0 B";
+                const sizes = ["B", "KB", "MB", "GB", "TB"];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+            }
+            function showToast(message) {
+                const toast = document.createElement("div");
+                toast.className = "toast";
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            // Initial load
+            loadDashboard();
+            setInterval(loadDashboard, 30000);
+        </script>
+    </body>
 </html>
