@@ -262,9 +262,19 @@
 
         <script>
             async function loadSessions() {
+                const token = localStorage.getItem("authToken");
+                const headers = token ? { Authorization: token } : {};
+
                 try {
-                    const res = await fetch("/api/backup/sessions");
-                    if (!res.ok) throw new Error("Помилка: " + res.statusText);
+                    const res = await fetch("/api/backup/sessions", {
+                        headers,
+                    });
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            throw new Error("Будь ласка, увійдіть в систему");
+                        }
+                        throw new Error("Помилка: " + res.statusText);
+                    }
                     const data = await res.json();
                     const sessions = data.sessions || [];
 

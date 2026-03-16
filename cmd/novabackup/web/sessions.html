@@ -262,9 +262,19 @@
 
         <script>
             async function loadSessions() {
+                const token = localStorage.getItem("authToken");
+                const headers = token ? { Authorization: token } : {};
+
                 try {
-                    const res = await fetch("/api/backup/sessions");
-                    if (!res.ok) throw new Error("Помилка: " + res.statusText);
+                    const res = await fetch("/api/backup/sessions", {
+                        headers,
+                    });
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            throw new Error("Будь ласка, увійдіть в систему");
+                        }
+                        throw new Error("Помилка: " + res.statusText);
+                    }
                     const data = await res.json();
                     const sessions = data.sessions || [];
 
@@ -319,60 +329,21 @@
                         .join("");
                 } catch (error) {
                     console.error("Failed to load sessions:", error);
-                    // Mock data for demo
-                    const mockSessions = [
-                        {
-                            job_name: "Daily Backup",
-                            type: "Файли",
-                            start_time: "2026-03-15T02:00:00",
-                            end_time: "2026-03-15T02:45:00",
-                            status: "success",
-                            files_processed: 1234,
-                            bytes_written: 12884901888,
-                        },
-                        {
-                            job_name: "Weekly Backup",
-                            type: "Система",
-                            start_time: "2026-03-09T22:00:00",
-                            end_time: "2026-03-10T01:30:00",
-                            status: "success",
-                            files_processed: 5678,
-                            bytes_written: 53687091200,
-                        },
-                        {
-                            job_name: "Test Backup",
-                            type: "Файли",
-                            start_time: "2026-03-14T15:00:00",
-                            end_time: "2026-03-14T15:05:00",
-                            status: "failed",
-                            files_processed: 10,
-                            bytes_written: 0,
-                        },
-                    ];
-
+                    // Show empty state if failed to load
                     const tbody = document.getElementById("sessions-body");
-                    tbody.innerHTML = mockSessions
-                        .map(
-                            (s) => `
-                    <tr>
-                        <td><strong>${s.job_name}</strong></td>
-                        <td>${s.type}</td>
-                        <td>${formatDateTime(s.start_time)}</td>
-                        <td>${formatDateTime(s.end_time)}</td>
-                        <td>${calculateDuration(s.start_time, s.end_time)}</td>
-                        <td>${s.files_processed}</td>
-                        <td>${formatBytes(s.bytes_written)}</td>
-                        <td><span class="status-badge ${getStatusClass(s.status)}">${getStatusIcon(s.status)} ${getStatusUA(s.status)}</span></td>
-                    </tr>
-                `,
-                        )
-                        .join("");
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                ❌ Не вдалося завантажити сесії<br>
+                                <small>Перевірте підключення до сервера</small>
+                            </td>
+                        </tr>
+                    `;
 
-                    // Update stats
-                    document.getElementById("stat-total").textContent =
-                        mockSessions.length;
-                    document.getElementById("stat-success").textContent = 2;
-                    document.getElementById("stat-failed").textContent = 1;
+                    // Update stats with zeros
+                    document.getElementById("stat-total").textContent = "0";
+                    document.getElementById("stat-success").textContent = "0";
+                    document.getElementById("stat-failed").textContent = "0";
                 }
             }
 
