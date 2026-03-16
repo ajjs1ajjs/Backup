@@ -17,7 +17,9 @@ Production-ready backup & recovery platform for Windows Server.
 
 ---
 
-## Quick Start (Windows, PowerShell as Administrator)
+## Quick Start
+
+### Windows (PowerShell as Administrator)
 
 **Install**
 ```powershell
@@ -29,7 +31,25 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat" -OutFile "update.bat"; .\update.bat
 ```
 
-**Access Web UI**
+### Linux (Ubuntu/Debian)
+
+**Install**
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash
+```
+
+**Update**
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh | sudo bash
+```
+
+**Service**
+```bash
+sudo systemctl status novabackup
+sudo systemctl restart novabackup
+```
+
+### Access Web UI
 ```
 URL: http://localhost:8050
 Login: admin
@@ -37,6 +57,19 @@ Password: admin123
 ```
 
 Change the default password after first login.
+
+---
+
+## Screenshots
+
+**Dashboard**
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Sessions**
+![Sessions](docs/screenshots/sessions.png)
+
+**Restore**
+![Restore](docs/screenshots/restore.png)
 
 ---
 
@@ -68,6 +101,57 @@ go build -o novabackup.exe .\cmd\novabackup
 ```
 
 Note: The Web UI is served from the `web/` folder next to `novabackup.exe`.
+
+---
+
+## Technical Details
+
+### Services & Ports
+- HTTP: `8050`
+- HTTPS: `8443` (if enabled in config)
+- Windows service: `NovaBackup`
+- Linux systemd service: `novabackup`
+
+### Paths & Data Layout
+**Windows (install.bat)**
+- EXE: `C:\Program Files\NovaBackup\NovaBackup.exe`
+- Web UI: `C:\Program Files\NovaBackup\web\`
+- Data: `C:\ProgramData\NovaBackup\`
+- Logs: `C:\ProgramData\NovaBackup\Logs\`
+
+**Linux (install.sh)**
+- EXE: `/opt/novabackup/NovaBackup`
+- Data: `/var/lib/novabackup/`
+- Logs: `/var/lib/novabackup/logs/`
+
+**Dev/Portable**
+- Data: `<exe_dir>\data\`
+- Sessions: `<data>\sessions\*.json`
+- DB: `<data>\novabackup.db`
+
+### Backup Layout (File Jobs)
+```
+<destination>\<job_name>\YYYY-MM-DD_HHMMSS\
+  backup.zip
+  metadata.json
+```
+
+### Sessions & Metadata
+- Backup sessions are written to `data/sessions/<session_id>.json`
+- Summary is also stored in SQLite (`novabackup.db`) for quick listing
+
+### API Quick Reference
+```bash
+GET  /api/health
+POST /api/auth/login
+GET  /api/jobs
+POST /api/jobs
+POST /api/jobs/:id/run
+GET  /api/backup/sessions
+GET  /api/backup/sessions/:id/files
+POST /api/restore/files
+POST /api/restore/database
+```
 
 ---
 
