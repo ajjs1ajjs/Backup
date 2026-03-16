@@ -17,32 +17,42 @@ type Database struct {
 }
 
 type Job struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	Type             string     `json:"type"`
-	Sources          []string   `json:"sources"`
-	Destination      string     `json:"destination"`
-	Compression      bool       `json:"compression"`
-	CompressionLevel int        `json:"compression_level"` // 0-9
-	Encryption       bool       `json:"encryption"`
-	Deduplication    bool       `json:"deduplication"`
-	BlockSize        int        `json:"block_size"`  // Block size for dedup
-	MaxThreads       int        `json:"max_threads"` // Parallel threads
-	Incremental      bool       `json:"incremental"`
-	FullBackupEvery  int        `json:"full_backup_every"` // Days between full backups
-	ExcludePatterns  []string   `json:"exclude_patterns"`
-	IncludePatterns  []string   `json:"include_patterns"`
-	PreBackupScript  string     `json:"pre_backup_script"`
-	PostBackupScript string     `json:"post_backup_script"`
-	Schedule         string     `json:"schedule"`
-	ScheduleTime     string     `json:"schedule_time"`
-	ScheduleDays     []string   `json:"schedule_days"`
-	Enabled          bool       `json:"enabled"`
-	RetentionDays    int        `json:"retention_days"`
-	RetentionCopies  int        `json:"retention_copies"`
-	CreatedAt        time.Time  `json:"created_at"`
-	LastRun          *time.Time `json:"last_run,omitempty"`
-	NextRun          *time.Time `json:"next_run,omitempty"`
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	Type              string     `json:"type"`
+	Sources           []string   `json:"sources"`
+	Destination       string     `json:"destination"`
+	Compression       bool       `json:"compression"`
+	CompressionLevel  int        `json:"compression_level"` // 0-9
+	Encryption        bool       `json:"encryption"`
+	Deduplication     bool       `json:"deduplication"`
+	BlockSize         int        `json:"block_size"`  // Block size for dedup
+	MaxThreads        int        `json:"max_threads"` // Parallel threads
+	Incremental       bool       `json:"incremental"`
+	FullBackupEvery   int        `json:"full_backup_every"` // Days between full backups
+	ExcludePatterns   []string   `json:"exclude_patterns"`
+	IncludePatterns   []string   `json:"include_patterns"`
+	PreBackupScript   string     `json:"pre_backup_script"`
+	PostBackupScript  string     `json:"post_backup_script"`
+	Schedule          string     `json:"schedule"`
+	ScheduleTime      string     `json:"schedule_time"`
+	ScheduleDays      []string   `json:"schedule_days"`
+	CronExpression    string     `json:"cron_expression"`
+	Enabled           bool       `json:"enabled"`
+	RetentionDays     int        `json:"retention_days"`
+	RetentionCopies   int        `json:"retention_copies"`
+	GFSDaily          int        `json:"gfs_daily"`
+	GFSWeekly         int        `json:"gfs_weekly"`
+	GFSMonthly        int        `json:"gfs_monthly"`
+	GFSQuarterly      int        `json:"gfs_quarterly"`
+	GFSYearly         int        `json:"gfs_yearly"`
+	BackupCopyEnabled bool       `json:"backup_copy_enabled"`
+	BackupCopyDestID  string     `json:"backup_copy_dest_id"`
+	BackupCopyDelay   int        `json:"backup_copy_delay"`
+	BackupCopyEncrypt bool       `json:"backup_copy_encrypt"`
+	CreatedAt         time.Time  `json:"created_at"`
+	LastRun           *time.Time `json:"last_run,omitempty"`
+	NextRun           *time.Time `json:"next_run,omitempty"`
 }
 
 type Session struct {
