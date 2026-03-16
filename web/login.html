@@ -247,29 +247,7 @@
                         );
                     }
                 } catch (error) {
-                    // Demo mode - allow login with default credentials
-                    if (username === "admin" && password === "admin123") {
-                        localStorage.setItem("authToken", "demo-token");
-                        localStorage.setItem(
-                            "user",
-                            JSON.stringify({
-                                username: "admin",
-                                role: "admin",
-                            }),
-                        );
-
-                        const passwordChanged =
-                            localStorage.getItem("passwordChanged");
-                        if (passwordChanged !== "true") {
-                            window.location.href = "change-password.html";
-                        } else {
-                            window.location.href = "index.html";
-                        }
-                    } else {
-                        alert(
-                            "❌ Помилка: Невірне ім'я користувача або пароль",
-                        );
-                    }
+                    alert("❌ Помилка: Невірне ім'я користувача або пароль");
                 }
             }
 

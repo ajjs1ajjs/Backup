@@ -249,11 +249,25 @@ func buildServer() (*http.Server, error) {
 			// Storage
 			protected.GET("/storage/repos", api.ListRepos)
 			protected.POST("/storage/repos", api.CreateRepo)
+			protected.PUT("/storage/repos/:id", api.UpdateRepo)
 			protected.DELETE("/storage/repos/:id", api.DeleteRepo)
 
 			// Settings
 			protected.GET("/settings", api.GetSettings)
 			protected.PUT("/settings", api.UpdateSettings)
+
+			// Users
+			protected.GET("/users", api.ListUsers)
+			protected.GET("/users/:id", api.GetUser)
+			protected.POST("/users", api.CreateUser)
+			protected.PUT("/users/:id", api.UpdateUser)
+			protected.DELETE("/users/:id", api.DeleteUser)
+			protected.POST("/users/:id/enable", api.EnableUser)
+			protected.POST("/users/:id/disable", api.DisableUser)
+
+			// Reports & Statistics
+			protected.GET("/reports/statistics", api.GetStatistics)
+			protected.GET("/reports/daily", api.GetDailyReport)
 
 			// Audit Logs
 			protected.GET("/audit/logs", api.GetAuditLogs)

@@ -168,7 +168,17 @@ func UpdateSettings(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"success": true})
+
+	// Update each section
+	for section, data := range settings {
+		if err := saveConfigField(section, data); err != nil {
+			log.Printf("Error saving %s settings: %v", section, err)
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Не вдалося зберегти налаштування: %v", err)})
+			return
+		}
+	}
+
+	c.JSON(200, gin.H{"success": true, "message": "Налаштування збережено"})
 }
 
 // ServeWebFile serves static web files
@@ -650,6 +660,52 @@ func CreateRepo(c *gin.Context) {
 	c.JSON(201, gin.H{"success": true, "repo": repo})
 }
 
+func UpdateRepo(c *gin.Context) {
+	id := c.Param("id")
+
+	var repo storage.StorageRepo
+	if err := c.ShouldBindJSON(&repo); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get existing repo
+	existingRepo, err := StorageEngine.GetRepo(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Сховище не знайдено"})
+		return
+	}
+
+	// Update fields
+	existingRepo.Name = repo.Name
+	existingRepo.Description = repo.Description
+	existingRepo.Enabled = repo.Enabled
+	existingRepo.MaxThreads = repo.MaxThreads
+
+	// Update credentials (only if provided)
+	if repo.AccessKey != "" {
+		existingRepo.AccessKey = repo.AccessKey
+	}
+	if repo.SecretKey != "" {
+		existingRepo.SecretKey = repo.SecretKey
+	}
+	if repo.Username != "" {
+		existingRepo.Username = repo.Username
+	}
+	if repo.Password != "" {
+		existingRepo.Password = repo.Password
+	}
+
+	// Remove and re-add to update provider
+	StorageEngine.RemoveRepo(id)
+	if err := StorageEngine.AddRepo(existingRepo); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"success": true, "repo": existingRepo})
+}
+
 func DeleteRepo(c *gin.Context) {
 	id := c.Param("id")
 
@@ -665,6 +721,18 @@ func DeleteRepo(c *gin.Context) {
 func ListUsers(c *gin.Context) {
 	users := RBACEngine.ListUsers()
 	c.JSON(200, gin.H{"users": users})
+}
+
+func GetUser(c *gin.Context) {
+	id := c.Param("id")
+
+	user, err := RBACEngine.GetUser(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Користувача не знайдено"})
+		return
+	}
+
+	c.JSON(200, gin.H{"user": user})
 }
 
 func CreateUser(c *gin.Context) {
@@ -690,6 +758,61 @@ func CreateUser(c *gin.Context) {
 	c.JSON(201, gin.H{"success": true, "user": user})
 }
 
+func UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Email    string `json:"email"`
+		FullName string `json:"full_name"`
+		Role     string `json:"role"`
+		Enabled  *bool  `json:"enabled"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	// Get current user
+	user, err := RBACEngine.GetUser(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Користувача не знайдено"})
+		return
+	}
+
+	// Update fields
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.FullName != "" {
+		user.FullName = req.FullName
+	}
+	if req.Role != "" {
+		// Validate role
+		if _, exists := rbac.RolePermissions[req.Role]; exists {
+			user.Role = req.Role
+		} else {
+			c.JSON(400, gin.H{"error": "Невідома роль"})
+			return
+		}
+	}
+
+	// Enable/disable user
+	if req.Enabled != nil {
+		if *req.Enabled {
+			err = RBACEngine.EnableUser(id)
+		} else {
+			err = RBACEngine.DisableUser(id)
+		}
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(200, gin.H{"success": true, "user": user})
+}
+
 func DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 
@@ -699,6 +822,28 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"success": true})
+}
+
+func EnableUser(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := RBACEngine.EnableUser(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"success": true, "message": "Користувача увімкнено"})
+}
+
+func DisableUser(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := RBACEngine.DisableUser(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"success": true, "message": "Користувача вимкнено"})
 }
 
 // Reports & Statistics

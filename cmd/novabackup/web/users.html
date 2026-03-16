@@ -104,6 +104,13 @@
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             }
 
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+
             .table-container {
                 overflow-x: auto;
             }
@@ -111,6 +118,23 @@
             table {
                 width: 100%;
                 border-collapse: collapse;
+            }
+
+            @media (max-width: 768px) {
+                body {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .permissions-grid {
+                    grid-template-columns: 1fr;
+                }
+                .card-header {
+                    flex-direction: column;
+                    gap: 1rem;
+                    align-items: flex-start;
+                }
             }
 
             th,

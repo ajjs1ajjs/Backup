@@ -104,6 +104,13 @@
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             }
 
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+
             .table-container {
                 overflow-x: auto;
             }
@@ -111,6 +118,23 @@
             table {
                 width: 100%;
                 border-collapse: collapse;
+            }
+
+            @media (max-width: 768px) {
+                body {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .permissions-grid {
+                    grid-template-columns: 1fr;
+                }
+                .card-header {
+                    flex-direction: column;
+                    gap: 1rem;
+                    align-items: flex-start;
+                }
             }
 
             th,
@@ -534,18 +558,8 @@
                     updateStats();
                 } catch (error) {
                     console.error("Failed to load users:", error);
-                    // Mock data for demo
-                    users = [
-                        {
-                            id: "admin",
-                            username: "admin",
-                            email: "admin@novabackup.local",
-                            full_name: "Administrator",
-                            role: "admin",
-                            enabled: true,
-                            last_login: new Date().toISOString(),
-                        },
-                    ];
+                    // Show empty state if failed to load
+                    users = [];
                     renderUsers();
                     updateStats();
                 }
@@ -715,23 +729,7 @@
                         );
                     }
                 } catch (error) {
-                    // Demo mode - add locally
-                    alert(
-                        "✅ Користувача додано (демо режим)\n\n" +
-                            "Ім'я: " +
-                            user.username +
-                            "\n" +
-                            "Роль: " +
-                            getRoleUA(user.role),
-                    );
-                    users.push({
-                        ...user,
-                        id: "user_" + Date.now(),
-                        last_login: null,
-                    });
-                    renderUsers();
-                    updateStats();
-                    closeAddModal();
+                    alert("❌ Помилка: " + (error.error || "Невідома помилка"));
                 }
             }
 

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <style>
+        body { font-family: monospace; background: #1e293b; color: #f1f5f9; padding: 2rem; }
+        pre { background: #0f172a; padding: 1rem; border-radius: 0.5rem; }
+        button { padding: 0.5rem 1rem; margin: 0.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 NovaBackup API Test</h1>
+
+    <button onclick="testSessions()">Test /api/backup/sessions</button>
+    <button onclick="testJobs()">Test /api/jobs</button>
+
+    <h2>Result:</h2>
+    <pre id="result">Click button to test...</pre>
+
+    <script>
+        async function testSessions() {
+            const result = document.getElementById('result');
+            result.textContent = 'Loading...';
+
+            try {
+                const response = await fetch('/api/backup/sessions', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('authToken') || ''
+                    }
+                });
+
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+
+                if (data.sessions && data.sessions.length > 0) {
+                    result.textContent += `\n\n✅ Found ${data.sessions.length} session(s)!`;
+                } else {
+                    result.textContent += '\n\n⚠️ No sessions found. Create a backup first!';
+                }
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testJobs() {
+            const result = document.getElementById('result');
+            result.textContent = 'Loading...';
+
+            try {
+                const response = await fetch('/api/jobs', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': localStorage.getItem('authToken') || ''
+                    }
+                });
+
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+
+                if (data.jobs && data.jobs.length > 0) {
+                    result.textContent += `\n\n✅ Found ${data.jobs.length} job(s)!`;
+                } else {
+                    result.textContent += '\n\n⚠️ No jobs found. Create a backup job first!';
+                }
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Auto-login if not authenticated
+        if (!localStorage.getItem('authToken')) {
+            console.log('No token, attempting login...');
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: 'admin', password: 'admin123'})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.token) {
+                    localStorage.setItem('authToken', data.token);
+                    console.log('Auto-login successful!');
+                    location.reload();
+                }
+            })
+            .catch(err => console.error('Auto-login failed:', err));
+        }
+    </script>
+</body>
+</html>

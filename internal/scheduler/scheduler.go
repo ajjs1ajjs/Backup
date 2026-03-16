@@ -246,14 +246,92 @@ func (s *Scheduler) getNextWeekday(days []string) int {
 // parseCron parses cron expression and returns next run time
 // Supports: minute hour day month weekday
 func (s *Scheduler) parseCron(expression string, now time.Time) time.Time {
-	// Simple cron parser (production should use robust library)
+	// Simple cron parser (production should use robust library like robfig/cron)
 	parts := strings.Fields(expression)
 	if len(parts) < 5 {
 		return now.Add(24 * time.Hour) // Default to daily
 	}
 
-	// For now, just add 24 hours
-	// TODO: Implement full cron parsing
+	minuteStr := parts[0]
+	hourStr := parts[1]
+	dayStr := parts[2]
+	monthStr := parts[3]
+	weekdayStr := parts[4]
+
+	// Parse minute
+	minute := 0
+	if minuteStr != "*" {
+		fmt.Sscanf(minuteStr, "%d", &minute)
+		if minute < 0 || minute > 59 {
+			minute = 0
+		}
+	}
+
+	// Parse hour
+	hour := 0
+	if hourStr != "*" {
+		fmt.Sscanf(hourStr, "%d", &hour)
+		if hour < 0 || hour > 23 {
+			hour = 0
+		}
+	}
+
+	// Start with next minute
+	next := now.Add(1 * time.Minute)
+	next = time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), next.Minute(), 0, 0, next.Location())
+
+	// Iterate to find next matching time (max 1 year)
+	for i := 0; i < 525600; i++ { // 365 * 24 * 60 minutes
+		// Check month
+		if monthStr != "*" {
+			month := int(next.Month())
+			if fmt.Sprintf("%d", month) != monthStr {
+				next = next.Add(1 * time.Minute)
+				continue
+			}
+		}
+
+		// Check day of month
+		if dayStr != "*" {
+			day := next.Day()
+			if fmt.Sprintf("%d", day) != dayStr {
+				next = next.Add(1 * time.Minute)
+				continue
+			}
+		}
+
+		// Check weekday
+		if weekdayStr != "*" {
+			weekday := int(next.Weekday())
+			if fmt.Sprintf("%d", weekday) != weekdayStr {
+				next = next.Add(1 * time.Minute)
+				continue
+			}
+		}
+
+		// Check hour
+		if hourStr != "*" {
+			h := next.Hour()
+			if fmt.Sprintf("%d", h) != hourStr {
+				next = next.Add(1 * time.Minute)
+				continue
+			}
+		}
+
+		// Check minute
+		if minuteStr != "*" {
+			m := next.Minute()
+			if fmt.Sprintf("%d", m) != minuteStr {
+				next = next.Add(1 * time.Minute)
+				continue
+			}
+		}
+
+		// All conditions matched
+		return next
+	}
+
+	// Fallback to daily
 	return now.Add(24 * time.Hour)
 }
 
@@ -464,7 +542,7 @@ func FormatTimeUntil(nextRun time.Time) string {
 	if duration < 24*time.Hour {
 		hours := int(duration.Hours())
 		minutes := int(duration.Minutes()) % 60
-		return fmt.Sprintf("через %дг %дхв", hours, minutes)
+		return fmt.Sprintf("через %dг %dхв", hours, minutes)
 	}
 
 	days := int(duration.Hours() / 24)

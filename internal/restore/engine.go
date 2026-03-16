@@ -5,6 +5,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -529,18 +532,34 @@ func (e *RestoreEngine) decompressFile(src, dst string) error {
 }
 
 func (e *RestoreEngine) decryptFile(src, dst, password string) error {
-	data, err := os.ReadFile(src)
+	ciphertext, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 
-	// Simple XOR decryption (use proper AES in production)
-	key := []byte(password)
-	for i := range data {
-		data[i] ^= key[i%len(key)]
+	key := sha256.Sum256([]byte(password))
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(dst, plaintext, 0644)
 }
 
 func (e *RestoreEngine) formatBytes(bytes int64) string {

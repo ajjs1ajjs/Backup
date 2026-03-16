@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -206,6 +207,11 @@ func (e *BackupEngine) ExecuteBackup(job *BackupJob) (*BackupSession, error) {
 	}
 	session.BackupPath = backupDir
 
+	// Normalize source paths (convert forward slashes to backslashes on Windows)
+	for i, src := range job.Sources {
+		job.Sources[i] = filepath.FromSlash(src)
+	}
+
 	// Run pre-backup script
 	if job.PreBackupScript != "" {
 		e.log(session, fmt.Sprintf("📜 Виконання скрипта перед бекапом: %s", job.PreBackupScript))
@@ -312,19 +318,8 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	}
 	defer archiveFile.Close()
 
-	var writer io.Writer = archiveFile
-	var zipWriter *zip.Writer
-
-	// Add compression layer
-	if job.Compression {
-		e.log(session, "🗜️ Увімкнено стиснення...")
-		gzWriter := gzip.NewWriter(archiveFile)
-		defer gzWriter.Close()
-		writer = gzWriter
-	}
-
-	zipWriter = zip.NewWriter(writer)
-	defer zipWriter.Close()
+	// Create zip writer with compression
+	zipWriter := zip.NewWriter(archiveFile)
 
 	// Initialize encryption if enabled
 	var blockCipher cipher.Block
@@ -333,6 +328,7 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 		hash := sha256.Sum256([]byte(job.EncryptionKey))
 		blockCipher, err = aes.NewCipher(hash[:])
 		if err != nil {
+			archiveFile.Close()
 			return err
 		}
 	}
@@ -344,13 +340,18 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 		blockSize = 1024 * 1024 // 1MB default
 	}
 
+	e.log(session, fmt.Sprintf("📝 Starting to write %d files to ZIP...", len(files)))
+
 	for i, file := range files {
 		zipName := e.zipEntryName(file, job.Sources)
-		if err := e.addFileToZipWithDedup(zipWriter, file, zipName, blockCipher, blockSize, session); err != nil {
+		e.log(session, fmt.Sprintf("   Adding file %d/%d: %s -> %s", i+1, len(files), file, zipName))
+
+		if err := e.addFileToZipWithDedup(zipWriter, file, zipName, blockCipher, blockSize, session, job.Compression); err != nil {
 			e.log(session, fmt.Sprintf("⚠️ Не вдалося додати %s: %v", file, err))
 			session.FilesSkipped++
 			continue
 		}
+		e.log(session, fmt.Sprintf("   ✓ Successfully added %s", file))
 
 		session.FilesProcessed++
 		info, _ := os.Stat(file)
@@ -391,13 +392,21 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
 	os.WriteFile(filepath.Join(session.BackupPath, "metadata.json"), metadataJSON, 0644)
 
+	// Close zip writer to flush all data and write central directory
+	if err := zipWriter.Close(); err != nil {
+		e.log(session, fmt.Sprintf("⚠️ Error closing ZIP: %v", err))
+	}
+
+	// Close archive file
+	archiveFile.Close()
+
 	e.log(session, fmt.Sprintf("📦 Створено архів: %s (%s)", archivePath, e.formatBytes(session.BytesWritten)))
 
 	return nil
 }
 
-// addFileToZipWithDedup adds a file to zip with deduplication
-func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName string, blockCipher cipher.Block, blockSize int, session *BackupSession) error {
+// addFileToZipWithDedup adds a file to zip with simple deduplication tracking
+func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName string, blockCipher cipher.Block, blockSize int, session *BackupSession, compression bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -414,43 +423,48 @@ func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName s
 		return err
 	}
 
-	// Use relative path
+	// Use relative path and DEFLATE compression if requested
 	header.Name = zipName
-	header.Method = zip.Deflate
+	if compression {
+		header.Method = zip.Deflate
+	} else {
+		header.Method = zip.Store
+	}
 
 	writer, err := zw.CreateHeader(header)
 	if err != nil {
 		return err
 	}
 
-	// Read and process in blocks for deduplication
-	buffer := make([]byte, blockSize)
+	// Buffer for encryption/copying
+	buffer := make([]byte, 64*1024) // 64KB buffer
 	for {
 		n, err := file.Read(buffer)
 		if n > 0 {
 			block := buffer[:n]
 
-			// Calculate block hash for deduplication
+			// Calculate block hash for deduplication stats
 			hash := sha256.Sum256(block)
 			hashHex := hex.EncodeToString(hash[:])
 
 			session.ProcessedBlocks++
 
-			// Check if block already exists
-			if _, exists := e.blockHashes[hashHex]; exists {
-				session.DeduplicatedBlocks++
-			} else {
+			// Track unique blocks
+			if _, exists := e.blockHashes[hashHex]; !exists {
 				e.blockHashes[hashHex] = filePath
+				session.DeduplicatedBlocks++
+			}
 
-				// Encrypt block if enabled
-				if blockCipher != nil {
-					block = e.encryptBlock(blockCipher, block)
-				}
+			// Encrypt if cipher is provided
+			var dataToWrite []byte = block
+			if blockCipher != nil {
+				dataToWrite = e.encryptBlock(blockCipher, block)
+			}
 
-				_, writeErr := writer.Write(block)
-				if writeErr != nil {
-					return writeErr
-				}
+			// Write the data
+			_, writeErr := writer.Write(dataToWrite)
+			if writeErr != nil {
+				return writeErr
 			}
 		}
 
@@ -1008,15 +1022,27 @@ func (e *BackupEngine) encryptFile(src, dst, password string) error {
 		return err
 	}
 
-	// Simple XOR encryption (use proper AES in production)
-	key := []byte(password)
-	for i := range data {
-		data[i] ^= key[i%len(key)]
+	key := sha256.Sum256([]byte(password))
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
-}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
 
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return err
+	}
+
+	// Seal prepends the nonce to the ciphertext
+	ciphertext := gcm.Seal(nonce, nonce, data, nil)
+
+	return os.WriteFile(dst, ciphertext, 0644)
+}
 func (e *BackupEngine) formatBytes(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {

@@ -2,12 +2,17 @@
 package rbac
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"novabackup/internal/database"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Roles
@@ -102,6 +107,12 @@ type RBACEngine struct {
 	users    map[string]*User
 	sessions map[string]*Session
 	mu       sync.RWMutex
+	DB       interface {
+		CreateUserSession(*database.UserSession) error
+		GetUserSessionByToken(string) (*database.UserSession, error)
+		UpdateUserSessionLastUsed(string, time.Time) error
+		DeleteUserSession(string) error
+	}
 }
 
 // NewRBACEngine creates a new RBAC engine
@@ -178,7 +189,23 @@ func (e *RBACEngine) CreateSession(userID, ipAddress, userAgent string) (*Sessio
 		UserAgent: userAgent,
 	}
 
-	e.sessions[session.ID] = session
+	// Store in memory by token (for lookup by token)
+	e.sessions[session.Token] = session
+
+	// Also store in database if available
+	if e.DB != nil {
+		dbSession := &database.UserSession{
+			ID:        session.ID,
+			UserID:    session.UserID,
+			Token:     session.Token,
+			CreatedAt: session.CreatedAt,
+			ExpiresAt: session.ExpiresAt,
+			LastUsed:  session.LastUsed,
+			IPAddress: session.IPAddress,
+			UserAgent: session.UserAgent,
+		}
+		_ = e.DB.CreateUserSession(dbSession) // Ignore error if DB fails
+	}
 
 	return session, nil
 }
@@ -186,16 +213,42 @@ func (e *RBACEngine) CreateSession(userID, ipAddress, userAgent string) (*Sessio
 // ValidateSession validates a session token
 func (e *RBACEngine) ValidateSession(token string) (*User, error) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
+	session, exists := e.sessions[token]
+	e.mu.RUnlock()
 
-	for _, session := range e.sessions {
-		if session.Token == token {
-			if time.Now().After(session.ExpiresAt) {
+	// Check memory first
+	if exists {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+
+		if time.Now().After(session.ExpiresAt) {
+			return nil, errors.New("сесія закінчилася")
+		}
+
+		user, userExists := e.users[session.UserID]
+		if !userExists {
+			return nil, errors.New("користувача не знайдено")
+		}
+
+		if !user.Enabled {
+			return nil, errors.New("користувача вимкнено")
+		}
+
+		session.LastUsed = time.Now()
+		return user, nil
+	}
+
+	// If not in memory, try database (for persistence across restarts)
+	if e.DB != nil {
+		dbSession, err := e.DB.GetUserSessionByToken(token)
+		if err == nil {
+			// Found in database
+			if time.Now().After(dbSession.ExpiresAt) {
 				return nil, errors.New("сесія закінчилася")
 			}
 
-			user, exists := e.users[session.UserID]
-			if !exists {
+			user, userExists := e.users[dbSession.UserID]
+			if !userExists {
 				return nil, errors.New("користувача не знайдено")
 			}
 
@@ -203,7 +256,25 @@ func (e *RBACEngine) ValidateSession(token string) (*User, error) {
 				return nil, errors.New("користувача вимкнено")
 			}
 
-			session.LastUsed = time.Now()
+			// Update last used
+			_ = e.DB.UpdateUserSessionLastUsed(token, time.Now())
+
+			// Recreate in-memory session
+			newSession := &Session{
+				ID:        dbSession.ID,
+				UserID:    dbSession.UserID,
+				Token:     dbSession.Token,
+				CreatedAt: dbSession.CreatedAt,
+				ExpiresAt: dbSession.ExpiresAt,
+				LastUsed:  dbSession.LastUsed,
+				IPAddress: dbSession.IPAddress,
+				UserAgent: dbSession.UserAgent,
+			}
+
+			e.mu.Lock()
+			e.sessions[token] = newSession
+			e.mu.Unlock()
+
 			return user, nil
 		}
 	}
@@ -214,13 +285,13 @@ func (e *RBACEngine) ValidateSession(token string) (*User, error) {
 // Logout invalidates a session
 func (e *RBACEngine) Logout(token string) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	// Delete by token directly (since we store by token now)
+	delete(e.sessions, token)
+	e.mu.Unlock()
 
-	for id, session := range e.sessions {
-		if session.Token == token {
-			delete(e.sessions, id)
-			return
-		}
+	// Also delete from database if available
+	if e.DB != nil {
+		_ = e.DB.DeleteUserSession(token)
 	}
 }
 
@@ -265,6 +336,11 @@ func (e *RBACEngine) CreateUser(username, password, email, fullName, role string
 	// Validate role
 	if _, exists := RolePermissions[role]; !exists {
 		return nil, errors.New("невідома роль")
+	}
+
+	// Validate password with policy
+	if err := PasswordPolicy(password); err != nil {
+		return nil, err
 	}
 
 	user := &User{
@@ -366,6 +442,11 @@ func (e *RBACEngine) ChangePassword(userID, oldPassword, newPassword string) err
 		return errors.New("невірний старий пароль")
 	}
 
+	// Validate new password with policy
+	if err := PasswordPolicy(newPassword); err != nil {
+		return err
+	}
+
 	user.PasswordHash = HashPassword(newPassword)
 
 	// Set password expiration (90 days)
@@ -440,15 +521,34 @@ func GetRoleDescription(role string) string {
 
 // Helper functions
 
-// HashPassword creates a SHA-256 hash of a password
+// HashPassword creates a bcrypt hash of a password
 func HashPassword(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		// Fallback to SHA-256 in case of error (should never happen)
+		hash := sha256.Sum256([]byte(password))
+		return hex.EncodeToString(hash[:])
+	}
+	return string(bytes)
 }
 
-// CheckPassword verifies a password against a hash
+// CheckPassword verifies a password against a bcrypt hash
 func CheckPassword(password, hash string) bool {
-	return HashPassword(password) == hash
+	// Try bcrypt first
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err == nil {
+		return true
+	}
+
+	// Fallback to SHA-256 for backward compatibility with old hashes
+	shaHash := HashPasswordSHA256(password)
+	return shaHash == hash
+}
+
+// HashPasswordSHA256 creates a SHA-256 hash (for backward compatibility only)
+func HashPasswordSHA256(password string) string {
+	hash := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(hash[:])
 }
 
 func generateUserID() string {
@@ -460,8 +560,14 @@ func generateSessionID() string {
 }
 
 func generateToken() string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
-	return hex.EncodeToString(hash[:])
+	// Use crypto/rand for secure random token
+	bytes := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, bytes); err != nil {
+		// Fallback to time-based (less secure, but better than nothing)
+		hash := sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+		return hex.EncodeToString(hash[:])
+	}
+	return hex.EncodeToString(bytes)
 }
 
 // PasswordPolicy validates password strength

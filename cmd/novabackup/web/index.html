@@ -334,6 +334,39 @@
                 cursor: pointer;
                 font-weight: 600;
             }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            @media (max-width: 768px) {
+                body {
+                    padding: 0;
+                }
+                .header {
+                    flex-direction: column;
+                    padding: 1rem;
+                }
+                .nav-links {
+                    flex-direction: column;
+                    width: 100%;
+                }
+                .content {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .quick-actions {
+                    grid-template-columns: 1fr;
+                }
+                table {
+                    font-size: 0.8rem;
+                }
+                th,
+                td {
+                    padding: 0.5rem;
+                }
+            }
         </style>
     </head>
     <body>
@@ -701,6 +734,9 @@
                             <td>${job.next_run ? new Date(job.next_run).toLocaleString("uk-UA") : "Вручну"}</td>
                             <td>
                                 <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">▶ Запуск</button>
+                                <button class="btn btn-danger" onclick="stopJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">⏹ Зупинити</button>
+                                <button class="btn btn-primary" onclick="editJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">✏ Редагувати</button>
+                                <button class="btn btn-danger" onclick="deleteJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">🗑 Видалити</button>
                             </td>
                         </tr>
                     `,
@@ -713,16 +749,93 @@
             }
 
             async function runJob(jobId) {
+                if (!confirm("Запустити це завдання зараз?")) return;
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = "Завантаження...";
                 try {
                     const res = await fetch(`/api/jobs/${jobId}/run`, {
                         method: "POST",
                     });
                     if (res.ok) {
-                        alert("✅ Завдання запущено!");
+                        alert("Завдання запущено!");
                         loadDashboard();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert(
+                            "Помилка запуску: " +
+                                (data.error || res.statusText),
+                        );
                     }
                 } catch (error) {
                     alert("Помилка: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "▶ Запуск";
+                }
+            }
+
+            async function stopJob(jobId) {
+                if (!confirm("Зупинити це завдання?")) return;
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = "Зупинка...";
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}/stop`, {
+                        method: "POST",
+                    });
+                    if (res.ok) {
+                        alert("Завдання зупинено!");
+                        loadDashboard();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert(
+                            "Помилка зупинки: " +
+                                (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "⏹ Зупинити";
+                }
+            }
+
+            async function editJob(jobId) {
+                window.location.href = `jobs.html?id=${jobId}`;
+            }
+
+            async function deleteJob(jobId) {
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити це завдання?\n\nЦю дію не можна скасувати.",
+                    )
+                ) {
+                    return;
+                }
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = "Видалення...";
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}`, {
+                        method: "DELETE",
+                    });
+                    if (res.ok) {
+                        alert("Завдання видалено!");
+                        loadDashboard();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert(
+                            "Помилка видалення: " +
+                                (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "🗑 Видалити";
                 }
             }
 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Перевірка змін</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; padding: 2rem; }
+        .check-item { background: #1e293b; padding: 1rem; margin: 0.5rem 0; border-radius: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        h1 { color: #3b82f6; }
+        iframe { width: 100%; height: 300px; border: 1px solid #475569; border-radius: 0.5rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Перевірка змін NovaBackup</h1>
+
+    <div id="checks"></div>
+
+    <h2 style="margin-top: 2rem;">📄 Restore.html (останні зміни):</h2>
+    <iframe src="/restore.html" id="restoreFrame"></iframe>
+
+    <h2 style="margin-top: 2rem;">📄 Jobs.html (останні зміни):</h2>
+    <iframe src="/jobs.html" id="jobsFrame"></iframe>
+
+    <script>
+        async function checkFile(url, checks) {
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+
+                const results = [];
+                checks.forEach(check => {
+                    const found = text.includes(check.pattern);
+                    results.push({
+                        name: check.name,
+                        success: found,
+                        message: found ? `✅ ${check.name}` : `❌ ${check.name}`
+                    });
+                });
+                return results;
+            } catch (error) {
+                return [{name: 'error', success: false, message: `❌ Помилка: ${error.message}`}];
+            }
+        }
+
+        async function runChecks() {
+            const container = document.getElementById('checks');
+
+            // Check restore.html
+            const restoreChecks = await checkFile('/restore.html', [
+                {name: 'Кнопка оновлення', pattern: '🔄 Оновити'},
+                {name: 'Console logging', pattern: 'console.log("Loading backup points"'},
+                {name: 'API відновлення', pattern: '/api/restore/files'},
+                {name: 'async startRestore', pattern: 'async function startRestore()'}
+            ]);
+
+            // Check jobs.html
+            const jobsChecks = await checkFile('/jobs.html', [
+                {name: 'Інкрементальне бекапування', pattern: 'job-incremental'},
+                {name: 'Дедуплікація', pattern: 'job-deduplication'},
+                {name: 'Політика зберігання (дні)', pattern: 'job-retention-days'},
+                {name: 'Політика зберігання (копії)', pattern: 'job-retention-copies'}
+            ]);
+
+            let html = '<div class="check-section"><h2>✅ restore.html</h2>';
+            restoreChecks.forEach(check => {
+                html += `<div class="check-item ${check.success ? 'success' : 'error'}">${check.message}</div>`;
+            });
+            html += '</div>';
+
+            html += '<div class="check-section"><h2>✅ jobs.html</h2>';
+            jobsChecks.forEach(check => {
+                html += `<div class="check-item ${check.success ? 'success' : 'error'}">${check.message}</div>`;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        runChecks();
+    </script>
+</body>
+</html>
