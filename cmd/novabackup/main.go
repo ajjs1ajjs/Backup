@@ -203,7 +203,11 @@ func buildServer() (*http.Server, error) {
 		serveWebFile(c, filepath.Join("assets", c.Param("file")))
 	})
 
-	// Serve other web pages (catch-all for static files)
+	// Serve other web pages
+	router.GET("/verification", func(c *gin.Context) {
+		serveWebFile(c, "verification.html")
+	})
+
 	router.GET("/:filepath", func(c *gin.Context) {
 		serveWebFile(c, c.Param("filepath"))
 	})
@@ -240,11 +244,15 @@ func buildServer() (*http.Server, error) {
 			protected.GET("/backup/sessions", api.ListSessions)
 			protected.GET("/backup/sessions/:id", api.GetSession)
 			protected.GET("/backup/sessions/:id/files", api.BrowseBackupFiles)
+			protected.POST("/backup/verify", api.VerifyBackup)
+			protected.GET("/backup/verifications", api.GetVerificationHistory)
+			protected.GET("/backup/cbt-stats", api.GetCBTStatistics)
 
 			// Restore
 			protected.GET("/restore/points", api.ListRestorePoints)
 			protected.POST("/restore/files", api.RestoreFiles)
 			protected.POST("/restore/database", api.RestoreDatabase)
+			protected.POST("/restore/instant", api.InstantRestore)
 
 			// Storage
 			protected.GET("/storage/repos", api.ListRepos)

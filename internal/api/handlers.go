@@ -636,6 +636,48 @@ func RestoreDatabase(c *gin.Context) {
 	})
 }
 
+// InstantRestore performs instant VM/file recovery
+func InstantRestore(c *gin.Context) {
+	var req struct {
+		BackupPath  string   `json:"backup_path"`
+		Type        string   `json:"type"` // vm, files
+		VMName      string   `json:"vm_name"`
+		Destination string   `json:"destination"`
+		Files       []string `json:"files"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	restoreType := restore.RestoreInstant
+	if req.Type == "files" {
+		restoreType = restore.RestoreGranular
+	}
+
+	restoreReq := &restore.RestoreRequest{
+		ID:          uuid.New().String(),
+		Type:        restoreType,
+		BackupPath:  req.BackupPath,
+		VMName:      req.VMName,
+		Destination: req.Destination,
+		Files:       req.Files,
+	}
+
+	session, err := RestoreEngine.ExecuteRestore(restoreReq)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"session": session,
+		"message": "Миттєве відновлення запущено",
+	})
+}
+
 // Storage
 func ListRepos(c *gin.Context) {
 	repos := StorageEngine.ListRepos()
@@ -844,6 +886,54 @@ func DisableUser(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"success": true, "message": "Користувача вимкнено"})
+}
+
+// Backup Verification (SureBackup-style)
+func VerifyBackup(c *gin.Context) {
+	var req struct {
+		BackupPath string `json:"backup_path"`
+		Type       string `json:"type"` // integrity, mountable, bootable, data
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	verificationType := backup.VerificationType(req.Type)
+	if verificationType == "" {
+		verificationType = backup.VerificationIntegrity
+	}
+
+	result, err := BackupEngine.VerifyBackup(req.BackupPath, verificationType)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"result":  result,
+	})
+}
+
+func GetVerificationHistory(c *gin.Context) {
+	backupPath := c.Query("backup_path")
+	limit := 10
+
+	results, err := BackupEngine.GetVerificationHistory(backupPath, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"verifications": results})
+}
+
+// CBT Statistics
+func GetCBTStatistics(c *gin.Context) {
+	stats := BackupEngine.GetCBTStatistics()
+	c.JSON(200, gin.H{"statistics": stats})
 }
 
 // Reports & Statistics

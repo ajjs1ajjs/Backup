@@ -153,15 +153,17 @@ type BackupEngine struct {
 	sessions      map[string]*BackupSession
 	blockHashes   map[string]string // for deduplication
 	encryptionKey []byte
+	changeTracker *ChangeTracker // Changed Block Tracking
 }
 
 // NewBackupEngine creates a new backup engine
 func NewBackupEngine(dataDir string) *BackupEngine {
 	engine := &BackupEngine{
-		DataDir:     dataDir,
-		LogFile:     filepath.Join(dataDir, "logs", "backup.log"),
-		sessions:    make(map[string]*BackupSession),
-		blockHashes: make(map[string]string),
+		DataDir:       dataDir,
+		LogFile:       filepath.Join(dataDir, "logs", "backup.log"),
+		sessions:      make(map[string]*BackupSession),
+		blockHashes:   make(map[string]string),
+		changeTracker: NewChangeTracker(dataDir),
 	}
 
 	// Create necessary directories
@@ -170,6 +172,7 @@ func NewBackupEngine(dataDir string) *BackupEngine {
 	os.MkdirAll(filepath.Join(dataDir, "sessions"), 0755)
 	os.MkdirAll(filepath.Join(dataDir, "config"), 0755)
 	os.MkdirAll(filepath.Join(dataDir, "cache"), 0755)
+	os.MkdirAll(filepath.Join(dataDir, "cbt"), 0755)
 
 	return engine
 }
@@ -1054,6 +1057,17 @@ func (e *BackupEngine) formatBytes(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.2f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// GetCBTStatistics returns Changed Block Tracking statistics
+func (e *BackupEngine) GetCBTStatistics() map[string]interface{} {
+	if e.changeTracker == nil {
+		return map[string]interface{}{
+			"enabled": false,
+			"message": "CBT не увімкнено",
+		}
+	}
+	return e.changeTracker.GetStatistics()
 }
 
 // Upload functions (stubs for now)
