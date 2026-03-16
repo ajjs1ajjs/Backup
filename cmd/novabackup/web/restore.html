@@ -697,6 +697,137 @@
         </div>
 
         <script>
+            const API_BASE = '/api';
+            let selectedRestoreType = 'files';
+            let selectedRestorePoint = null;
+
+            // Load restore points on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                loadRestorePoints();
+            });
+
+            // Restore type selection
+            function selectType(type) {
+                selectedRestoreType = type;
+                document.querySelectorAll('.restore-type-card').forEach(c => c.classList.remove('selected'));
+                event.currentTarget.classList.add('selected');
+                loadRestorePoints();
+            }
+
+            // Load restore points from API
+            async function loadRestorePoints() {
+                const token = localStorage.getItem('authToken');
+                const headers = token ? { Authorization: token } : {};
+
+                try {
+                    const response = await fetch(`${API_BASE}/backup/sessions`, { headers });
+                    const data = await response.json();
+
+                    const tbody = document.getElementById('restore-points-table');
+
+                    if (!data.sessions || data.sessions.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                    📭 Немає точок відновлення<br>
+                                    <small>Створіть резервну копію спочатку</small>
+                                </td>
+                            </tr>`;
+                        return;
+                    }
+
+                    // Filter by type if needed
+                    let sessions = data.sessions;
+                    if (selectedRestoreType === 'database') {
+                        sessions = sessions.filter(s => s.job_type === 'database');
+                    } else if (selectedRestoreType === 'vm') {
+                        sessions = sessions.filter(s => s.job_type === 'vm');
+                    }
+
+                    if (sessions.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                    📭 Немає точок відновлення для цього типу<br>
+                                    <small>Створіть резервну копію ${selectedRestoreType === 'database' ? 'бази даних' : selectedRestoreType === 'vm' ? 'віртуальної машини' : 'файлів'} спочатку</small>
+                                </td>
+                            </tr>`;
+                        return;
+                    }
+
+                    // Render table
+                    let html = '';
+                    sessions.forEach(session => {
+                        const statusClass = session.status === 'success' ? 'status-success' :
+                                          session.status === 'failed' ? 'status-failed' : 'status-warning';
+                        const statusText = session.status === 'success' ? '✅ Успішно' :
+                                         session.status === 'failed' ? '❌ Помилка' : '⚠️ Попередження';
+                        const date = new Date(session.start_time).toLocaleString('uk-UA');
+                        const size = formatBytes(session.bytes_written || 0);
+                        const files = session.files_processed || 0;
+
+                        html += `
+                            <tr onclick="selectRestorePoint('${session.id}')" style="cursor: pointer;">
+                                <td>
+                                    <input type="checkbox" ${selectedRestorePoint === session.id ? 'checked' : ''} onclick="event.stopPropagation(); selectRestorePoint('${session.id}')" />
+                                    <strong>${session.job_name || 'Backup'}</strong>
+                                </td>
+                                <td>${session.job_type || 'file'}</td>
+                                <td>${date}</td>
+                                <td>${size} (${files} файлів)</td>
+                                <td><span class="status-badge-sm ${statusClass}">${statusText}</span></td>
+                            </tr>`;
+                    });
+
+                    tbody.innerHTML = html;
+
+                } catch (error) {
+                    console.error('Error loading restore points:', error);
+                    document.getElementById('restore-points-table').innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--accent-red);">
+                                ❌ Помилка завантаження: ${error.message}
+                            </td>
+                        </tr>`;
+                }
+            }
+
+            // Select restore point
+            function selectRestorePoint(sessionId) {
+                selectedRestorePoint = sessionId;
+                document.querySelectorAll('#restore-points-table tr').forEach(row => {
+                    row.style.background = '';
+                    const checkbox = row.querySelector('input[type="checkbox"]');
+                    if (checkbox) checkbox.checked = false;
+                });
+
+                event.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                event.currentTarget.querySelector('input[type="checkbox"]').checked = true;
+
+                // Enable Next button
+                document.querySelector('button[onclick="nextStep(3)"]').disabled = false;
+            }
+
+            // Navigation
+            function nextStep(step) {
+                document.querySelectorAll('.step').forEach((s, i) => {
+                    s.classList.toggle('active', i + 1 === step);
+                    s.classList.toggle('completed', i + 1 < step);
+                });
+
+                if (step === 2) {
+                    loadRestorePoints();
+                }
+            }
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        </script>
             let currentStep = 1;
             let selectedType = "files";
             let selectedBackup = null;
