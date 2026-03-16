@@ -3,6 +3,10 @@ package database
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
+	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -20,6 +24,8 @@ type Job struct {
 	Destination     string     `json:"destination"`
 	Compression     bool       `json:"compression"`
 	Encryption      bool       `json:"encryption"`
+	Deduplication   bool       `json:"deduplication"` // Дедуплікація даних
+	Incremental     bool       `json:"incremental"`   // Інкрементальне бекапування
 	Schedule        string     `json:"schedule"`
 	ScheduleTime    string     `json:"schedule_time"`
 	ScheduleDays    []string   `json:"schedule_days"`
@@ -41,6 +47,17 @@ type Session struct {
 	FilesProcessed int       `json:"files_processed"`
 	BytesWritten   int64     `json:"bytes_written"`
 	Error          string    `json:"error,omitempty"`
+}
+
+type UserSession struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	LastUsed  time.Time `json:"last_used"`
+	IPAddress string    `json:"ip_address"`
+	UserAgent string    `json:"user_agent"`
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
@@ -67,8 +84,12 @@ func (d *Database) init() error {
 		destination TEXT,
 		compression BOOLEAN DEFAULT false,
 		encryption BOOLEAN DEFAULT false,
+		deduplication BOOLEAN DEFAULT false,
+		incremental BOOLEAN DEFAULT false,
 		schedule TEXT DEFAULT 'manual',
 		enabled BOOLEAN DEFAULT true,
+		retention_days INTEGER DEFAULT 30,
+		retention_copies INTEGER DEFAULT 10,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		last_run DATETIME,
 		next_run DATETIME
@@ -87,6 +108,18 @@ func (d *Database) init() error {
 		FOREIGN KEY (job_id) REFERENCES jobs(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS user_sessions (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		token TEXT UNIQUE NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL,
+		last_used DATETIME DEFAULT CURRENT_TIMESTAMP,
+		ip_address TEXT,
+		user_agent TEXT,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE TABLE IF NOT EXISTS settings (
 		key TEXT PRIMARY KEY,
 		value TEXT
@@ -101,16 +134,16 @@ func (d *Database) CreateJob(job *Job) error {
 	sources, _ := json.Marshal(job.Sources)
 
 	_, err := d.db.Exec(`
-		INSERT INTO jobs (id, name, type, sources, destination, compression, encryption, schedule, enabled)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, job.ID, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Schedule, job.Enabled)
+		INSERT INTO jobs (id, name, type, sources, destination, compression, encryption, deduplication, incremental, schedule, enabled, retention_days, retention_copies)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, job.ID, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Deduplication, job.Incremental, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies)
 
 	return err
 }
 
 func (d *Database) ListJobs() ([]Job, error) {
 	rows, err := d.db.Query(`
-		SELECT id, name, type, sources, destination, compression, encryption, schedule, enabled, created_at, last_run, next_run
+		SELECT id, name, type, sources, destination, compression, encryption, deduplication, incremental, schedule, enabled, retention_days, retention_copies, created_at, last_run, next_run
 		FROM jobs ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -125,7 +158,8 @@ func (d *Database) ListJobs() ([]Job, error) {
 		var lastRun, nextRun sql.NullTime
 
 		err := rows.Scan(&job.ID, &job.Name, &job.Type, &sources, &job.Destination,
-			&job.Compression, &job.Encryption, &job.Schedule, &job.Enabled,
+			&job.Compression, &job.Encryption, &job.Deduplication, &job.Incremental,
+			&job.Schedule, &job.Enabled, &job.RetentionDays, &job.RetentionCopies,
 			&job.CreatedAt, &lastRun, &nextRun)
 		if err != nil {
 			return nil, err
@@ -178,16 +212,27 @@ func (d *Database) UpdateJob(job *Job) error {
 	sources, _ := json.Marshal(job.Sources)
 
 	_, err := d.db.Exec(`
-		UPDATE jobs SET name=?, type=?, sources=?, destination=?, compression=?, encryption=?, schedule=?, enabled=?
+		UPDATE jobs SET name=?, type=?, sources=?, destination=?, compression=?, encryption=?, deduplication=?, incremental=?, schedule=?, enabled=?, retention_days=?, retention_copies=?
 		WHERE id=?
-	`, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Schedule, job.Enabled, job.ID)
+	`, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Deduplication, job.Incremental, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies, job.ID)
 
 	return err
 }
 
 func (d *Database) DeleteJob(id string) error {
-	_, err := d.db.Exec("DELETE FROM jobs WHERE id=?", id)
-	return err
+	// First delete associated sessions (foreign key constraint)
+	_, err := d.db.Exec("DELETE FROM sessions WHERE job_id=?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete sessions: %w", err)
+	}
+
+	// Then delete the job
+	_, err = d.db.Exec("DELETE FROM jobs WHERE id=?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete job: %w", err)
+	}
+
+	return nil
 }
 
 func (d *Database) CreateSession(session *Session) error {
@@ -225,6 +270,131 @@ func (d *Database) ListSessions() ([]Session, error) {
 func (d *Database) UpdateJobLastRun(id string, lastRun time.Time, nextRun time.Time) error {
 	_, err := d.db.Exec("UPDATE jobs SET last_run=?, next_run=? WHERE id=?", lastRun, nextRun, id)
 	return err
+}
+
+// UserSession methods
+func (d *Database) CreateUserSession(session *UserSession) error {
+	_, err := d.db.Exec(`
+		INSERT INTO user_sessions (id, user_id, token, created_at, expires_at, last_used, ip_address, user_agent)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, session.ID, session.UserID, session.Token, session.CreatedAt, session.ExpiresAt, session.LastUsed, session.IPAddress, session.UserAgent)
+	return err
+}
+
+func (d *Database) GetUserSessionByToken(token string) (*UserSession, error) {
+	var session UserSession
+	err := d.db.QueryRow(`
+		SELECT id, user_id, token, created_at, expires_at, last_used, ip_address, user_agent
+		FROM user_sessions WHERE token = ?
+	`, token).Scan(&session.ID, &session.UserID, &session.Token, &session.CreatedAt, &session.ExpiresAt, &session.LastUsed, &session.IPAddress, &session.UserAgent)
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (d *Database) UpdateUserSessionLastUsed(token string, lastUsed time.Time) error {
+	_, err := d.db.Exec("UPDATE user_sessions SET last_used=? WHERE token=?", lastUsed, token)
+	return err
+}
+
+func (d *Database) DeleteUserSession(token string) error {
+	_, err := d.db.Exec("DELETE FROM user_sessions WHERE token=?", token)
+	return err
+}
+
+// MigrateCleanPaths removes Unicode characters from all existing job paths
+func (d *Database) MigrateCleanPaths() error {
+	// Add new columns if they don't exist (for existing databases)
+	d.addMissingColumns()
+
+	jobs, err := d.ListJobs()
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		needsUpdate := false
+
+		// Clean source paths
+		for i, src := range job.Sources {
+			cleaned := cleanPath(src)
+			if cleaned != src {
+				job.Sources[i] = cleaned
+				needsUpdate = true
+			}
+		}
+
+		// Clean destination path
+		cleanedDest := cleanPath(job.Destination)
+		if cleanedDest != job.Destination {
+			job.Destination = cleanedDest
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			if err := d.UpdateJob(&job); err != nil {
+				log.Printf("Failed to update job %s during path migration: %v", job.ID, err)
+			} else {
+				log.Printf("Cleaned paths for job: %s", job.Name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanPath removes Unicode characters and normalizes slashes
+func cleanPath(path string) string {
+	if path == "" {
+		return path
+	}
+	// Remove BOM and other invisible Unicode characters
+	path = strings.TrimSpace(path)
+	path = strings.ReplaceAll(path, "\uFEFF", "") // BOM
+	path = strings.ReplaceAll(path, "\u200B", "") // Zero-width space
+	path = strings.ReplaceAll(path, "\u200C", "") // Zero-width non-joiner
+	path = strings.ReplaceAll(path, "\u200D", "") // Zero-width joiner
+	path = strings.ReplaceAll(path, "\u2060", "") // Word joiner
+	// Replace forward slashes with backslashes for Windows
+	path = filepath.FromSlash(path)
+	return path
+}
+
+// addMissingColumns adds new columns to existing database schema
+func (d *Database) addMissingColumns() error {
+	columns := []struct {
+		name         string
+		defaultValue string
+	}{
+		{"deduplication", "false"},
+		{"incremental", "false"},
+		{"retention_days", "30"},
+		{"retention_copies", "10"},
+	}
+
+	for _, col := range columns {
+		// Check if column exists
+		var count int
+		err := d.db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name=?
+		`, col.name).Scan(&count)
+
+		if err == nil && count == 0 {
+			// Column doesn't exist, add it
+			_, err = d.db.Exec(fmt.Sprintf(
+				"ALTER TABLE jobs ADD COLUMN %s DEFAULT %s",
+				col.name, col.defaultValue,
+			))
+			if err != nil {
+				log.Printf("Warning: Failed to add column %s: %v", col.name, err)
+			} else {
+				log.Printf("✓ Added column '%s' to jobs table", col.name)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (d *Database) Close() error {

@@ -110,6 +110,13 @@ func buildServer() (*http.Server, error) {
 	}
 	fmt.Println("✓ Database initialized")
 
+	// Migrate existing jobs to clean corrupted paths (Unicode characters)
+	if err := db.MigrateCleanPaths(); err != nil {
+		log.Printf("Warning: Path migration failed: %v", err)
+	} else {
+		fmt.Println("✓ Path migration completed (cleaned Unicode characters)")
+	}
+
 	// Set global DB for API - DON'T CLOSE, keep open for entire app lifetime
 	api.DB = db
 
@@ -122,7 +129,13 @@ func buildServer() (*http.Server, error) {
 
 	// Initialize RBAC engine
 	rbacEngine = rbac.NewRBACEngine()
+	// Set database for session persistence
+	rbacEngine.DB = db
 	fmt.Println("✓ RBAC engine initialized")
+
+	// Initialize audit engine
+	api.AuditEngine = rbac.NewAuditEngine()
+	fmt.Println("✓ Audit engine initialized")
 
 	// Initialize notification engine
 	notificationEngine = notifications.NewNotificationEngine()
@@ -160,6 +173,9 @@ func buildServer() (*http.Server, error) {
 	}
 	fmt.Println("✓ Scheduler started")
 
+	// Set scheduler for API (after initialization)
+	api.Scheduler = jobScheduler
+
 	// Setup Gin
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -178,45 +194,7 @@ func buildServer() (*http.Server, error) {
 		c.Next()
 	})
 
-	// API Routes
-	apiGroup := router.Group("/api")
-	{
-		// Health
-		apiGroup.GET("/health", api.GetHealth)
-
-		// Auth
-		apiGroup.POST("/auth/login", api.Login)
-		apiGroup.POST("/auth/logout", api.Logout)
-		apiGroup.POST("/auth/change-password", api.ChangePassword)
-
-		// Jobs
-		apiGroup.GET("/jobs", api.ListJobs)
-		apiGroup.POST("/jobs", api.CreateJob)
-		apiGroup.PUT("/jobs/:id", api.UpdateJob)
-		apiGroup.DELETE("/jobs/:id", api.DeleteJob)
-		apiGroup.POST("/jobs/:id/run", api.RunJob)
-
-		// Backup
-		apiGroup.POST("/backup/run", api.RunBackup)
-		apiGroup.GET("/backup/sessions", api.ListSessions)
-		apiGroup.GET("/backup/sessions/:id", api.GetSession)
-
-		// Restore
-		apiGroup.GET("/restore/points", api.ListRestorePoints)
-		apiGroup.POST("/restore/files", api.RestoreFiles)
-		apiGroup.POST("/restore/database", api.RestoreDatabase)
-
-		// Storage
-		apiGroup.GET("/storage/repos", api.ListRepos)
-		apiGroup.POST("/storage/repos", api.CreateRepo)
-		apiGroup.DELETE("/storage/repos/:id", api.DeleteRepo)
-
-		// Settings
-		apiGroup.GET("/settings", api.GetSettings)
-		apiGroup.PUT("/settings", api.UpdateSettings)
-	}
-
-	// Serve web UI from disk
+	// Serve web UI from disk (must be before API routes)
 	router.GET("/", func(c *gin.Context) {
 		serveWebFile(c, "index.html")
 	})
@@ -225,10 +203,62 @@ func buildServer() (*http.Server, error) {
 		serveWebFile(c, filepath.Join("assets", c.Param("file")))
 	})
 
-	// Serve other web pages
+	// Serve other web pages (catch-all for static files)
 	router.GET("/:filepath", func(c *gin.Context) {
 		serveWebFile(c, c.Param("filepath"))
 	})
+
+	// API Routes (after web routes)
+	apiGroup := router.Group("/api")
+	{
+		// Health (no auth required)
+		apiGroup.GET("/health", api.GetHealth)
+
+		// Auth (no auth required)
+		auth := apiGroup.Group("/auth")
+		auth.Use(api.AuditMiddleware()) // Log auth attempts
+		{
+			auth.POST("/login", api.Login)
+			auth.POST("/logout", api.Logout)
+			auth.POST("/change-password", api.ChangePassword)
+		}
+
+		// Protected routes (require authentication)
+		protected := apiGroup.Group("")
+		protected.Use(api.AuthMiddleware(), api.AuditMiddleware())
+		{
+			// Jobs
+			protected.GET("/jobs", api.ListJobs)
+			protected.POST("/jobs", api.CreateJob)
+			protected.PUT("/jobs/:id", api.UpdateJob)
+			protected.DELETE("/jobs/:id", api.DeleteJob)
+			protected.POST("/jobs/:id/run", api.RunJob)
+			protected.POST("/jobs/:id/stop", api.StopJob)
+
+			// Backup
+			protected.POST("/backup/run", api.RunBackup)
+			protected.GET("/backup/sessions", api.ListSessions)
+			protected.GET("/backup/sessions/:id", api.GetSession)
+			protected.GET("/backup/sessions/:id/files", api.BrowseBackupFiles)
+
+			// Restore
+			protected.GET("/restore/points", api.ListRestorePoints)
+			protected.POST("/restore/files", api.RestoreFiles)
+			protected.POST("/restore/database", api.RestoreDatabase)
+
+			// Storage
+			protected.GET("/storage/repos", api.ListRepos)
+			protected.POST("/storage/repos", api.CreateRepo)
+			protected.DELETE("/storage/repos/:id", api.DeleteRepo)
+
+			// Settings
+			protected.GET("/settings", api.GetSettings)
+			protected.PUT("/settings", api.UpdateSettings)
+
+			// Audit Logs
+			protected.GET("/audit/logs", api.GetAuditLogs)
+		}
+	}
 
 	// Get server IP
 	serverIP := getLocalIP()

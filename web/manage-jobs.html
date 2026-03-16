@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Управління завданнями - NovaBackup</title>
+        <meta
+            http-equiv="Cache-Control"
+            content="no-cache, no-store, must-revalidate"
+        />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-yellow: #f59e0b;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+            h1 {
+                margin-bottom: 2rem;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            .btn {
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.875rem;
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+            .btn-danger {
+                background: linear-gradient(135deg, var(--accent-red), #dc2626);
+                color: white;
+            }
+            .btn-warning {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-yellow),
+                    #d97706
+                );
+                color: white;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 1rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background: var(--bg-secondary);
+                font-weight: 600;
+            }
+            tr:hover {
+                background: var(--bg-secondary);
+            }
+            .status-badge {
+                padding: 0.25rem 0.75rem;
+                border-radius: 999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+            }
+            .status-enabled {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .status-disabled {
+                background: rgba(148, 163, 184, 0.2);
+                color: var(--text-secondary);
+            }
+
+            .modal-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+            }
+            .modal-overlay.active {
+                display: flex;
+            }
+            .modal {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 2rem;
+                width: 90%;
+                max-width: 600px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            .form-input {
+                width: 100%;
+                padding: 0.75rem;
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+            .actions {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+            .loading {
+                text-align: center;
+                padding: 2rem;
+                color: var(--text-secondary);
+            }
+            .error {
+                background: rgba(239, 68, 68, 0.2);
+                color: var(--accent-red);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1rem;
+            }
+            .info {
+                background: rgba(59, 130, 246, 0.2);
+                color: var(--accent-blue);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>
+                ⚙️ Управління завданнями
+                <button class="btn btn-primary" onclick="loadJobs()">
+                    🔄 Оновити
+                </button>
+                <button class="btn btn-success" onclick="showCreateModal()">
+                    ➕ Нове завдання
+                </button>
+                <button
+                    class="btn btn-warning"
+                    onclick="logout()"
+                    style="margin-left: auto"
+                >
+                    🚪 Вийти
+                </button>
+            </h1>
+
+            <div id="message-area"></div>
+            <div id="jobs-container"></div>
+        </div>
+
+        <!-- Modal for Create/Edit -->
+        <div class="modal-overlay" id="job-modal">
+            <div class="modal">
+                <h2 id="modal-title" style="margin-bottom: 1.5rem">
+                    Нове завдання
+                </h2>
+                <form id="job-form">
+                    <input type="hidden" id="job-id" />
+                    <div class="form-group">
+                        <label class="form-label">Назва</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="job-name"
+                            required
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"
+                            >Джерела (шляхи через кому)</label
+                        >
+                        <textarea
+                            class="form-input"
+                            id="job-sources"
+                            rows="3"
+                            placeholder="D:/Documents/File1.txt, D:/Documents/Folder"
+                            required
+                        ></textarea>
+                        <small style="color: var(--text-secondary)"
+                            >💡 Використовуйте forward slashes: D:/Documents
+                            замість D:\Documents</small
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Призначення</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="job-destination"
+                            placeholder="D:/Backup"
+                            required
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label
+                            ><input
+                                type="checkbox"
+                                id="job-compression"
+                                checked
+                            />
+                            ✅ Стиснення</label
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label
+                            ><input type="checkbox" id="job-encryption" /> 🔒
+                            Шифрування (AES-256)</label
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label
+                            ><input type="checkbox" id="job-deduplication" /> 💾
+                            Дедуплікація</label
+                        >
+                        <div class="form-hint">
+                            Видаляє дублікати даних для економії місця
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label
+                            ><input type="checkbox" id="job-incremental" /> 🔄
+                            Інкрементальне бекапування</label
+                        >
+                        <div class="form-hint">
+                            Зберігає тільки зміни після повного бекапу
+                        </div>
+                    </div>
+
+                    <!-- Retention Policy -->
+                    <div
+                        style="
+                            margin-top: 1.5rem;
+                            padding-top: 1.5rem;
+                            border-top: 1px solid var(--border);
+                        "
+                    >
+                        <h4
+                            style="
+                                margin-bottom: 1rem;
+                                color: var(--accent-blue);
+                            "
+                        >
+                            📋 Політика зберігання
+                        </h4>
+                        <div class="form-group">
+                            <label class="form-label">Зберігати (днів)</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="job-retention-days"
+                                value="30"
+                                min="1"
+                                max="365"
+                            />
+                            <div class="form-hint">1-365 днів</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Макс. копій</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="job-retention-copies"
+                                value="10"
+                                min="1"
+                                max="100"
+                            />
+                            <div class="form-hint">1-100 копій</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            ><input type="checkbox" id="job-enabled" checked />
+                            ✅ Увімкнено</label
+                        >
+                    </div>
+                    <div class="actions" style="margin-top: 1.5rem">
+                        <button type="submit" class="btn btn-primary">
+                            💾 Зберегти
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-danger"
+                            onclick="closeModal()"
+                        >
+                            ✖ Скасувати
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            const API_BASE = "";
+            let token = localStorage.getItem("token") || "";
+
+            // Better error handling for API calls
+            async function api(endpoint, options = {}) {
+                if (!token) {
+                    await login();
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint}`, {
+                        ...options,
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: token,
+                            ...options.headers,
+                        },
+                    });
+
+                    // Handle 401 Unauthorized - token expired
+                    if (response.status === 401) {
+                        console.log("Token expired, re-login...");
+                        localStorage.removeItem("token");
+                        token = "";
+                        await login();
+                        return api(endpoint, options);
+                    }
+
+                    // Read response as text first
+                    const text = await response.text();
+
+                    // Check if response is OK
+                    if (!response.ok) {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(
+                                data.error || "Помилка: " + response.status,
+                            );
+                        } catch (e) {
+                            throw new Error(
+                                text || "HTTP помилка: " + response.status,
+                            );
+                        }
+                    }
+
+                    // Parse JSON if there's content
+                    if (!text || text.trim() === "") {
+                        return {};
+                    }
+
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error("JSON parse error:", e);
+                        console.error("Response text:", text);
+                        throw new Error("Помилка відповіді сервера");
+                    }
+                } catch (err) {
+                    console.error("API error:", err);
+                    throw err;
+                }
+            }
+
+            async function login() {
+                const username = prompt("Логін (admin):") || "admin";
+                const password = prompt("Пароль (admin123):") || "admin123";
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/auth/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, password }),
+                    });
+
+                    const text = await response.text();
+                    const data = JSON.parse(text);
+
+                    if (data.success) {
+                        token = data.token;
+                        localStorage.setItem("token", token);
+                        showMessage("✅ Успішний вхід!", "info");
+                    } else {
+                        alert("Помилка входу: " + data.error);
+                        throw new Error("Login failed");
+                    }
+                } catch (err) {
+                    alert("Помилка з'єднання: " + err.message);
+                    throw err;
+                }
+            }
+
+            async function loadJobs() {
+                const container = document.getElementById("jobs-container");
+                container.innerHTML =
+                    '<div class="loading">⏳ Завантаження...</div>';
+
+                try {
+                    const data = await api("/api/jobs");
+                    const jobs = data.jobs || [];
+
+                    if (jobs.length === 0) {
+                        container.innerHTML =
+                            '<div class="card info">ℹ️ Немає завдань. Натисніть "Нове завдання" для створення!</div>';
+                        return;
+                    }
+
+                    let html =
+                        '<div class="card"><table><thead><tr>' +
+                        "<th>Назва</th>" +
+                        "<th>Джерела</th>" +
+                        "<th>Призначення</th>" +
+                        "<th>Статус</th>" +
+                        "<th>Дії</th>" +
+                        "</tr></thead><tbody>";
+
+                    for (const job of jobs) {
+                        const sources = (job.sources || []).join(", ");
+                        html += `<tr>
+                        <td><strong>${escapeHtml(job.name)}</strong></td>
+                        <td>${escapeHtml(sources)}</td>
+                        <td>${escapeHtml(job.destination)}</td>
+                        <td><span class="status-badge ${job.enabled ? "status-enabled" : "status-disabled"}">${job.enabled ? "✅ Увімкнено" : "❌ Вимкнено"}</span></td>
+                        <td class="actions">
+                            <button class="btn btn-success" onclick="runJob('${job.id}')">▶ Запуск</button>
+                            <button class="btn btn-warning" onclick="editJob('${job.id}')">✏ Редагувати</button>
+                            <button class="btn btn-danger" onclick="deleteJob('${job.id}')">🗑 Видалити</button>
+                        </td>
+                    </tr>`;
+                    }
+
+                    html += "</tbody></table></div>";
+                    container.innerHTML = html;
+                    showMessage(
+                        `✅ Завантажено ${jobs.length} завдань`,
+                        "info",
+                    );
+                } catch (err) {
+                    container.innerHTML = `<div class="card error">❌ Помилка: ${err.message}<br><small>Перевірте чи працює сервер і оновіть сторінку</small></div>`;
+                }
+            }
+
+            function showCreateModal() {
+                document.getElementById("modal-title").textContent =
+                    "Нове завдання";
+                document.getElementById("job-id").value = "";
+                document.getElementById("job-name").value = "";
+                document.getElementById("job-sources").value = "";
+                document.getElementById("job-destination").value = "";
+                document.getElementById("job-compression").checked = true;
+                document.getElementById("job-enabled").checked = true;
+                document.getElementById("job-modal").classList.add("active");
+            }
+
+            async function editJob(jobId) {
+                try {
+                    const jobsData = await api("/api/jobs");
+                    const job = jobsData.jobs.find((j) => j.id === jobId);
+                    if (!job) throw new Error("Завдання не знайдено");
+
+                    document.getElementById("modal-title").textContent =
+                        "Редагування завдання";
+                    document.getElementById("job-id").value = job.id;
+                    document.getElementById("job-name").value = job.name;
+                    document.getElementById("job-sources").value = (
+                        job.sources || []
+                    ).join(", ");
+                    document.getElementById("job-destination").value =
+                        job.destination;
+                    document.getElementById("job-compression").checked =
+                        job.compression;
+                    document.getElementById("job-encryption").checked =
+                        job.encryption || false;
+                    document.getElementById("job-deduplication").checked =
+                        job.deduplication || false;
+                    document.getElementById("job-incremental").checked =
+                        job.incremental || false;
+                    document.getElementById("job-retention-days").value =
+                        job.retention_days || 30;
+                    document.getElementById("job-retention-copies").value =
+                        job.retention_copies || 10;
+                    document.getElementById("job-enabled").checked =
+                        job.enabled;
+                    document
+                        .getElementById("job-modal")
+                        .classList.add("active");
+                } catch (err) {
+                    showMessage("❌ Помилка: " + err.message, "error");
+                }
+            }
+
+            function closeModal() {
+                document.getElementById("job-modal").classList.remove("active");
+            }
+
+            document
+                .getElementById("job-form")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+
+                    const jobId = document.getElementById("job-id").value;
+                    const jobData = {
+                        name: document.getElementById("job-name").value,
+                        sources: document
+                            .getElementById("job-sources")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter((s) => s),
+                        destination: document
+                            .getElementById("job-destination")
+                            .value.trim(),
+                        compression:
+                            document.getElementById("job-compression").checked,
+                        encryption:
+                            document.getElementById("job-encryption").checked,
+                        deduplication:
+                            document.getElementById("job-deduplication")
+                                .checked,
+                        incremental:
+                            document.getElementById("job-incremental").checked,
+                        retention_days:
+                            parseInt(
+                                document.getElementById("job-retention-days")
+                                    .value,
+                            ) || 30,
+                        retention_copies:
+                            parseInt(
+                                document.getElementById("job-retention-copies")
+                                    .value,
+                            ) || 10,
+                        schedule: "manual",
+                        enabled: document.getElementById("job-enabled").checked,
+                    };
+
+                    try {
+                        if (jobId) {
+                            await api(`/api/jobs/${jobId}`, {
+                                method: "PUT",
+                                body: JSON.stringify(jobData),
+                            });
+                            showMessage("✅ Завдання оновлено!", "info");
+                        } else {
+                            await api("/api/jobs", {
+                                method: "POST",
+                                body: JSON.stringify(jobData),
+                            });
+                            showMessage("✅ Завдання створено!", "info");
+                        }
+                        closeModal();
+                        loadJobs();
+                    } catch (err) {
+                        showMessage("❌ Помилка: " + err.message, "error");
+                    }
+                });
+
+            async function runJob(jobId) {
+                if (!confirm("Запустити резервне копіювання зараз?")) return;
+
+                try {
+                    const result = await api(`/api/jobs/${jobId}/run`, {
+                        method: "POST",
+                    });
+                    showMessage(
+                        `✅ Запущено! Сесія: ${result.session?.id || "N/A"}`,
+                        "info",
+                    );
+                } catch (err) {
+                    showMessage("❌ Помилка запуску: " + err.message, "error");
+                }
+            }
+
+            async function deleteJob(jobId) {
+                if (!confirm("Ви впевнені? Це не можна скасувати.")) return;
+
+                try {
+                    await api(`/api/jobs/${jobId}`, { method: "DELETE" });
+                    showMessage("✅ Завдання видалено!", "info");
+                    loadJobs();
+                } catch (err) {
+                    showMessage("❌ Помилка: " + err.message, "error");
+                }
+            }
+
+            function logout() {
+                if (confirm("Вийти з системи?")) {
+                    localStorage.removeItem("token");
+                    token = "";
+                    showMessage(
+                        "👋 До побачення! Оновіть сторінку для входу.",
+                        "info",
+                    );
+                    setTimeout(() => location.reload(), 1000);
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function showMessage(text, type) {
+                const area = document.getElementById("message-area");
+                area.innerHTML = `<div class="${type}">${text}</div>`;
+                setTimeout(() => (area.innerHTML = ""), 5000);
+            }
+
+            // Auto-login if token exists
+            async function init() {
+                if (token) {
+                    try {
+                        await loadJobs();
+                    } catch (err) {
+                        console.log(
+                            "Auto-login failed, will prompt on first action",
+                        );
+                        loadJobs();
+                    }
+                } else {
+                    loadJobs();
+                }
+            }
+
+            init();
+        </script>
+    </body>
+</html>

@@ -2,8 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"novabackup/internal/backup"
@@ -28,6 +31,7 @@ var (
 	NotificationEngine *notifications.NotificationEngine
 	RBACEngine         *rbac.RBACEngine
 	ReportEngine       *reports.ReportEngine
+	AuditEngine        *rbac.AuditEngine
 	ConfigPath         string
 )
 
@@ -62,22 +66,25 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Невірний запит"})
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
 		return
 	}
 
 	user, err := RBACEngine.Authenticate(req.Username, req.Password)
 	if err != nil {
+		log.Printf("Failed login attempt for user '%s': %v", req.Username, err)
 		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
 
 	session, err := RBACEngine.CreateSession(user.ID, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
+		log.Printf("Failed to create session for user '%s': %v", req.Username, err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("User '%s' logged in successfully from %s", req.Username, c.ClientIP())
 	c.JSON(200, gin.H{
 		"success": true,
 		"token":   session.Token,
@@ -91,6 +98,10 @@ func Login(c *gin.Context) {
 
 func Logout(c *gin.Context) {
 	token := c.GetHeader("Authorization")
+	userValue, _ := c.Get("user")
+	if user, ok := userValue.(*rbac.User); ok {
+		log.Printf("User '%s' logged out", user.Username)
+	}
 	RBACEngine.Logout(token)
 	c.JSON(200, gin.H{"success": true})
 }
@@ -103,36 +114,45 @@ func ChangePassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
 		return
 	}
 
-	// Get user from token
-	userValue, _ := c.Get("user")
+	// Get user from token (set by AuthMiddleware)
+	userValue, exists := c.Get("user")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Користувач не автентифікований"})
+		return
+	}
+
 	user, ok := userValue.(*rbac.User)
 	if !ok {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.JSON(401, gin.H{"error": "Недійсні дані користувача"})
 		return
 	}
 
 	// Verify current password
 	if !rbac.CheckPassword(req.CurrentPassword, user.PasswordHash) {
+		log.Printf("Failed password change attempt for user '%s': wrong current password", user.Username)
 		c.JSON(401, gin.H{"error": "Невірний поточний пароль"})
 		return
 	}
 
-	// Validate new password
-	if len(req.NewPassword) < 6 {
-		c.JSON(400, gin.H{"error": "Пароль має бути не менше 6 символів"})
+	// Validate new password with policy
+	if err := rbac.PasswordPolicy(req.NewPassword); err != nil {
+		log.Printf("Failed password change for user '%s': %v", user.Username, err)
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Update password
 	if err := RBACEngine.ChangePassword(user.ID, req.CurrentPassword, req.NewPassword); err != nil {
+		log.Printf("Error changing password for user '%s': %v", user.Username, err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("Password changed successfully for user '%s'", user.Username)
 	c.JSON(200, gin.H{"success": true, "message": "Пароль змінено"})
 }
 
@@ -177,7 +197,11 @@ func UpdateServerSettings(c *gin.Context) {
 	}
 
 	// Save config
-	saveConfigField("server", config)
+	if err := saveConfigField("server", config); err != nil {
+		log.Printf("Error saving server settings: %v", err)
+		c.JSON(500, gin.H{"error": "Не вдалося зберегти налаштування сервера"})
+		return
+	}
 
 	c.JSON(200, gin.H{"success": true})
 }
@@ -190,7 +214,11 @@ func UpdateNotificationSettings(c *gin.Context) {
 	}
 
 	// Save notification settings
-	saveConfigField("notifications", settings)
+	if err := saveConfigField("notifications", settings); err != nil {
+		log.Printf("Error saving notification settings: %v", err)
+		c.JSON(500, gin.H{"error": "Не вдалося зберегти налаштування сповіщень"})
+		return
+	}
 
 	// Update notification engine
 	updateNotificationEngine(settings)
@@ -208,7 +236,12 @@ func UpdateRetentionSettings(c *gin.Context) {
 		return
 	}
 
-	saveConfigField("retention", retention)
+	if err := saveConfigField("retention", retention); err != nil {
+		log.Printf("Error saving retention settings: %v", err)
+		c.JSON(500, gin.H{"error": "Не вдалося зберегти налаштування зберігання"})
+		return
+	}
+
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -223,7 +256,12 @@ func UpdateDirectorySettings(c *gin.Context) {
 		return
 	}
 
-	saveConfigField("directories", dirs)
+	if err := saveConfigField("directories", dirs); err != nil {
+		log.Printf("Error saving directory settings: %v", err)
+		c.JSON(500, gin.H{"error": "Не вдалося зберегти налаштування директорій"})
+		return
+	}
+
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -256,14 +294,22 @@ func CreateJob(c *gin.Context) {
 		return
 	}
 
+	// Normalize paths (remove Unicode characters and convert slashes)
+	for i, src := range job.Sources {
+		job.Sources[i] = normalizePath(src)
+	}
+	job.Destination = normalizePath(job.Destination)
+
 	job.ID = uuid.New().String()
 	job.CreatedAt = time.Now()
 
 	if err := DB.CreateJob(&job); err != nil {
+		log.Printf("Failed to create job: %v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("Job '%s' (%s) created successfully", job.Name, job.ID)
 	c.JSON(201, gin.H{"success": true, "job": job})
 }
 
@@ -281,6 +327,12 @@ func UpdateJob(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Normalize paths (remove Unicode characters and convert slashes)
+	for i, src := range update.Sources {
+		update.Sources[i] = normalizePath(src)
+	}
+	update.Destination = normalizePath(update.Destination)
 
 	job.Name = update.Name
 	job.Type = update.Type
@@ -302,13 +354,25 @@ func UpdateJob(c *gin.Context) {
 func DeleteJob(c *gin.Context) {
 	id := c.Param("id")
 
-	if err := DB.DeleteJob(id); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+	// Check if job exists first
+	_, err := DB.GetJob(id)
+	if err != nil {
+		log.Printf("Job '%s' not found: %v", id, err)
+		c.JSON(404, gin.H{"error": "Завдання не знайдено"})
 		return
 	}
 
+	// Remove from scheduler first
 	Scheduler.RemoveJob(id)
 
+	// Then delete from database
+	if err := DB.DeleteJob(id); err != nil {
+		log.Printf("Failed to delete job '%s': %v", id, err)
+		c.JSON(500, gin.H{"error": "Помилка видалення: " + err.Error()})
+		return
+	}
+
+	log.Printf("Job '%s' deleted successfully", id)
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -317,6 +381,7 @@ func RunJob(c *gin.Context) {
 
 	job, err := DB.GetJob(id)
 	if err != nil {
+		log.Printf("Job '%s' not found: %v", id, err)
 		c.JSON(404, gin.H{"error": "Завдання не знайдено"})
 		return
 	}
@@ -334,10 +399,12 @@ func RunJob(c *gin.Context) {
 		Encryption:  job.Encryption,
 	}
 
+	log.Printf("Starting backup job '%s' (%s): sources=%v, dest=%s", job.Name, job.ID, job.Sources, job.Destination)
 	session, err := BackupEngine.ExecuteBackup(backupJob)
 	if err != nil {
+		log.Printf("Backup job '%s' failed: %v", job.Name, err)
 		NotificationEngine.SendBackupFailed(job.Name, err)
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(500, gin.H{"error": "Помилка виконання резервного копіювання: " + err.Error()})
 		return
 	}
 
@@ -349,8 +416,11 @@ func RunJob(c *gin.Context) {
 	)
 
 	nextRun := time.Now().Add(24 * time.Hour)
-	DB.UpdateJobLastRun(job.ID, time.Now(), nextRun)
+	if err := DB.UpdateJobLastRun(job.ID, time.Now(), nextRun); err != nil {
+		log.Printf("Warning: Failed to update job last_run: %v", err)
+	}
 
+	log.Printf("Backup job '%s' completed successfully", job.Name)
 	c.JSON(200, gin.H{
 		"success": true,
 		"message": "Резервне копіювання запущено",
@@ -360,8 +430,20 @@ func RunJob(c *gin.Context) {
 
 // Stop Job - NEW
 func StopJob(c *gin.Context) {
-	// In production, implement actual stop logic
-	// For now, just acknowledge
+	id := c.Param("id")
+
+	job, err := DB.GetJob(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Завдання не знайдено"})
+		return
+	}
+
+	// Try to stop via scheduler if available
+	if Scheduler != nil {
+		Scheduler.RemoveJob(id)
+		log.Printf("Job '%s' stopped by user", job.Name)
+	}
+
 	c.JSON(200, gin.H{
 		"success": true,
 		"message": "Завдання зупинено",
@@ -392,12 +474,15 @@ func RunBackup(c *gin.Context) {
 		Compression: req.Compression,
 	}
 
+	log.Printf("Starting manual backup '%s': sources=%v, dest=%s", req.Name, req.Sources, req.Destination)
 	session, err := BackupEngine.ExecuteBackup(backupJob)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		log.Printf("Manual backup '%s' failed: %v", req.Name, err)
+		c.JSON(500, gin.H{"error": "Помилка резервного копіювання: " + err.Error()})
 		return
 	}
 
+	log.Printf("Manual backup '%s' completed successfully", req.Name)
 	c.JSON(200, gin.H{
 		"success": true,
 		"session": session,
@@ -631,7 +716,12 @@ func GetDailyReport(c *gin.Context) {
 	dateStr := c.Query("date")
 	date := time.Now()
 	if dateStr != "" {
-		date, _ = time.Parse("2006-01-02", dateStr)
+		var err error
+		date, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Невірний формат дати. Використовуйте YYYY-MM-DD"})
+			return
+		}
 	}
 
 	report, err := ReportEngine.GenerateDailyReport(date)
@@ -641,6 +731,22 @@ func GetDailyReport(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"report": report})
+}
+
+// Audit Logs
+func GetAuditLogs(c *gin.Context) {
+	limitStr := c.Query("limit")
+	limit := 100 // Default limit
+
+	if limitStr != "" {
+		fmt.Sscanf(limitStr, "%d", &limit)
+		if limit <= 0 || limit > 1000 {
+			limit = 100
+		}
+	}
+
+	logs := AuditEngine.GetLogs(limit)
+	c.JSON(200, gin.H{"logs": logs})
 }
 
 // Config helpers
@@ -663,22 +769,53 @@ func loadConfig() map[string]interface{} {
 	}
 
 	var config map[string]interface{}
-	json.Unmarshal(data, &config)
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Printf("Warning: Failed to parse config file: %v", err)
+		return map[string]interface{}{}
+	}
+
 	return config
 }
 
-func saveConfigField(section string, data interface{}) {
+func saveConfigField(section string, data interface{}) error {
 	config := loadConfig()
 	config[section] = data
 
 	configFile := filepath.Join(ConfigPath, "config.json")
-	os.MkdirAll(ConfigPath, 0755)
+	if err := os.MkdirAll(ConfigPath, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
 
-	configData, _ := json.MarshalIndent(config, "", "  ")
-	os.WriteFile(configFile, configData, 0644)
+	configData, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(configFile, configData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
 }
 
 func updateNotificationEngine(settings NotificationSettings) {
 	// Update notification engine with new settings
 	// This is a simplified version
+}
+
+// normalizePath removes Unicode characters and converts slashes for Windows paths
+func normalizePath(path string) string {
+	if path == "" {
+		return path
+	}
+	// Remove BOM and other invisible Unicode characters
+	path = strings.TrimSpace(path)
+	path = strings.ReplaceAll(path, "\uFEFF", "") // BOM
+	path = strings.ReplaceAll(path, "\u200B", "") // Zero-width space
+	path = strings.ReplaceAll(path, "\u200C", "") // Zero-width non-joiner
+	path = strings.ReplaceAll(path, "\u200D", "") // Zero-width joiner
+	path = strings.ReplaceAll(path, "\u2060", "") // Word joiner
+	// Replace forward slashes with backslashes for Windows
+	path = filepath.FromSlash(path)
+	return path
 }
