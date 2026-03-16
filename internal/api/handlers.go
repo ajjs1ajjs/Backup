@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -34,6 +35,105 @@ var (
 	AuditEngine        *rbac.AuditEngine
 	ConfigPath         string
 )
+
+type backupSessionResponse struct {
+	backup.BackupSession
+	TotalSize   int64  `json:"total_size"`
+	ArchivePath string `json:"archive_path"`
+}
+
+func toBackupSessionResponse(session backup.BackupSession) backupSessionResponse {
+	totalSize := session.BytesTotal
+	if totalSize == 0 {
+		totalSize = session.BytesWritten
+	}
+	return backupSessionResponse{
+		BackupSession: session,
+		TotalSize:     totalSize,
+		ArchivePath:   session.BackupPath,
+	}
+}
+
+func loadBackupSessionByID(id string) (*backup.BackupSession, error) {
+	if BackupEngine == nil {
+		return nil, fmt.Errorf("backup engine not initialized")
+	}
+	if id == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+	sessionFile := filepath.Join(BackupEngine.DataDir, "sessions", fmt.Sprintf("%s.json", id))
+	data, err := os.ReadFile(sessionFile)
+	if err != nil {
+		return nil, err
+	}
+	var session backup.BackupSession
+	if err := json.Unmarshal(data, &session); err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func loadBackupSessionsFromDisk() ([]backup.BackupSession, error) {
+	if BackupEngine == nil {
+		return nil, fmt.Errorf("backup engine not initialized")
+	}
+	sessionsDir := filepath.Join(BackupEngine.DataDir, "sessions")
+	entries, err := os.ReadDir(sessionsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make([]backup.BackupSession, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(sessionsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		var session backup.BackupSession
+		if err := json.Unmarshal(data, &session); err != nil {
+			continue
+		}
+		sessions = append(sessions, session)
+	}
+
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].StartTime.After(sessions[j].StartTime)
+	})
+
+	if len(sessions) > 100 {
+		sessions = sessions[:100]
+	}
+
+	return sessions, nil
+}
+
+func persistBackupSession(session *backup.BackupSession) {
+	if DB == nil || session == nil {
+		return
+	}
+
+	dbSession := &database.Session{
+		ID:             session.ID,
+		JobID:          session.JobID,
+		JobName:        session.JobName,
+		StartTime:      session.StartTime,
+		EndTime:        session.EndTime,
+		Status:         session.Status,
+		FilesProcessed: session.FilesProcessed,
+		BytesWritten:   session.BytesWritten,
+		Error:          session.Error,
+	}
+
+	if err := DB.CreateSession(dbSession); err != nil {
+		log.Printf("Warning: failed to persist session %s: %v", session.ID, err)
+	}
+}
 
 // ServerConfig represents server configuration
 type ServerConfig struct {
@@ -411,6 +511,7 @@ func RunJob(c *gin.Context) {
 
 	log.Printf("Starting backup job '%s' (%s): sources=%v, dest=%s", job.Name, job.ID, job.Sources, job.Destination)
 	session, err := BackupEngine.ExecuteBackup(backupJob)
+	persistBackupSession(session)
 	if err != nil {
 		log.Printf("Backup job '%s' failed: %v", job.Name, err)
 		NotificationEngine.SendBackupFailed(job.Name, err)
@@ -486,6 +587,7 @@ func RunBackup(c *gin.Context) {
 
 	log.Printf("Starting manual backup '%s': sources=%v, dest=%s", req.Name, req.Sources, req.Destination)
 	session, err := BackupEngine.ExecuteBackup(backupJob)
+	persistBackupSession(session)
 	if err != nil {
 		log.Printf("Manual backup '%s' failed: %v", req.Name, err)
 		c.JSON(500, gin.H{"error": "Помилка резервного копіювання: " + err.Error()})
@@ -501,6 +603,15 @@ func RunBackup(c *gin.Context) {
 }
 
 func ListSessions(c *gin.Context) {
+	if diskSessions, err := loadBackupSessionsFromDisk(); err == nil && len(diskSessions) > 0 {
+		response := make([]backupSessionResponse, 0, len(diskSessions))
+		for _, session := range diskSessions {
+			response = append(response, toBackupSessionResponse(session))
+		}
+		c.JSON(200, gin.H{"sessions": response})
+		return
+	}
+
 	sessions, err := DB.ListSessions()
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -510,8 +621,18 @@ func ListSessions(c *gin.Context) {
 	c.JSON(200, gin.H{"sessions": sessions})
 }
 
+// ListSessionsPublic - public version without auth requirement
+func ListSessionsPublic(c *gin.Context) {
+	ListSessions(c)
+}
+
 func GetSession(c *gin.Context) {
 	id := c.Param("id")
+
+	if session, err := loadBackupSessionByID(id); err == nil {
+		c.JSON(200, toBackupSessionResponse(*session))
+		return
+	}
 
 	sessions, err := DB.ListSessions()
 	if err != nil {
@@ -548,6 +669,15 @@ func ListRestorePoints(c *gin.Context) {
 
 func BrowseBackupFiles(c *gin.Context) {
 	backupPath := c.Query("backup_path")
+	if backupPath == "" {
+		sessionID := c.Param("id")
+		if sessionID != "" {
+			if session, err := loadBackupSessionByID(sessionID); err == nil {
+				backupPath = session.BackupPath
+			}
+		}
+	}
+
 	if backupPath == "" {
 		c.JSON(400, gin.H{"error": "Потрібно вказати backup_path"})
 		return

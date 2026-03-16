@@ -134,7 +134,23 @@ func (s *Scheduler) executeJob(job *ScheduledJob) {
 	fmt.Printf("🕐 Запуск запланованого завдання: %s\n", job.JobName)
 
 	// Execute backup
-	_, err := s.backupEngine.ExecuteBackup(job.job)
+	session, err := s.backupEngine.ExecuteBackup(job.job)
+	if session != nil {
+		dbSession := &database.Session{
+			ID:             session.ID,
+			JobID:          session.JobID,
+			JobName:        session.JobName,
+			StartTime:      session.StartTime,
+			EndTime:        session.EndTime,
+			Status:         session.Status,
+			FilesProcessed: session.FilesProcessed,
+			BytesWritten:   session.BytesWritten,
+			Error:          session.Error,
+		}
+		if err := s.db.CreateSession(dbSession); err != nil {
+			fmt.Printf("Warning: failed to persist session %s: %v\n", session.ID, err)
+		}
+	}
 
 	// Update job in database
 	now := time.Now()

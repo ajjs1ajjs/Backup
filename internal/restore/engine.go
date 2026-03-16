@@ -77,6 +77,14 @@ type RestoreSession struct {
 	Duration      string    `json:"duration"`
 }
 
+// BackupFileInfo represents a file inside a backup archive.
+type BackupFileInfo struct {
+	Name     string    `json:"name"`
+	Type     string    `json:"type"` // file or directory
+	Size     int64     `json:"size"`
+	Modified time.Time `json:"modified"`
+}
+
 // RestoreEngine handles all restore operations
 type RestoreEngine struct {
 	DataDir string
@@ -602,7 +610,7 @@ func (e *RestoreEngine) ListRestorePoints(backupPath string) ([]map[string]inter
 }
 
 // BrowseBackupFiles lists files in a backup
-func (e *RestoreEngine) BrowseBackupFiles(backupPath string) ([]string, error) {
+func (e *RestoreEngine) BrowseBackupFiles(backupPath string) ([]BackupFileInfo, error) {
 	archivePath := filepath.Join(backupPath, "backup.zip")
 
 	r, err := zip.OpenReader(archivePath)
@@ -611,9 +619,19 @@ func (e *RestoreEngine) BrowseBackupFiles(backupPath string) ([]string, error) {
 	}
 	defer r.Close()
 
-	var files []string
+	files := make([]BackupFileInfo, 0, len(r.File))
 	for _, f := range r.File {
-		files = append(files, f.Name)
+		info := f.FileInfo()
+		fileType := "file"
+		if info.IsDir() {
+			fileType = "directory"
+		}
+		files = append(files, BackupFileInfo{
+			Name:     f.Name,
+			Type:     fileType,
+			Size:     info.Size(),
+			Modified: info.ModTime(),
+		})
 	}
 
 	return files, nil
