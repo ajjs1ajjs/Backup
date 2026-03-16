@@ -61,6 +61,32 @@ Password: admin123
 
 ---
 
+## 🧰 Build From Source (Git)
+
+**Windows (Developer/Test PCs)**
+```powershell
+git clone https://github.com/ajjs1ajjs/Backup.git
+cd Backup
+go build -o novabackup.exe .\cmd\novabackup
+.\novabackup.exe server
+```
+
+**Update from Git**
+```powershell
+git pull
+go build -o novabackup.exe .\cmd\novabackup
+
+# If running as a service
+.\novabackup.exe stop
+.\novabackup.exe start
+```
+
+**Important notes**
+- The Web UI is served from the `web/` folder next to `novabackup.exe`.  
+  If you copy the EXE to another PC, copy the `web/` folder too.
+- If you use `install.bat` / `update.bat`, they download `novabackup.exe` from the repo root or Releases.  
+  Keep the binary updated there after rebuilding.
+
 ## 📦 Enterprise Features
 
 ### ✅ Backup Capabilities

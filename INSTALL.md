@@ -77,6 +77,34 @@ curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh | s
 
 ---
 
+## 🧰 Встановлення з Git (для розробки/тестів)
+
+### Windows
+```powershell
+git clone https://github.com/ajjs1ajjs/Backup.git
+cd Backup
+go build -o novabackup.exe .\cmd\novabackup
+.\novabackup.exe server
+```
+
+### Оновлення з Git
+```powershell
+git pull
+go build -o novabackup.exe .\cmd\novabackup
+
+# Якщо працює як служба
+.\novabackup.exe stop
+.\novabackup.exe start
+```
+
+### Важливо
+- Веб-інтерфейс читається з папки `web/`, яка має бути поруч із `novabackup.exe`.
+- Якщо переносите на інший ПК тільки EXE, скопіюйте також папку `web/`.
+- Якщо користуєтесь `install.bat` / `update.bat`, ці скрипти тягнуть `novabackup.exe` з кореня репозиторію або Releases.  
+  Після збірки оновлюйте бінарник у репозиторії або робіть реліз.
+
+---
+
 ## 🔐 Перший Вхід
 
 1. **Відкрийте** http://localhost:8050
