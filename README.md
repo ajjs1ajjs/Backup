@@ -9,6 +9,11 @@
 
 ---
 
+## 📚 Documentation Links
+
+- [README.md](README.md)
+- [INSTALL.md](INSTALL.md)
+
 ## 🚀 Quick Start
 
 ### Install (Run as Administrator)
