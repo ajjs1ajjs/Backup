@@ -478,9 +478,24 @@
                     <option value="local">
                         Локальне сховище (C:\ProgramData\NovaBackup\Backups)
                     </option>
+                    <option value="custom">📁 Власна папка</option>
                     <option value="nas">NAS / Мережеве сховище</option>
                     <option value="cloud">Хмарне сховище</option>
                 </select>
+            </div>
+
+            <!-- Custom Destination Path -->
+            <div id="custom-dest-path" class="form-group" style="display: none">
+                <label class="form-label">Шлях до папки</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="custom-path"
+                    placeholder="D:\Backup або \\Server\Share"
+                />
+                <div class="form-hint">
+                    Вкажіть повний шлях до папки для збереження резервних копій
+                </div>
             </div>
 
             <!-- Options -->
@@ -497,6 +512,180 @@
                 <div class="checkbox-group">
                     <input type="checkbox" id="dedup" />
                     <label for="dedup">💾 Дедуплікація</label>
+                </div>
+
+                <!-- Advanced Options Toggle -->
+                <div style="margin-top: 1rem">
+                    <button
+                        class="btn btn-primary"
+                        onclick="toggleAdvanced()"
+                        style="font-size: 0.875rem; padding: 0.5rem 1rem"
+                    >
+                        <span id="advanced-icon">▶️</span> Розширені
+                        налаштування
+                    </button>
+                </div>
+
+                <!-- Advanced Options Panel -->
+                <div
+                    id="advanced-panel"
+                    style="
+                        display: none;
+                        margin-top: 1rem;
+                        padding: 1rem;
+                        background: var(--bg-primary);
+                        border-radius: 0.5rem;
+                    "
+                >
+                    <!-- Compression Level -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🗜️ Рівень стиснення</label
+                        >
+                        <select
+                            id="compression-level"
+                            class="form-input"
+                            style="font-size: 0.875rem"
+                        >
+                            <option value="0">Без стиснення</option>
+                            <option value="1">Швидке (Fast)</option>
+                            <option value="5" selected>
+                                Нормальне (Normal)
+                            </option>
+                            <option value="9">Максимальне (Maximum)</option>
+                        </select>
+                    </div>
+
+                    <!-- Block Size -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >📦 Розмір блоку (для дедуплікації)</label
+                        >
+                        <select
+                            id="block-size"
+                            class="form-input"
+                            style="font-size: 0.875rem"
+                        >
+                            <option value="262144">256 KB</option>
+                            <option value="524288">512 KB</option>
+                            <option value="1048576" selected>1 MB</option>
+                            <option value="2097152">2 MB</option>
+                            <option value="4194304">4 MB</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Threads -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🔢 Кількість потоків</label
+                        >
+                        <input
+                            type="number"
+                            id="max-threads"
+                            class="form-input"
+                            value="4"
+                            min="1"
+                            max="32"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            1-32 потоків (рекомендується: 4-8)
+                        </div>
+                    </div>
+
+                    <!-- Exclusion Patterns -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🚫 Виключення (файли/папки)</label
+                        >
+                        <input
+                            type="text"
+                            id="exclude-patterns"
+                            class="form-input"
+                            placeholder="*.tmp, *.log, ~$*, AppData\Local\Temp"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            Розділяйте комами, використовуйте * як wildcard
+                        </div>
+                    </div>
+
+                    <!-- Pre/Post Scripts -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >📜 Скрипти</label
+                        >
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 0.5rem;
+                            "
+                        >
+                            <div>
+                                <label
+                                    style="
+                                        font-size: 0.75rem;
+                                        color: var(--text-secondary);
+                                    "
+                                    >Перед бекапом:</label
+                                >
+                                <input
+                                    type="text"
+                                    id="pre-script"
+                                    class="form-input"
+                                    placeholder="C:\Scripts\pre-backup.bat"
+                                    style="font-size: 0.75rem"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    style="
+                                        font-size: 0.75rem;
+                                        color: var(--text-secondary);
+                                    "
+                                    >Після бекапу:</label
+                                >
+                                <input
+                                    type="text"
+                                    id="post-script"
+                                    class="form-input"
+                                    placeholder="C:\Scripts\post-backup.bat"
+                                    style="font-size: 0.75rem"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Incremental Backup -->
+                    <div class="checkbox-group" style="margin-top: 0.5rem">
+                        <input type="checkbox" id="incremental" />
+                        <label for="incremental"
+                            >🔄 Інкрементальне бекапування</label
+                        >
+                    </div>
+
+                    <!-- Full Backup Every -->
+                    <div
+                        class="form-group"
+                        style="margin-top: 0.5rem; margin-left: 1.5rem"
+                        id="full-backup-every-div"
+                        style="display: none"
+                    >
+                        <label class="form-label" style="font-size: 0.75rem"
+                            >📅 Повний бекап кожні</label
+                        >
+                        <input
+                            type="number"
+                            id="full-backup-every"
+                            class="form-input"
+                            value="7"
+                            min="1"
+                            max="30"
+                            style="font-size: 0.75rem"
+                        />
+                        <div class="form-hint">днів (1-30)</div>
+                    </div>
                 </div>
             </div>
 
@@ -577,6 +766,51 @@
                 "C:\\\\ProgramData\\\\NovaBackup\\\\Backups";
             let selectedSourceType = "local";
 
+            // Toggle advanced options panel
+            function toggleAdvanced() {
+                const panel = document.getElementById("advanced-panel");
+                const icon = document.getElementById("advanced-icon");
+                if (panel && icon) {
+                    if (
+                        panel.style.display === "none" ||
+                        !panel.style.display
+                    ) {
+                        panel.style.display = "block";
+                        icon.textContent = "▼";
+                    } else {
+                        panel.style.display = "none";
+                        icon.textContent = "▶️";
+                    }
+                }
+            }
+
+            // Toggle full backup every based on incremental checkbox
+            const incrementalCheckbox = document.getElementById("incremental");
+            const fullBackupDiv = document.getElementById(
+                "full-backup-every-div",
+            );
+            if (incrementalCheckbox && fullBackupDiv) {
+                incrementalCheckbox.addEventListener("change", function () {
+                    fullBackupDiv.style.display = this.checked
+                        ? "block"
+                        : "none";
+                });
+            }
+
+            // Show/hide custom destination path field
+            document
+                .getElementById("destination")
+                .addEventListener("change", function () {
+                    const customPathDiv =
+                        document.getElementById("custom-dest-path");
+                    if (this.value === "custom") {
+                        customPathDiv.style.display = "block";
+                        document.getElementById("custom-path").focus();
+                    } else {
+                        customPathDiv.style.display = "none";
+                    }
+                });
+
             function selectSource(type) {
                 selectedSourceType = type;
                 document
@@ -608,14 +842,15 @@
                         const list = raw
                             .split(",")
                             .map((s) => s.trim())
-                            .filter(Boolean);
+                            .filter(Boolean)
+                            .map((s) => normalizePath(s)); // Normalize paths
                         return list;
                     }
                     case "network": {
                         const path = document
                             .getElementById("network-path")
                             .value.trim();
-                        return path ? [path] : [];
+                        return path ? [normalizePath(path)] : [];
                     }
                     case "server":
                     case "cloud":
@@ -625,11 +860,57 @@
                 }
             }
 
+            // Normalize Windows paths - convert forward slashes to backslashes
+            function normalizePath(path) {
+                if (!path) return path;
+
+                // Remove BOM and other invisible Unicode characters
+                // This fixes issues when copying paths from Windows
+                path = path.replace(/[\uFEFF\u200B-\u200D\u2060]/g, "").trim();
+
+                // Remove any leading/trailing quotes
+                path = path.replace(/^["']|["']$/g, "");
+
+                // Replace forward slashes with backslashes for Windows
+                return path.replace(/\//g, "\\");
+            }
+
             function getDestination() {
                 const dest = document.getElementById("destination").value;
-                if (dest !== "local") {
+
+                if (dest === "custom") {
+                    // Custom path
+                    const customPath = document
+                        .getElementById("custom-path")
+                        .value.trim();
+                    if (!customPath) {
+                        alert("Будь ласка, вкажіть шлях до папки");
+                        return null;
+                    }
+                    return normalizePath(customPath);
+                }
+
+                if (dest === "nas") {
+                    // Network path
+                    const networkPath = document
+                        .getElementById("network-path")
+                        .value.trim();
+                    if (!networkPath) {
+                        alert("Будь ласка, вкажіть мережевий шлях");
+                        return null;
+                    }
+                    return normalizePath(networkPath);
+                }
+
+                if (dest === "cloud") {
+                    // Cloud - would need additional configuration
+                    alert(
+                        "Хмарне сховище потребує додаткової налаштування в розділі 'Сховища'",
+                    );
                     return null;
                 }
+
+                // Local (default)
                 return DEFAULT_DESTINATION;
             }
 
@@ -676,9 +957,44 @@
                     sources: sources,
                     destination: destination,
                     compression: document.getElementById("compression").checked,
+                    compression_level: parseInt(
+                        document.getElementById("compression-level")?.value ||
+                            "5",
+                    ),
                     encryption: document.getElementById("encryption").checked,
+                    deduplication: document.getElementById("dedup").checked,
+                    block_size: parseInt(
+                        document.getElementById("block-size")?.value ||
+                            "1048576",
+                    ),
+                    max_threads: parseInt(
+                        document.getElementById("max-threads")?.value || "4",
+                    ),
+                    incremental:
+                        document.getElementById("incremental")?.checked ||
+                        false,
+                    full_backup_every: parseInt(
+                        document.getElementById("full-backup-every")?.value ||
+                            "7",
+                    ),
+                    exclude_patterns: (
+                        document.getElementById("exclude-patterns")?.value || ""
+                    )
+                        .split(",")
+                        .map((p) => p.trim())
+                        .filter(Boolean),
+                    pre_backup_script:
+                        document.getElementById("pre-script")?.value || "",
+                    post_backup_script:
+                        document.getElementById("post-script")?.value || "",
                     schedule: "manual",
                     enabled: true,
+                    retention_days: parseInt(
+                        document.getElementById("retention-days").value,
+                    ),
+                    retention_copies: parseInt(
+                        document.getElementById("retention-copies").value,
+                    ),
                 };
 
                 document.getElementById("loading").classList.add("active");
@@ -726,6 +1042,34 @@
                     document
                         .getElementById("loading")
                         .classList.remove("active");
+                }
+            }
+
+            // Check authentication on page load
+            window.addEventListener("load", function () {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    // Redirect to login if not authenticated
+                    window.location.href = "login.html";
+                    return;
+                }
+
+                // Load repositories for destination selection
+                loadRepositories();
+            });
+
+            async function loadRepositories() {
+                try {
+                    const res = await fetch(`${API_BASE}/storage/repos`, {
+                        headers: getAuthHeaders(),
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Could populate destination dropdown here
+                        console.log("Loaded repositories:", data.repos);
+                    }
+                } catch (error) {
+                    console.log("Could not load repositories:", error);
                 }
             }
         </script>

@@ -17,24 +17,32 @@ type Database struct {
 }
 
 type Job struct {
-	ID              string     `json:"id"`
-	Name            string     `json:"name"`
-	Type            string     `json:"type"`
-	Sources         []string   `json:"sources"`
-	Destination     string     `json:"destination"`
-	Compression     bool       `json:"compression"`
-	Encryption      bool       `json:"encryption"`
-	Deduplication   bool       `json:"deduplication"` // Дедуплікація даних
-	Incremental     bool       `json:"incremental"`   // Інкрементальне бекапування
-	Schedule        string     `json:"schedule"`
-	ScheduleTime    string     `json:"schedule_time"`
-	ScheduleDays    []string   `json:"schedule_days"`
-	Enabled         bool       `json:"enabled"`
-	RetentionDays   int        `json:"retention_days"`   // Індивідуальна політика зберігання
-	RetentionCopies int        `json:"retention_copies"` // Індивідуальна політика
-	CreatedAt       time.Time  `json:"created_at"`
-	LastRun         *time.Time `json:"last_run,omitempty"`
-	NextRun         *time.Time `json:"next_run,omitempty"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	Type             string     `json:"type"`
+	Sources          []string   `json:"sources"`
+	Destination      string     `json:"destination"`
+	Compression      bool       `json:"compression"`
+	CompressionLevel int        `json:"compression_level"` // 0-9
+	Encryption       bool       `json:"encryption"`
+	Deduplication    bool       `json:"deduplication"`
+	BlockSize        int        `json:"block_size"`  // Block size for dedup
+	MaxThreads       int        `json:"max_threads"` // Parallel threads
+	Incremental      bool       `json:"incremental"`
+	FullBackupEvery  int        `json:"full_backup_every"` // Days between full backups
+	ExcludePatterns  []string   `json:"exclude_patterns"`
+	IncludePatterns  []string   `json:"include_patterns"`
+	PreBackupScript  string     `json:"pre_backup_script"`
+	PostBackupScript string     `json:"post_backup_script"`
+	Schedule         string     `json:"schedule"`
+	ScheduleTime     string     `json:"schedule_time"`
+	ScheduleDays     []string   `json:"schedule_days"`
+	Enabled          bool       `json:"enabled"`
+	RetentionDays    int        `json:"retention_days"`
+	RetentionCopies  int        `json:"retention_copies"`
+	CreatedAt        time.Time  `json:"created_at"`
+	LastRun          *time.Time `json:"last_run,omitempty"`
+	NextRun          *time.Time `json:"next_run,omitempty"`
 }
 
 type Session struct {
@@ -83,9 +91,17 @@ func (d *Database) init() error {
 		sources TEXT,
 		destination TEXT,
 		compression BOOLEAN DEFAULT false,
+		compression_level INTEGER DEFAULT 5,
 		encryption BOOLEAN DEFAULT false,
 		deduplication BOOLEAN DEFAULT false,
+		block_size INTEGER DEFAULT 1048576,
+		max_threads INTEGER DEFAULT 4,
 		incremental BOOLEAN DEFAULT false,
+		full_backup_every INTEGER DEFAULT 7,
+		exclude_patterns TEXT,
+		include_patterns TEXT,
+		pre_backup_script TEXT,
+		post_backup_script TEXT,
 		schedule TEXT DEFAULT 'manual',
 		enabled BOOLEAN DEFAULT true,
 		retention_days INTEGER DEFAULT 30,
@@ -132,11 +148,13 @@ func (d *Database) init() error {
 
 func (d *Database) CreateJob(job *Job) error {
 	sources, _ := json.Marshal(job.Sources)
+	excludePatterns, _ := json.Marshal(job.ExcludePatterns)
+	includePatterns, _ := json.Marshal(job.IncludePatterns)
 
 	_, err := d.db.Exec(`
-		INSERT INTO jobs (id, name, type, sources, destination, compression, encryption, deduplication, incremental, schedule, enabled, retention_days, retention_copies)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, job.ID, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Deduplication, job.Incremental, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies)
+		INSERT INTO jobs (id, name, type, sources, destination, compression, compression_level, encryption, deduplication, block_size, max_threads, incremental, full_backup_every, exclude_patterns, include_patterns, pre_backup_script, post_backup_script, schedule, enabled, retention_days, retention_copies)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, job.ID, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.CompressionLevel, job.Encryption, job.Deduplication, job.BlockSize, job.MaxThreads, job.Incremental, job.FullBackupEvery, string(excludePatterns), string(includePatterns), job.PreBackupScript, job.PostBackupScript, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies)
 
 	return err
 }
