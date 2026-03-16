@@ -2,6 +2,7 @@
 package backup
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -85,7 +86,7 @@ func (d *RansomwareDetector) Analyze() *RansomwareAlert {
 	if changedPercent > d.Thresholds.ChangedFilesPercent {
 		alert.Score += 25
 		alert.Indicators = append(alert.Indicators,
-			"Змінено файлів більше ніж "+string(changedPercent)+"%")
+			fmt.Sprintf("Змінено файлів більше ніж %.1f%%", changedPercent))
 	}
 
 	// Check 3: Entropy increase (random data = high entropy)
@@ -93,7 +94,7 @@ func (d *RansomwareDetector) Analyze() *RansomwareAlert {
 	if entropyIncrease > d.Thresholds.EntropyIncrease {
 		alert.Score += 20
 		alert.Indicators = append(alert.Indicators,
-			"Ентропія даних зросла на "+string(entropyIncrease))
+			fmt.Sprintf("Ентропія даних зросла на %.2f", entropyIncrease))
 	}
 
 	// Check 4: Mass file deletions
@@ -101,7 +102,7 @@ func (d *RansomwareDetector) Analyze() *RansomwareAlert {
 	if deletedPercent > d.Thresholds.DeletedFilesPercent {
 		alert.Score += 15
 		alert.Indicators = append(alert.Indicators,
-			"Видалено файлів: "+string(deletedPercent)+"%")
+			fmt.Sprintf("Видалено файлів: %.1f%%", deletedPercent))
 	}
 
 	// Determine alert level
