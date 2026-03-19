@@ -19,16 +19,18 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Get token from Authorization header
-		token := c.GetHeader("Authorization")
-		if token == "" {
-			// Try to get from Bearer format
-			authHeader := c.GetHeader("Authorization")
-			if authHeader != "" {
-				parts := strings.SplitN(authHeader, " ", 2)
-				if len(parts) == 2 && parts[0] == "Bearer" {
-					token = parts[1]
-				}
-			}
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Відсутній токен авторизації"})
+			c.Abort()
+			return
+		}
+
+		// Extract token from "Bearer <token>" format
+		token := authHeader
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			token = parts[1]
 		}
 
 		if token == "" {

@@ -875,7 +875,9 @@
             // Load dashboard data
             async function loadDashboard() {
                 const token = localStorage.getItem("authToken");
-                const headers = token ? { Authorization: token } : {};
+                const headers = token
+                    ? { Authorization: "Bearer " + token }
+                    : {};
 
                 try {
                     const [jobsRes, sessionsRes] = await Promise.all([
@@ -961,7 +963,7 @@
                 const token = localStorage.getItem("authToken");
                 const headers = token
                     ? {
-                          Authorization: token,
+                          Authorization: "Bearer " + token,
                           "Content-Type": "application/json",
                       }
                     : {};
@@ -999,7 +1001,9 @@
                     return;
 
                 const token = localStorage.getItem("authToken");
-                const headers = token ? { Authorization: token } : {};
+                const headers = token
+                    ? { Authorization: "Bearer " + token }
+                    : {};
 
                 try {
                     const res = await fetch(`/api/jobs/${jobId}`, {

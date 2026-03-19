@@ -263,7 +263,9 @@
         <script>
             async function loadSessions() {
                 const token = localStorage.getItem("authToken");
-                const headers = token ? { Authorization: token } : {};
+                const headers = token
+                    ? { Authorization: "Bearer " + token }
+                    : {};
 
                 try {
                     const res = await fetch("/api/backup/sessions", {
