@@ -52,15 +52,21 @@ mkdir "%DATA_DIR%\Logs" 2>nul
 mkdir "%DATA_DIR%\Backups" 2>nul
 mkdir "%DATA_DIR%\Config" 2>nul
 
+echo [*] Stopping existing service...
+sc stop NovaBackup >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+REM Kill any running process
+taskkill /F /IM NovaBackup.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+
 echo [*] Copying files...
 copy /Y "%TEMP_DIR%\novabackup.exe" "%INSTALL_DIR%\NovaBackup.exe"
 
 echo [*] Installing Windows Service...
 cd /d "%INSTALL_DIR%"
 
-REM Stop and remove existing service
-sc stop NovaBackup >nul 2>&1
-timeout /t 1 /nobreak >nul
+REM Remove existing service if exists
 sc delete NovaBackup >nul 2>&1
 timeout /t 1 /nobreak >nul
 
