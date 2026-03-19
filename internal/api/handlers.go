@@ -1261,13 +1261,15 @@ try {
 
 		cmd := exec.Command("powershell", "-Command", psScript)
 		output, err := cmd.Output()
+		log.Printf("SQL Server PowerShell output: %s", string(output))
 		if err != nil {
 			log.Printf("Failed to list SQL Server databases: %v", err)
-			c.JSON(500, gin.H{"error": "Не вдалося отримати список БД: " + string(output)})
+			log.Printf("PowerShell error output: %s", string(output))
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список БД. Деталі: " + string(output)})
 			return
 		}
 
-		log.Printf("SQL Server output: %s", string(output))
+		log.Printf("SQL Server output parsed: %s", string(output))
 
 		// Parse PowerShell output
 		var dbList []map[string]interface{}
