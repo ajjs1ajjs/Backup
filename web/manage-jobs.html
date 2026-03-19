@@ -4,6 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Завдання - NovaBackup Enterprise</title>
+        <link rel="stylesheet" href="assets/design-enhancements.css" />
         <style>
             :root {
                 --bg-primary: #0f172a;
@@ -481,6 +482,41 @@
                             Керування та моніторинг всіх завдань
                         </p>
                     </div>
+                    <div
+                        style="display: flex; gap: 0.5rem; align-items: center"
+                    >
+                        <button
+                            class="btn btn-success"
+                            onclick="runAllJobs()"
+                            style="padding: 0.5rem 1rem; font-size: 0.85rem"
+                        >
+                            ▶ Запустити всі
+                        </button>
+                        <button
+                            class="btn btn-warning"
+                            onclick="pauseAllJobs()"
+                            style="padding: 0.5rem 1rem; font-size: 0.85rem"
+                        >
+                            ⏸ Зупинити всі
+                        </button>
+                    </div>
+                </div>
+
+                <div class="search-box">
+                    <span class="search-box-icon">🔍</span>
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Пошук завдань за назвою або шляхом..."
+                        oninput="filterJobs()"
+                    />
+                    <button
+                        class="search-box-clear"
+                        onclick="clearSearch()"
+                        style="display: none"
+                    >
+                        &times;
+                    </button>
                 </div>
 
                 <div class="filters">
@@ -507,6 +543,7 @@
         <script>
             let allJobs = [];
             let currentFilter = "all";
+            let searchQuery = "";
 
             // Check authentication
             const authToken = localStorage.getItem("authToken");
@@ -528,11 +565,119 @@
                 return labels[schedule] || `📅 ${schedule}`;
             }
 
+            // Get next run info
+            function getNextRunInfo(job) {
+                if (!job.next_run) {
+                    return { text: "Вручну", class: "" };
+                }
+                const nextRun = new Date(job.next_run);
+                const now = new Date();
+                const diffMs = nextRun - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                if (diffHours < 0) {
+                    return { text: "Протерміновано", class: "overdue" };
+                } else if (diffHours < 24) {
+                    return {
+                        text: `Сьогодні о ${nextRun.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}`,
+                        class: "soon",
+                    };
+                } else {
+                    return {
+                        text: nextRun.toLocaleDateString("uk-UA", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        }),
+                        class: "",
+                    };
+                }
+            }
+
             // Logout function
             function logout() {
                 localStorage.removeItem("authToken");
                 localStorage.removeItem("user");
                 window.location.href = "login.html";
+            }
+
+            // Search functions
+            function clearSearch() {
+                document.getElementById("search-input").value = "";
+                document.querySelector(".search-box-clear").style.display =
+                    "none";
+                searchQuery = "";
+                renderJobs();
+            }
+
+            function filterJobs() {
+                const searchInput = document.getElementById("search-input");
+                searchQuery = searchInput.value.toLowerCase().trim();
+                document.querySelector(".search-box-clear").style.display =
+                    searchQuery ? "block" : "none";
+                renderJobs();
+            }
+
+            // Group actions
+            async function runAllJobs() {
+                if (!confirm("Запустити всі активні завдання?")) return;
+
+                let count = 0;
+                for (const job of allJobs) {
+                    if (job.enabled) {
+                        try {
+                            await fetch(`/api/jobs/${job.id}/run`, {
+                                method: "POST",
+                                headers: { Authorization: authToken },
+                            });
+                            count++;
+                        } catch (error) {
+                            console.error(
+                                `Failed to run job ${job.id}:`,
+                                error,
+                            );
+                        }
+                    }
+                }
+
+                showSuccess(`Запущено ${count} завдань!`, 3000);
+                setTimeout(
+                    () => (window.location.href = "sessions.html"),
+                    1000,
+                );
+            }
+
+            async function pauseAllJobs() {
+                if (!confirm("Зупинити всі активні завдання?")) return;
+
+                let count = 0;
+                for (const job of allJobs) {
+                    if (job.enabled) {
+                        try {
+                            await fetch(`/api/jobs/${job.id}`, {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: authToken,
+                                },
+                                body: JSON.stringify({
+                                    ...job,
+                                    enabled: false,
+                                }),
+                            });
+                            count++;
+                        } catch (error) {
+                            console.error(
+                                `Failed to pause job ${job.id}:`,
+                                error,
+                            );
+                        }
+                    }
+                }
+
+                showSuccess(`Зупинено ${count} завдань!`, 3000);
+                loadJobs();
             }
 
             // Load jobs
@@ -590,10 +735,28 @@
                 const container = document.getElementById("jobs-container");
 
                 let filteredJobs = allJobs;
+
+                // Apply type filter
                 if (currentFilter !== "all") {
                     filteredJobs = allJobs.filter(
                         (job) => job.type === currentFilter,
                     );
+                }
+
+                // Apply search filter
+                if (searchQuery) {
+                    filteredJobs = filteredJobs.filter((job) => {
+                        const name = (job.name || "").toLowerCase();
+                        const destination = (
+                            job.destination || ""
+                        ).toLowerCase();
+                        const server = (job.server || "").toLowerCase();
+                        return (
+                            name.includes(searchQuery) ||
+                            destination.includes(searchQuery) ||
+                            server.includes(searchQuery)
+                        );
+                    });
                 }
 
                 if (filteredJobs.length === 0) {
@@ -631,6 +794,9 @@
                         const statusText = job.enabled
                             ? "Увімкнено"
                             : "Вимкнено";
+
+                        // Get next run info
+                        const nextRunInfo = getNextRunInfo(job);
 
                         // Get database/server info for database jobs
                         let extraInfo = "";
@@ -681,6 +847,11 @@
                                 <div class="job-info-row">
                                     <span>⏰ ${getScheduleLabel(job.schedule)}</span>
                                 </div>
+                                <div class="job-info-row">
+                                    <span class="next-run-badge ${nextRunInfo.class}">
+                                        📅 Наступний: ${nextRunInfo.text}
+                                    </span>
+                                </div>
                             </div>
                             <div class="job-actions">
                                 <button class="btn btn-success" onclick="runJob('${job.id}')">
@@ -711,6 +882,18 @@
                     })
                     .join("");
             }
+
+            // Replace alert calls with toast
+            const originalAlert = window.alert;
+            window.alert = function (message) {
+                if (message.includes("✅")) {
+                    showSuccess(message.replace("✅", "").trim(), 5000);
+                } else if (message.includes("❌")) {
+                    showError(message.replace("❌", "").trim(), 5000);
+                } else {
+                    showInfo(message, 5000);
+                }
+            };
 
             // Escape HTML
             function escapeHtml(text) {
@@ -820,5 +1003,6 @@
             loadJobs();
             setInterval(loadJobs, 30000); // Auto-refresh every 30 seconds
         </script>
+        <script src="assets/toast.js"></script>
     </body>
 </html>
