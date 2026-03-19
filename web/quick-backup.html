@@ -311,6 +311,19 @@
                             S3, Azure, Google Cloud
                         </p>
                     </div>
+                    <div class="source-card" onclick="selectSource('vm')">
+                        <div class="source-icon">🖥️</div>
+                        <strong>Віртуальні Машини</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Hyper-V, KVM/QEMU віртуальні машини
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -468,6 +481,102 @@
                         id="cloud-secret"
                         placeholder="••••••••"
                     />
+                </div>
+            </div>
+
+            <!-- VM Source -->
+            <div id="vm-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">Тип віртуалізації</label>
+                    <select class="form-select" id="vm-type">
+                        <option value="hyper-v">Microsoft Hyper-V</option>
+                        <option value="kvm">KVM/QEMU (Linux)</option>
+                    </select>
+                </div>
+
+                <!-- Hyper-V Settings -->
+                <div id="vm-hyperv-settings">
+                    <div class="form-group">
+                        <label class="form-label">Hyper-V хост</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-host"
+                            placeholder="localhost"
+                            value="localhost"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-vms"
+                            placeholder="VM-WEB-01, VM-DB-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KVM Settings -->
+                <div id="vm-kvm-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">KVM хост</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-host"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт SSH</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="kvm-port"
+                                value="22"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-login"
+                                placeholder="root"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="kvm-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="kvm-vms"
+                            placeholder="vm-ubuntu-01, vm-centos-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -855,6 +964,20 @@
                     case "server":
                     case "cloud":
                         return [];
+                    case "vm": {
+                        // Return VM configuration
+                        const vmType = document.getElementById("vm-type").value;
+                        const vms =
+                            vmType === "hyper-v"
+                                ? document.getElementById("hyperv-vms").value
+                                : document.getElementById("kvm-vms").value;
+                        return vms
+                            ? vms
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
                     default:
                         return [];
                 }
@@ -925,6 +1048,7 @@
             }
 
             async function startBackup() {
+                // Check for unsupported sources
                 if (
                     selectedSourceType === "server" ||
                     selectedSourceType === "cloud"
@@ -934,7 +1058,14 @@
                 }
 
                 const sources = buildSources();
-                if (sources.length === 0) {
+
+                // VM backup validation
+                if (selectedSourceType === "vm") {
+                    if (sources.length === 0) {
+                        alert("Вкажіть імена ВМ для резервного копіювання.");
+                        return;
+                    }
+                } else if (sources.length === 0) {
                     alert("Вкажіть шлях до даних для резервного копіювання.");
                     return;
                 }
@@ -951,9 +1082,10 @@
                     document.getElementById("job-name").value.trim() ||
                     defaultJobName();
 
+                // Build job configuration
                 const job = {
                     name: jobName,
-                    type: "file",
+                    type: selectedSourceType === "vm" ? "vm" : "file",
                     sources: sources,
                     destination: destination,
                     compression: document.getElementById("compression").checked,
@@ -996,6 +1128,27 @@
                         document.getElementById("retention-copies").value,
                     ),
                 };
+
+                // Add VM-specific fields
+                if (selectedSourceType === "vm") {
+                    const vmType = document.getElementById("vm-type").value;
+                    job.vm_type = vmType;
+
+                    if (vmType === "hyper-v") {
+                        job.hyperv_host =
+                            document.getElementById("hyperv-host").value;
+                    } else {
+                        job.kvm_host =
+                            document.getElementById("kvm-host").value;
+                        job.kvm_port = parseInt(
+                            document.getElementById("kvm-port").value,
+                        );
+                        job.kvm_login =
+                            document.getElementById("kvm-login").value;
+                        job.kvm_password =
+                            document.getElementById("kvm-password").value;
+                    }
+                }
 
                 document.getElementById("loading").classList.add("active");
 
@@ -1072,6 +1225,23 @@
                     console.log("Could not load repositories:", error);
                 }
             }
+            // VM type toggle
+            document
+                .getElementById("vm-type")
+                .addEventListener("change", function () {
+                    const hypervSettings =
+                        document.getElementById("vm-hyperv-settings");
+                    const kvmSettings =
+                        document.getElementById("vm-kvm-settings");
+
+                    if (this.value === "hyper-v") {
+                        hypervSettings.style.display = "block";
+                        kvmSettings.style.display = "none";
+                    } else {
+                        hypervSettings.style.display = "none";
+                        kvmSettings.style.display = "block";
+                    }
+                });
         </script>
     </body>
 </html>
