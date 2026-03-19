@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Відновлення - NovaBackup Enterprise</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+
+            .page-header {
+                margin-bottom: 2rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+            }
+
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+            }
+
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+
+            .btn-warning {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-orange),
+                    #d97706
+                );
+                color: white;
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+
+            /* Restore Type Selector */
+            .restore-types {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .restore-type-card {
+                background: var(--bg-secondary);
+                border: 2px solid var(--border);
+                border-radius: 1rem;
+                padding: 2rem;
+                cursor: pointer;
+                transition: all 0.3s;
+                text-align: center;
+            }
+
+            .restore-type-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+
+            .restore-type-card.selected {
+                border-color: var(--accent-blue);
+                background: rgba(59, 130, 246, 0.1);
+            }
+
+            .restore-type-icon {
+                font-size: 4rem;
+                margin-bottom: 1rem;
+            }
+
+            .restore-type-title {
+                font-size: 1.25rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .restore-type-desc {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            /* Steps */
+            .steps {
+                display: flex;
+                margin-bottom: 2rem;
+            }
+
+            .step {
+                flex: 1;
+                padding: 1rem;
+                text-align: center;
+                background: var(--bg-secondary);
+                border: 2px solid var(--border);
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+
+            .step:first-child {
+                border-radius: 0.5rem 0 0 0.5rem;
+            }
+
+            .step:last-child {
+                border-radius: 0 0.5rem 0.5rem 0;
+            }
+
+            .step.active {
+                background: var(--accent-blue);
+                border-color: var(--accent-blue);
+            }
+
+            .step-number {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 0.25rem;
+            }
+
+            .step-label {
+                font-size: 0.875rem;
+            }
+
+            /* Form */
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+            }
+
+            .form-hint {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+
+            /* Backup Points Table */
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+            }
+
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+
+            tr.selected {
+                background: rgba(59, 130, 246, 0.2);
+                border-left: 3px solid var(--accent-blue);
+            }
+
+            .checkbox-cell {
+                width: 50px;
+                text-align: center;
+            }
+
+            input[type="checkbox"],
+            input[type="radio"] {
+                width: 20px;
+                height: 20px;
+                accent-color: var(--accent-blue);
+            }
+
+            /* VM Specific */
+            .vm-list {
+                display: grid;
+                gap: 1rem;
+            }
+
+            .vm-item {
+                background: var(--bg-secondary);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .vm-icon {
+                font-size: 2rem;
+            }
+
+            .vm-info {
+                flex: 1;
+            }
+
+            .vm-name {
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }
+
+            .vm-meta {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+
+            /* Modal */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+
+            .modal {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                padding: 2rem;
+                width: 100%;
+                max-width: 600px;
+                border: 1px solid var(--border);
+            }
+
+            .modal-header {
+                margin-bottom: 1.5rem;
+            }
+
+            .modal-title {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            .modal-footer {
+                display: flex;
+                gap: 1rem;
+                justify-content: flex-end;
+                margin-top: 2rem;
+            }
+
+            .btn-secondary {
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+            }
+
+            /* Content Sections */
+            .content-section {
+                display: none;
+            }
+
+            .content-section.active {
+                display: block;
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-card {
+                background: var(--bg-secondary);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                text-align: center;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--accent-blue);
+            }
+
+            .stat-label {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="page-header">
+            <h1 class="page-title">♻️ Відновлення</h1>
+            <p class="page-subtitle">Відновлення даних з резервних копій</p>
+        </div>
+
+        <!-- Restore Type Selection -->
+        <div class="restore-types">
+            <div
+                class="restore-type-card selected"
+                onclick="selectType('files')"
+            >
+                <div class="restore-type-icon">📁</div>
+                <div class="restore-type-title">Файли і Папки</div>
+                <div class="restore-type-desc">
+                    Відновлення окремих файлів, папок або повного бекапу
+                </div>
+            </div>
+
+            <div class="restore-type-card" onclick="selectType('database')">
+                <div class="restore-type-icon">🗄️</div>
+                <div class="restore-type-title">Бази Даних</div>
+                <div class="restore-type-desc">
+                    Відновлення MySQL, PostgreSQL, SQLite баз даних
+                </div>
+            </div>
+
+            <div class="restore-type-card" onclick="selectType('vm')">
+                <div class="restore-type-icon">🖥️</div>
+                <div class="restore-type-title">Віртуальні Машини</div>
+                <div class="restore-type-desc">
+                    Відновлення VM Hyper-V з повною конфігурацією
+                </div>
+            </div>
+        </div>
+
+        <!-- Steps -->
+        <div class="steps">
+            <div class="step active" id="step1" onclick="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-label">Оберіть тип</div>
+            </div>
+            <div class="step" id="step2" onclick="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-label">Точка відновлення</div>
+            </div>
+            <div class="step" id="step3" onclick="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-label">Налаштування</div>
+            </div>
+            <div class="step" id="step4" onclick="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-label">Відновлення</div>
+            </div>
+        </div>
+
+        <!-- Step 2: Backup Points -->
+        <div id="content-step2" class="content-section">
+            <div class="card">
+                <div
+                    class="card-header"
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    "
+                >
+                    <h3 class="card-title">📋 Оберіть точку відновлення</h3>
+                    <button
+                        class="btn btn-secondary"
+                        onclick="loadBackupSessions()"
+                        style="padding: 0.5rem 1rem; font-size: 0.9rem"
+                    >
+                        🔄 Оновити
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell">☑️</th>
+                                <th>Назва</th>
+                                <th>Тип</th>
+                                <th>Дата створення</th>
+                                <th>Розмір</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backup-points-body">
+                            <!-- Will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Settings -->
+        <div id="content-step3" class="content-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">⚙️ Налаштування відновлення</h3>
+                </div>
+                <div style="padding: 1.5rem">
+                    <!-- File Restore Settings -->
+                    <div id="file-settings">
+                        <div class="form-group">
+                            <label class="form-label"
+                                >📂 Шлях відновлення</label
+                            >
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="restore-dest"
+                                placeholder="C:\Restored або залиште пустим для оригінального місця"
+                            />
+                            <div class="form-hint">
+                                Залиште пустим для відновлення в оригінальне
+                                розташування
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">📝 Обрані файли</label>
+                            <div
+                                id="selected-files"
+                                style="
+                                    background: var(--bg-secondary);
+                                    padding: 1rem;
+                                    border-radius: 0.5rem;
+                                    min-height: 100px;
+                                "
+                            >
+                                <p style="color: var(--text-secondary)">
+                                    Оберіть файли з таблиці вище
+                                </p>
+                            </div>
+                        </div>
+                        <div class="checkbox-group" style="margin: 1rem 0">
+                            <input type="checkbox" id="overwrite-files" />
+                            <label for="overwrite-files"
+                                >Перезаписати існуючі файли</label
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Database Restore Settings -->
+                    <div id="database-settings" style="display: none">
+                        <div class="form-group">
+                            <label class="form-label">🗄️ Тип бази даних</label>
+                            <select class="form-select" id="db-type">
+                                <option value="mysql">MySQL</option>
+                                <option value="postgresql">PostgreSQL</option>
+                                <option value="sqlite">SQLite</option>
+                                <option value="mssql">
+                                    Microsoft SQL Server
+                                </option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"
+                                >🔗 Рядок підключення</label
+                            >
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="db-conn"
+                                placeholder="user:password@tcp(host:port)/database"
+                            />
+                            <div class="form-hint">
+                                Наприклад:
+                                root:password@tcp(localhost:3306)/mydb
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"
+                                >📦 Цільова база даних</label
+                            >
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="db-target"
+                                placeholder="mydb"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- VM Restore Settings -->
+                    <div id="vm-settings" style="display: none">
+                        <div class="form-group">
+                            <label class="form-label">🖥️ Обрані VM</label>
+                            <div
+                                id="selected-vms"
+                                style="
+                                    background: var(--bg-secondary);
+                                    padding: 1rem;
+                                    border-radius: 0.5rem;
+                                "
+                            >
+                                <p style="color: var(--text-secondary)">
+                                    Оберіть VM з таблиці вище
+                                </p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"
+                                >📝 Нова назва VM (опціонально)</label
+                            >
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="vm-new-name"
+                                placeholder=" залиште пустим для оригінальної назви"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">🖥️ Hyper-V хост</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="vm-host"
+                                placeholder="localhost"
+                            />
+                        </div>
+                        <div class="checkbox-group" style="margin: 1rem 0">
+                            <input type="checkbox" id="vm-power-on" checked />
+                            <label for="vm-power-on"
+                                >Увімкнути VM після відновлення</label
+                            >
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="vm-instant" />
+                            <label for="vm-instant"
+                                >⚡ Миттєве відновлення (запуск з бекапу)</label
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Confirmation -->
+        <div id="content-step4" class="content-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">✅ Підтвердження</h3>
+                </div>
+                <div style="padding: 1.5rem">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="confirm-type">📁</div>
+                            <div class="stat-label">Тип відновлення</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="confirm-items">0</div>
+                            <div class="stat-label">Об'єктів</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="confirm-size">0 GB</div>
+                            <div class="stat-label">Розмір</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="confirm-dest">—</div>
+                            <div class="stat-label">Призначення</div>
+                        </div>
+                    </div>
+
+                    <div
+                        style="
+                            background: var(--bg-secondary);
+                            padding: 1.5rem;
+                            border-radius: 0.5rem;
+                            margin: 1.5rem 0;
+                        "
+                    >
+                        <h4 style="margin-bottom: 1rem">
+                            📋 Зведена інформація
+                        </h4>
+                        <div
+                            id="confirm-details"
+                            style="
+                                color: var(--text-secondary);
+                                line-height: 1.8;
+                            "
+                        >
+                            <!-- Will be populated by JS -->
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem">
+                        <button
+                            class="btn btn-success"
+                            onclick="startRestore()"
+                            style="padding: 1rem 3rem; font-size: 1.1rem"
+                        >
+                            <span>🚀</span> Почати відновлення
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem">
+            <button
+                class="btn btn-secondary"
+                onclick="prevStep()"
+                id="btn-prev"
+                style="display: none"
+            >
+                <span>◀</span> Назад
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()" id="btn-next">
+                Далі <span>▶</span>
+            </button>
+        </div>
+
+        <script>
+            let currentStep = 1;
+            let selectedType = "files";
+            let selectedBackup = null;
+            let selectedItems = [];
+
+            // Real backup points data - will be loaded from API
+            let backupPoints = [];
+            let sessionsData = [];
+
+            // Load sessions on page load
+            document.addEventListener("DOMContentLoaded", function () {
+                loadBackupSessions();
+            });
+
+            // Load real backup sessions from API
+            async function loadBackupSessions() {
+                try {
+                    const response = await fetch("/api/backup/sessions", {
+                        headers: getAuthHeaders(),
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = "/login.html";
+                            return;
+                        }
+                        throw new Error("Failed to load sessions");
+                    }
+
+                    const data = await response.json();
+                    sessionsData = data.sessions || [];
+
+                    // Convert sessions to backup points format
+                    backupPoints = sessionsData.map((session) => ({
+                        id: session.id,
+                        name:
+                            session.job_name ||
+                            `Backup ${session.job_id?.substring(0, 8)}`,
+                        type: "files", // All current backups are file type
+                        date: session.start_time || session.created_at,
+                        size:
+                            session.total_size ||
+                            session.bytes_total ||
+                            session.bytes_written ||
+                            0,
+                        status: session.status,
+                        items: session.files_processed || 0,
+                        job_id: session.job_id,
+                        archive_path:
+                            session.backup_path || session.archive_path || "",
+                        backup_path:
+                            session.backup_path || session.archive_path || "",
+                    }));
+
+                    // Reload backup points display
+                    if (document.getElementById("backup-points-body")) {
+                        loadBackupPoints();
+                    }
+                } catch (error) {
+                    console.error("Error loading backup sessions:", error);
+                    backupPoints = [];
+                }
+            }
+
+            // Get auth headers
+            function getAuthHeaders() {
+                const token = localStorage.getItem("authToken");
+                const headers = { "Content-Type": "application/json" };
+                if (token) {
+                    headers.Authorization = token;
+                }
+                return headers;
+            }
+
+            // Select restore type
+            function selectType(type) {
+                selectedType = type;
+                document
+                    .querySelectorAll(".restore-type-card")
+                    .forEach((card) => {
+                        card.classList.remove("selected");
+                    });
+                event.currentTarget.classList.add("selected");
+
+                // Show appropriate settings
+                document.getElementById("file-settings").style.display =
+                    type === "files" ? "block" : "none";
+                document.getElementById("database-settings").style.display =
+                    type === "database" ? "block" : "none";
+                document.getElementById("vm-settings").style.display =
+                    type === "vm" ? "block" : "none";
+
+                // Load backup points for selected type
+                loadBackupPoints();
+            }
+
+            // Load backup points
+            async function loadBackupPoints() {
+                const tbody = document.getElementById("backup-points-body");
+
+                // If no data loaded yet, try to load from API
+                if (backupPoints.length === 0 && sessionsData.length === 0) {
+                    await loadBackupSessions();
+                }
+
+                console.log("Loading backup points...", {
+                    totalSessions: sessionsData.length,
+                    totalPoints: backupPoints.length,
+                    selectedType: selectedType,
+                    points: backupPoints,
+                });
+
+                const filtered = backupPoints.filter(
+                    (bp) => bp.type === selectedType,
+                );
+
+                console.log("Filtered points:", filtered.length);
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            ${selectedType === "files" ? "📁" : selectedType === "database" ? "🗄️" : "🖥️"}
+                            Немає точок відновлення для цього типу<br>
+                            <small>Створіть резервну копію спочатку</small>
+                        </td>
+                    </tr>
+                `;
+                    return;
+                }
+
+                tbody.innerHTML = filtered
+                    .map(
+                        (bp) => `
+                <tr onclick="selectBackup('${bp.id}')" style="cursor: pointer;">
+                    <td class="checkbox-cell">
+                        <input type="radio" name="backup-point" ${selectedBackup === bp.id ? "checked" : ""}>
+                    </td>
+                    <td>
+                        <strong>${bp.name}</strong>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            Job: ${bp.job_id?.substring(0, 8) || "N/A"}
+                        </div>
+                    </td>
+                    <td>${getTypeIcon(bp.type)} ${getTypeUA(bp.type)}</td>
+                    <td>${formatDate(bp.date)}</td>
+                    <td>${formatBytes(bp.size)}</td>
+                    <td>
+                        <span class="status-badge ${bp.status === "success" ? "status-success" : bp.status === "running" ? "status-running" : "status-failed"}">
+                            ${bp.status === "success" ? "✅" : bp.status === "running" ? "⏳" : "❌"}
+                            ${getStatusUA(bp.status)}
+                        </span>
+                    </td>
+                </tr>
+            `,
+                    )
+                    .join("");
+            }
+
+            // Get status in Ukrainian
+            function getStatusUA(status) {
+                const statuses = {
+                    success: "Успішно",
+                    failed: "Помилка",
+                    running: "В процесі",
+                    pending: "Очікування",
+                };
+                return statuses[status] || status;
+            }
+
+            // Select backup point
+            function selectBackup(id) {
+                selectedBackup = id;
+                document
+                    .querySelectorAll('input[name="backup-point"]')
+                    .forEach((radio) => {
+                        radio.checked =
+                            radio.value === id ||
+                            radio.parentElement.parentElement.onclick
+                                .toString()
+                                .includes(id);
+                    });
+
+                // Highlight selected row
+                document
+                    .querySelectorAll("tbody tr")
+                    .forEach((tr) => tr.classList.remove("selected"));
+
+                const clickedRow = event.currentTarget;
+                if (clickedRow) {
+                    clickedRow.classList.add("selected");
+                }
+
+                // Update selected items
+                const bp = backupPoints.find((p) => p.id === id);
+                if (bp) {
+                    if (selectedType === "files") {
+                        document.getElementById("selected-files").innerHTML = `
+                        <p>📁 ${bp.items} файлів</p>
+                        <p>💾 ${formatBytes(bp.size)}</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="viewBackupContents('${bp.id}')" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                                👁️ Переглянути вміст
+                            </button>
+                        </div>
+                    `;
+                    } else if (selectedType === "vm") {
+                        document.getElementById("selected-vms").innerHTML = `
+                        <div class="vm-item">
+                            <div class="vm-icon">🖥️</div>
+                            <div class="vm-info">
+                                <div class="vm-name">${bp.vm.name}</div>
+                                <div class="vm-meta">${bp.vm.os} | CPU: ${bp.vm.cpu} | RAM: ${bp.vm.ram}</div>
+                            </div>
+                        </div>
+                    `;
+                    }
+                }
+            }
+
+            // View backup contents (file browser)
+            async function viewBackupContents(sessionId) {
+                const session = sessionsData.find((s) => s.id === sessionId);
+                if (!session) {
+                    alert("Сесію не знайдено");
+                    return;
+                }
+
+                // Show loading modal
+                const modal = document.createElement("div");
+                modal.id = "file-browser-modal";
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.8);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+                modal.innerHTML = `
+                    <div style="
+                        background: var(--bg-card);
+                        border-radius: 1rem;
+                        padding: 2rem;
+                        max-width: 90%;
+                        max-height: 90%;
+                        overflow: auto;
+                        min-width: 600px;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3 style="margin: 0;">📁 Вміст резервної копії: ${session.job_name || sessionId}</h3>
+                            <button class="btn" onclick="closeFileBrowser()" style="padding: 0.5rem 1rem;">✕ Закрити</button>
+                        </div>
+                        <div id="file-browser-content" style="min-height: 300px;">
+                            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                ⏳ Завантаження вмісту...
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // Load file list from API
+                try {
+                    const response = await fetch(
+                        `/api/backup/sessions/${sessionId}/files`,
+                        {
+                            headers: getAuthHeaders(),
+                        },
+                    );
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        renderFileBrowser(data.files || []);
+                    } else {
+                        // If API not available, show message
+                        document.getElementById(
+                            "file-browser-content",
+                        ).innerHTML = `
+                            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                📦 Резервна копія містить ${session.files_processed || 0} файлів<br>
+                                <small>Розмір: ${formatBytes(session.total_size || session.bytes_total || session.bytes_written || 0)}</small><br><br>
+                                <em>Перегляд доступний тільки для ZIP архівів</em>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error("Error loading files:", error);
+                    document.getElementById("file-browser-content").innerHTML =
+                        `
+                        <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            📦 Резервна копія містить ${session.files_processed || 0} файлів<br>
+                            <small>Розмір: ${formatBytes(session.total_size || session.bytes_total || session.bytes_written || 0)}</small>
+                        </div>
+                    `;
+                }
+            }
+
+            // Render file browser
+            function renderFileBrowser(files) {
+                const content = document.getElementById("file-browser-content");
+
+                if (files.length === 0) {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            📂 Немає файлів для відображення
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary);">Назва</th>
+                                <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary);">Розмір</th>
+                                <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary);">Дата</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${files
+                                .map(
+                                    (file) => `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    <td style="padding: 0.75rem;">
+                                        ${file.type === "directory" ? "📁" : "📄"}
+                                        ${file.name}
+                                    </td>
+                                    <td style="text-align: right; padding: 0.75rem; color: var(--text-secondary);">
+                                        ${formatBytes(file.size)}
+                                    </td>
+                                    <td style="text-align: right; padding: 0.75rem; color: var(--text-secondary);">
+                                        ${formatDate(file.modified)}
+                                    </td>
+                                </tr>
+                            `,
+                                )
+                                .join("")}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            // Close file browser
+            function closeFileBrowser() {
+                const modal = document.getElementById("file-browser-modal");
+                if (modal) {
+                    modal.remove();
+                }
+            }
+
+            // Navigation
+            function goToStep(step) {
+                if (step < 1 || step > 4) return;
+
+                currentStep = step;
+
+                // Update step indicators
+                document.querySelectorAll(".step").forEach((s, i) => {
+                    s.classList.toggle("active", i + 1 === step);
+                });
+
+                // Show content sections
+                document
+                    .querySelectorAll(".content-section")
+                    .forEach((s, i) => {
+                        s.classList.toggle("active", i + 2 === step);
+                    });
+
+                // Update buttons
+                document.getElementById("btn-prev").style.display =
+                    step === 2 ? "inline-flex" : "none";
+                document.getElementById("btn-next").style.display =
+                    step === 4 ? "none" : "inline-flex";
+
+                // Load data for step
+                if (step === 2) loadBackupPoints();
+                if (step === 4) updateConfirmation();
+            }
+
+            function nextStep() {
+                if (currentStep === 1) {
+                    goToStep(2);
+                } else if (currentStep === 2) {
+                    if (!selectedBackup) {
+                        alert("Оберіть точку відновлення!");
+                        return;
+                    }
+                    goToStep(3);
+                } else if (currentStep === 3) {
+                    goToStep(4);
+                }
+            }
+
+            function prevStep() {
+                goToStep(currentStep - 1);
+            }
+
+            // Update confirmation
+            function updateConfirmation() {
+                const bp = backupPoints.find((p) => p.id === selectedBackup);
+                if (!bp) return;
+
+                document.getElementById("confirm-type").textContent =
+                    getTypeIcon(bp.type);
+                document.getElementById("confirm-items").textContent = bp.items;
+                document.getElementById("confirm-size").textContent =
+                    formatBytes(bp.size);
+
+                let dest = "Оригінальне місце";
+                if (selectedType === "files") {
+                    dest =
+                        document.getElementById("restore-dest").value ||
+                        "Оригінальне місце";
+                }
+                document.getElementById("confirm-dest").textContent = dest;
+
+                document.getElementById("confirm-details").innerHTML = `
+                <p><strong>Тип:</strong> ${getTypeUA(bp.type)}</p>
+                <p><strong>Назва:</strong> ${bp.name}</p>
+                <p><strong>Дата створення:</strong> ${formatDate(bp.date)}</p>
+                <p><strong>Розмір:</strong> ${formatBytes(bp.size)}</p>
+                ${selectedType === "database" ? `<p><strong>База даних:</strong> ${document.getElementById("db-target").value}</p>` : ""}
+                ${selectedType === "vm" ? `<p><strong>VM:</strong> ${bp.vm.name}</p>` : ""}
+            `;
+            }
+
+            // Start restore
+            async function startRestore() {
+                const bp = backupPoints.find((p) => p.id === selectedBackup);
+                if (!bp) {
+                    alert("❌ Помилка: точку відновлення не обрано");
+                    return;
+                }
+
+                const backupPath = bp.archive_path || bp.backup_path;
+                if (!backupPath) {
+                    alert("❌ Не знайдено шлях до резервної копії");
+                    return;
+                }
+
+                try {
+                    let response;
+                    let requestData;
+
+                    if (selectedType === "files") {
+                        const restoreDest =
+                            document.getElementById("restore-dest").value;
+                        const overwriteFiles =
+                            document.getElementById("overwrite-files").checked;
+
+                        requestData = {
+                            session_id: bp.id,
+                            backup_path: backupPath,
+                            destination: restoreDest || "",
+                            restore_original: !restoreDest,
+                            overwrite: overwriteFiles,
+                            files: [], // Empty = all files
+                        };
+
+                        response = await fetch("/api/restore/files", {
+                            method: "POST",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify(requestData),
+                        });
+                    } else if (selectedType === "database") {
+                        const dbType = document.getElementById("db-type").value;
+                        const dbConn = document.getElementById("db-conn").value;
+                        const dbTarget =
+                            document.getElementById("db-target").value;
+
+                        requestData = {
+                            session_id: bp.id,
+                            backup_path: backupPath,
+                            db_type: dbType,
+                            conn_str: dbConn,
+                            target_database: dbTarget,
+                        };
+
+                        response = await fetch("/api/restore/database", {
+                            method: "POST",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify(requestData),
+                        });
+                    } else {
+                        alert("❌ Тип відновлення не підтримується");
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(
+                            errorData.error ||
+                                "Не вдалося виконати відновлення",
+                        );
+                    }
+
+                    const result = await response.json();
+
+                    alert(
+                        `✅ Відновлення успішно запущено!\n\n` +
+                            `Тип: ${getTypeUA(bp.type)}\n` +
+                            `Назва: ${bp.name}\n` +
+                            `Розмір: ${formatBytes(bp.size)}\n\n` +
+                            `Слідкуйте за прогресом у розділі "Сесії"`,
+                    );
+
+                    // Reset and redirect to sessions
+                    selectedBackup = null;
+                    selectedItems = [];
+                    window.location.href = "/sessions.html";
+                } catch (error) {
+                    console.error("Restore error:", error);
+                    alert(`❌ Помилка відновлення: ${error.message}`);
+                }
+            }
+
+            // Helper functions
+            function getTypeIcon(type) {
+                return { files: "📁", database: "🗄️", vm: "🖥️" }[type] || "📁";
+            }
+
+            function getTypeUA(type) {
+                return (
+                    {
+                        files: "Файли",
+                        database: "База даних",
+                        vm: "Віртуальна машина",
+                    }[type] || type
+                );
+            }
+
+            function formatDate(dateStr) {
+                return new Date(dateStr).toLocaleString("uk-UA");
+            }
+
+            function formatBytes(bytes) {
+                if (!bytes) return "0 B";
+                const sizes = ["B", "KB", "MB", "GB", "TB"];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+            }
+
+            // Status badge styles
+            const style = document.createElement("style");
+            style.textContent = `
+            .status-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+            .status-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        `;
+            document.head.appendChild(style);
+
+            // Initialize
+            loadBackupPoints();
+        </script>
+    </body>
+</html>

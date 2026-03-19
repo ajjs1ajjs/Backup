@@ -1,0 +1,15 @@
+{
+  "server": {
+    "port": 8080,
+    "bind": "127.0.0.1"
+  },
+  "backup": {
+    "default_path": "C:\\ProgramData\\NovaBackup\\Backups",
+    "retention_days": 30
+  },
+  "logging": {
+    "level": "info",
+    "file": "C:\\ProgramData\\NovaBackup\\Logs\\novabackup.log"
+  },
+  "version": "6.0.0"
+}

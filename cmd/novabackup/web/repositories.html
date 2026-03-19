@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Сховища - NovaBackup Enterprise</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+
+            .page-header {
+                margin-bottom: 2rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+            }
+
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+            }
+
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+
+            .btn-danger {
+                background: linear-gradient(135deg, var(--accent-red), #dc2626);
+                color: white;
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+            }
+
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+
+            .status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+
+            .status-online {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .status-offline {
+                background: rgba(100, 100, 100, 0.2);
+                color: var(--text-secondary);
+            }
+            .status-warning {
+                background: rgba(245, 158, 11, 0.2);
+                color: var(--accent-orange);
+            }
+
+            .storage-icon {
+                font-size: 1.5rem;
+                margin-right: 0.5rem;
+            }
+
+            .progress-bar {
+                height: 8px;
+                background: var(--bg-secondary);
+                border-radius: 4px;
+                overflow: hidden;
+                width: 150px;
+            }
+
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(
+                    90deg,
+                    var(--accent-blue),
+                    var(--accent-green)
+                );
+                transition: width 0.3s;
+            }
+
+            /* Modal */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+
+            .modal {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                padding: 2rem;
+                width: 100%;
+                max-width: 600px;
+                border: 1px solid var(--border);
+            }
+
+            .modal-header {
+                margin-bottom: 1.5rem;
+            }
+
+            .modal-title {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+            }
+
+            .form-hint {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+
+            .modal-footer {
+                display: flex;
+                gap: 1rem;
+                justify-content: flex-end;
+                margin-top: 2rem;
+            }
+
+            .btn-secondary {
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+            }
+
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0.5rem 0;
+            }
+
+            .checkbox-group input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent-blue);
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-card {
+                background: var(--bg-secondary);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                text-align: center;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--accent-blue);
+            }
+
+            .stat-label {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+
+            @media (max-width: 768px) {
+                body {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .card-header {
+                    flex-direction: column;
+                    gap: 1rem;
+                    align-items: flex-start;
+                }
+                th,
+                td {
+                    padding: 0.5rem;
+                    font-size: 0.8rem;
+                }
+                .progress-bar {
+                    width: 80px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="page-header">
+            <h1 class="page-title">📁 Сховища</h1>
+            <p class="page-subtitle">Керування сховищами резервних копій</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Всього сховищ</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-online">0</div>
+                <div class="stat-label">Онлайн</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-capacity">0 TB</div>
+                <div class="stat-label">Загальна ємність</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-used">0 TB</div>
+                <div class="stat-label">Використано</div>
+            </div>
+        </div>
+
+        <!-- Repositories Table -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Сховища резервних копій</h3>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <span>➕</span> Додати сховище
+                </button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Назва</th>
+                            <th>Тип</th>
+                            <th>Шлях / Адреса</th>
+                            <th>Ємність</th>
+                            <th>Використано</th>
+                            <th>Статус</th>
+                            <th>Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repos-body">
+                        <tr>
+                            <td
+                                colspan="7"
+                                style="text-align: center; padding: 3rem"
+                            >
+                                <div class="loading">Завантаження...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add Repository Modal -->
+        <div id="add-modal" class="modal-overlay" style="display: none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">➕ Додати сховище</h3>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Назва сховища</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="repo-name"
+                        placeholder="Наприклад: Основне сховище"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Тип сховища</label>
+                    <select
+                        class="form-select"
+                        id="repo-type"
+                        onchange="onTypeChange()"
+                    >
+                        <option value="local">📂 Локальне сховище</option>
+                        <option value="smb">🌐 SMB/CIFS частка</option>
+                        <option value="s3">☁️ Amazon S3 / S3-compatible</option>
+                        <option value="azure">🔷 Azure Blob Storage</option>
+                        <option value="nfs">📁 NFS сховище</option>
+                    </select>
+                </div>
+
+                <!-- Local Fields -->
+                <div id="local-fields" class="type-fields">
+                    <div class="form-group">
+                        <label class="form-label">Шлях до папки</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="repo-path"
+                            placeholder="D:\Backups або /var/backups"
+                        />
+                        <div class="form-hint">
+                            Вкажіть повний шлях до папки для зберігання
+                            резервних копій
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMB Fields -->
+                <div id="smb-fields" class="type-fields" style="display: none">
+                    <div class="form-group">
+                        <label class="form-label">Сервер</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="smb-server"
+                            placeholder="\\server\backup"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Частка</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="smb-share"
+                            placeholder="backup"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Користувач</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="smb-user"
+                            placeholder="username"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Пароль</label>
+                        <input
+                            type="password"
+                            class="form-input"
+                            id="smb-pass"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                </div>
+
+                <!-- S3 Fields -->
+                <div id="s3-fields" class="type-fields" style="display: none">
+                    <div class="form-group">
+                        <label class="form-label">Bucket</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="s3-bucket"
+                            placeholder="my-backup-bucket"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Регіон</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="s3-region"
+                            placeholder="us-east-1"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Access Key</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="s3-key"
+                            placeholder="AKI..."
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Secret Key</label>
+                        <input
+                            type="password"
+                            class="form-input"
+                            id="s3-secret"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Endpoint (опціонально)</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="s3-endpoint"
+                            placeholder="https://s3.amazonaws.com"
+                        />
+                        <div class="form-hint">
+                            Для S3-compatible (MinIO, Wasabi тощо)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Fields -->
+                <div
+                    id="azure-fields"
+                    class="type-fields"
+                    style="display: none"
+                >
+                    <div class="form-group">
+                        <label class="form-label">Container</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="azure-container"
+                            placeholder="backups"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account Name</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="azure-account"
+                            placeholder="mystorageaccount"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account Key</label>
+                        <input
+                            type="password"
+                            class="form-input"
+                            id="azure-key"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                </div>
+
+                <!-- NFS Fields -->
+                <div id="nfs-fields" class="type-fields" style="display: none">
+                    <div class="form-group">
+                        <label class="form-label">NFS Сервер</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="nfs-server"
+                            placeholder="192.168.1.100"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Експорт</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="nfs-export"
+                            placeholder="/exports/backups"
+                        />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Налаштування</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="repo-compression" checked />
+                        <label for="repo-compression"
+                            >Увімкнути стиснення даних</label
+                        >
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="repo-encryption" />
+                        <label for="repo-encryption"
+                            >Увімкнути шифрування (AES-256)</label
+                        >
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="repo-dedup" />
+                        <label for="repo-dedup">Увімкнути дедуплікацію</label>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeAddModal()">
+                        Скасувати
+                    </button>
+                    <button class="btn btn-primary" onclick="addRepository()">
+                        Додати сховище
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const API_BASE = "/api";
+            let repositories = [];
+
+            // Load repositories
+            async function loadRepositories() {
+                try {
+                    const res = await fetch(`${API_BASE}/storage/repos`);
+                    const data = await res.json();
+                    repositories = data.repos || [];
+                    renderRepositories();
+                    updateStats();
+                } catch (error) {
+                    console.error("Failed to load repositories:", error);
+                }
+            }
+
+            // Render repositories table
+            function renderRepositories() {
+                const tbody = document.getElementById("repos-body");
+
+                if (repositories.length === 0) {
+                    tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            📭 Сховища ще не налаштовані<br>
+                            <small>Натисніть "Додати сховище" для створення</small>
+                        </td>
+                    </tr>
+                `;
+                    return;
+                }
+
+                tbody.innerHTML = repositories
+                    .map(
+                        (repo) => `
+                <tr>
+                    <td>
+                        <span class="storage-icon">${getStorageIcon(repo.type)}</span>
+                        <strong>${repo.name}</strong>
+                    </td>
+                    <td>${getStorageTypeUA(repo.type)}</td>
+                    <td>${getPath(repo)}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${getUsagePercent(repo)}%"></div>
+                        </div>
+                        <small>${formatBytes(repo.total_space || 0)}</small>
+                    </td>
+                    <td>${formatBytes(repo.used_space || 0)}</td>
+                    <td>
+                        <span class="status-badge ${getStatusClass(repo.status)}">
+                            ${repo.status === "online" ? "🟢" : repo.status === "offline" ? "⚫" : "🟡"}
+                            ${getStatusUA(repo.status)}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick="testRepository('${repo.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
+                            🧪 Тест
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteRepository('${repo.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+            `,
+                    )
+                    .join("");
+            }
+
+            // Update statistics
+            function updateStats() {
+                document.getElementById("stat-total").textContent =
+                    repositories.length;
+                document.getElementById("stat-online").textContent =
+                    repositories.filter((r) => r.status === "online").length;
+
+                const totalCapacity = repositories.reduce(
+                    (sum, r) => sum + (r.total_space || 0),
+                    0,
+                );
+                const totalUsed = repositories.reduce(
+                    (sum, r) => sum + (r.used_space || 0),
+                    0,
+                );
+
+                document.getElementById("stat-capacity").textContent =
+                    formatBytes(totalCapacity);
+                document.getElementById("stat-used").textContent =
+                    formatBytes(totalUsed);
+            }
+
+            // Modal functions
+            function openAddModal() {
+                document.getElementById("add-modal").style.display = "flex";
+            }
+
+            function closeAddModal() {
+                document.getElementById("add-modal").style.display = "none";
+            }
+
+            function onTypeChange() {
+                const type = document.getElementById("repo-type").value;
+                document
+                    .querySelectorAll(".type-fields")
+                    .forEach((el) => (el.style.display = "none"));
+                document.getElementById(`${type}-fields`).style.display =
+                    "block";
+            }
+
+            // Add repository
+            async function addRepository() {
+                const type = document.getElementById("repo-type").value;
+                const repo = {
+                    name: document.getElementById("repo-name").value,
+                    type: type,
+                    compression:
+                        document.getElementById("repo-compression").checked,
+                    encryption:
+                        document.getElementById("repo-encryption").checked,
+                    dedup: document.getElementById("repo-dedup").checked,
+                };
+
+                // Add type-specific fields
+                switch (type) {
+                    case "local":
+                        repo.path = document.getElementById("repo-path").value;
+                        break;
+                    case "smb":
+                        repo.server =
+                            document.getElementById("smb-server").value;
+                        repo.share = document.getElementById("smb-share").value;
+                        repo.username =
+                            document.getElementById("smb-user").value;
+                        repo.password =
+                            document.getElementById("smb-pass").value;
+                        break;
+                    case "s3":
+                        repo.bucket =
+                            document.getElementById("s3-bucket").value;
+                        repo.region =
+                            document.getElementById("s3-region").value;
+                        repo.access_key =
+                            document.getElementById("s3-key").value;
+                        repo.secret_key =
+                            document.getElementById("s3-secret").value;
+                        repo.endpoint =
+                            document.getElementById("s3-endpoint").value;
+                        break;
+                    case "azure":
+                        repo.bucket =
+                            document.getElementById("azure-container").value;
+                        repo.access_key =
+                            document.getElementById("azure-account").value;
+                        repo.secret_key =
+                            document.getElementById("azure-key").value;
+                        break;
+                    case "nfs":
+                        repo.server =
+                            document.getElementById("nfs-server").value;
+                        repo.export =
+                            document.getElementById("nfs-export").value;
+                        break;
+                }
+
+                if (!repo.name) {
+                    alert("Введіть назву сховища");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE}/storage/repos`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(repo),
+                    });
+
+                    if (res.ok) {
+                        alert("✅ Сховище додано!");
+                        closeAddModal();
+                        loadRepositories();
+                    } else {
+                        const error = await res.json();
+                        alert("❌ Помилка: " + error.error);
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Test repository
+            async function testRepository(id) {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = "Тестування...";
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/storage/repos/${id}/test`,
+                        { method: "POST" },
+                    );
+                    if (res.ok) {
+                        alert("Тест пройдено! Сховище доступне.");
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert(
+                            "Помилка тесту: " + (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "🧪 Тест";
+                }
+            }
+
+            // Delete repository
+            async function deleteRepository(id) {
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити це сховище?\n\nЦю дію не можна скасувати!",
+                    )
+                ) {
+                    return;
+                }
+
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = "Видалення...";
+
+                try {
+                    const res = await fetch(`${API_BASE}/storage/repos/${id}`, {
+                        method: "DELETE",
+                    });
+
+                    if (res.ok) {
+                        alert("Сховище видалено!");
+                        loadRepositories();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert(
+                            "Помилка видалення: " +
+                                (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "🗑️";
+                }
+            }
+
+            // Helper functions
+            function getStorageIcon(type) {
+                const icons = {
+                    local: "📂",
+                    smb: "🌐",
+                    s3: "☁️",
+                    azure: "🔷",
+                    nfs: "📁",
+                };
+                return icons[type] || "📁";
+            }
+
+            function getStorageTypeUA(type) {
+                const types = {
+                    local: "Локальне",
+                    smb: "SMB/CIFS",
+                    s3: "Amazon S3",
+                    azure: "Azure Blob",
+                    nfs: "NFS",
+                };
+                return types[type] || type;
+            }
+
+            function getPath(repo) {
+                switch (repo.type) {
+                    case "local":
+                        return repo.path || "—";
+                    case "smb":
+                        return `\\\\${repo.server}\\${repo.share}`;
+                    case "s3":
+                        return `${repo.bucket} (${repo.region})`;
+                    case "azure":
+                        return `${repo.bucket}`;
+                    case "nfs":
+                        return `${repo.server}:${repo.export}`;
+                    default:
+                        return "—";
+                }
+            }
+
+            function getUsagePercent(repo) {
+                if (!repo.total_space || repo.total_space <= 0) return 0;
+                return Math.min(
+                    100,
+                    (repo.used_space / repo.total_space) * 100,
+                );
+            }
+
+            function getStatusClass(status) {
+                const classes = {
+                    online: "status-online",
+                    offline: "status-offline",
+                    warning: "status-warning",
+                };
+                return classes[status] || "status-offline";
+            }
+
+            function getStatusUA(status) {
+                const statuses = {
+                    online: "Онлайн",
+                    offline: "Офлайн",
+                    warning: "Увага",
+                };
+                return statuses[status] || status;
+            }
+
+            function formatBytes(bytes) {
+                if (!bytes || bytes <= 0) return "0 B";
+                const sizes = ["B", "KB", "MB", "GB", "TB"];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+            }
+
+            // Initial load
+            loadRepositories();
+        </script>
+    </body>
+</html>

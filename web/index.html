@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            NovaBackup Enterprise v7.0 - Система Резервного Копіювання
+        </title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", "Ubuntu", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+            }
+            .header {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary) 0%,
+                    #0f172a 100%
+                );
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid var(--accent-blue);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .logo-icon {
+                font-size: 2.5rem;
+                filter: drop-shadow(0 0 10px var(--accent-blue));
+            }
+            .logo-text h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .logo-text p {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+            }
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }
+            .status-badge {
+                background: rgba(16, 185, 129, 0.15);
+                padding: 0.5rem 1.25rem;
+                border-radius: 9999px;
+                font-size: 0.875rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--accent-green);
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+            }
+            .main-container {
+                display: grid;
+                grid-template-columns: 280px 1fr;
+                min-height: calc(100vh - 80px);
+            }
+            .sidebar {
+                background: var(--bg-secondary);
+                border-right: 1px solid var(--border);
+                padding: 1.5rem;
+            }
+            .nav-section {
+                margin-bottom: 2rem;
+            }
+            .nav-section-title {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
+                padding-left: 1rem;
+            }
+            .nav-menu {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 0.875rem;
+                padding: 0.875rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: var(--text-secondary);
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .nav-item:hover {
+                background: var(--bg-card);
+                color: var(--text-primary);
+                transform: translateX(4px);
+            }
+            .nav-item.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .nav-icon {
+                font-size: 1.25rem;
+                width: 24px;
+                text-align: center;
+            }
+            .content {
+                padding: 2rem;
+                overflow-y: auto;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .stat-card {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-card) 0%,
+                    var(--bg-secondary) 100%
+                );
+                border-radius: 1rem;
+                padding: 1.5rem;
+                border: 1px solid var(--border);
+                transition: transform 0.2s;
+            }
+            .stat-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            .stat-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .stat-icon {
+                font-size: 2.5rem;
+            }
+            .stat-value {
+                font-size: 2.25rem;
+                font-weight: 800;
+                margin-bottom: 0.25rem;
+                background: linear-gradient(
+                    135deg,
+                    var(--text-primary),
+                    var(--text-secondary)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+            .quick-actions {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+            .quick-action-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 1.25rem;
+                border-radius: 0.75rem;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .quick-action-btn:hover {
+                background: var(--bg-card);
+                border-color: var(--accent-blue);
+                transform: translateY(-2px);
+            }
+            .quick-action-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .quick-action-label {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                margin-top: 1.5rem;
+            }
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+            }
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .status-badge-sm {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+            .status-success {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .help-tip {
+                background: var(--bg-secondary);
+                border-left: 3px solid var(--accent-blue);
+                padding: 1rem 1.25rem;
+                margin: 1rem 0;
+                border-radius: 0.5rem;
+            }
+            .help-tip-title {
+                font-weight: 600;
+                color: var(--accent-blue);
+                margin-bottom: 0.5rem;
+            }
+            .help-tip-content {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                line-height: 1.6;
+            }
+            .help-tip-content code {
+                background: var(--bg-card);
+                padding: 0.2rem 0.5rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", monospace;
+                color: var(--accent-green);
+            }
+            .logout-btn {
+                background: var(--accent-red);
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            @media (max-width: 768px) {
+                body {
+                    padding: 0;
+                }
+                .header {
+                    flex-direction: column;
+                    padding: 1rem;
+                }
+                .nav-links {
+                    flex-direction: column;
+                    width: 100%;
+                }
+                .content {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .quick-actions {
+                    grid-template-columns: 1fr;
+                }
+                table {
+                    font-size: 0.8rem;
+                }
+                th,
+                td {
+                    padding: 0.5rem;
+                }
+
+                /* Help Icons */
+                .help-icon-btn {
+                    background: rgba(59, 130, 246, 0.2);
+                    border: 1px solid var(--accent-blue);
+                    border-radius: 50%;
+                    width: 24px;
+                    height: 24px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    font-size: 14px;
+                    margin-left: 0.5rem;
+                    transition: all 0.2s;
+                    position: relative;
+                }
+                .help-icon-btn:hover {
+                    background: var(--accent-blue);
+                    transform: scale(1.1);
+                }
+                .help-tooltip {
+                    display: none;
+                    position: absolute;
+                    top: 30px;
+                    right: 0;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                    border-radius: 0.5rem;
+                    padding: 1rem;
+                    width: 350px;
+                    z-index: 1000;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                    font-size: 0.85rem;
+                    line-height: 1.5;
+                }
+                .help-tooltip.active {
+                    display: block;
+                }
+                .help-tooltip h4 {
+                    color: var(--accent-blue);
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                }
+                .help-tooltip ul {
+                    margin-left: 1.2rem;
+                    margin-top: 0.5rem;
+                }
+                .help-tooltip li {
+                    margin-bottom: 0.3rem;
+                }
+                .help-tooltip code {
+                    background: var(--bg-card);
+                    padding: 0.2rem 0.4rem;
+                    border-radius: 0.25rem;
+                    font-family: "Consolas", monospace;
+                    color: var(--accent-green);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>NovaBackup Enterprise</h1>
+                    <p>Система Резервного Копіювання v7.0</p>
+                </div>
+            </div>
+            <div class="user-menu">
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>Система Працює</span>
+                </div>
+                <span id="username-display">👤 Admin</span>
+                <button class="logout-btn" onclick="logout()">🚪 Вихід</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <aside class="sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">Головне</div>
+                    <nav class="nav-menu">
+                        <a href="index.html" class="nav-item active">
+                            <span class="nav-icon">📊</span>
+                            <span>Панель Керування</span>
+                        </a>
+                        <a href="quick-backup.html" class="nav-item">
+                            <span class="nav-icon">🔄</span>
+                            <span>Швидке Резервне Копіювання</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Відновлення</div>
+                    <nav class="nav-menu">
+                        <a href="restore.html" class="nav-item">
+                            <span class="nav-icon">♻️</span>
+                            <span>Відновлення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Інфраструктура</div>
+                    <nav class="nav-menu">
+                        <a href="repositories.html" class="nav-item">
+                            <span class="nav-icon">📁</span>
+                            <span>Сховища</span>
+                        </a>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                        <a href="help.html" class="nav-item" target="_blank">
+                            <span class="nav-icon">❓</span>
+                            <span>Допомога</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Моніторинг</div>
+                    <nav class="nav-menu">
+                        <a href="sessions.html" class="nav-item">
+                            <span class="nav-icon">📋</span>
+                            <span>Сесії</span>
+                        </a>
+                        <a href="progress.html" class="nav-item">
+                            <span class="nav-icon">⚡</span>
+                            <span>Прогрес Операцій</span>
+                        </a>
+                        <a href="verification.html" class="nav-item">
+                            <span class="nav-icon">🛡️</span>
+                            <span>Верифікація</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Налаштування</div>
+                    <nav class="nav-menu">
+                        <a href="settings.html" class="nav-item">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Загальні</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <main class="content" id="main-content">
+                <div class="page-header">
+                    <h1 class="page-title">📊 Панель Керування</h1>
+                    <p class="page-subtitle">
+                        Огляд інфраструктури резервного копіювання
+                    </p>
+                </div>
+
+                <div class="stats-grid" style="position: relative">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">💾</span>
+                        </div>
+                        <div class="stat-value" id="stat-jobs">0</div>
+                        <div class="stat-label">
+                            Завдань Резервного Копіювання
+                        </div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-jobs')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >❓</span
+                        >
+                        <div
+                            id="help-stat-jobs"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>📊 Завдання Резервного Копіювання</h4>
+                            <p>
+                                Показує загальну кількість створених завдань
+                                бекапу.
+                            </p>
+                            <ul>
+                                <li>Включає всі типи: файли, БД, VM</li>
+                                <li>Активні та вимкнені завдання</li>
+                                <li>
+                                    <a
+                                        href="quick-backup.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Створити нове завдання</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📁</span>
+                        </div>
+                        <div class="stat-value" id="stat-storage">0 TB</div>
+                        <div class="stat-label">Використано Сховища</div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-storage')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >❓</span
+                        >
+                        <div
+                            id="help-stat-storage"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>💾 Використання Сховища</h4>
+                            <p>Загальний обсяг даних у всіх бекапах.</p>
+                            <ul>
+                                <li>Враховує стиснені дані</li>
+                                <li>Показує ефективність дедуплікації</li>
+                                <li>
+                                    <a
+                                        href="repositories.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Керування сховищами</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">✅</span>
+                        </div>
+                        <div class="stat-value" id="stat-success">0%</div>
+                        <div class="stat-label">Успішність</div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-success')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >❓</span
+                        >
+                        <div
+                            id="help-stat-success"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>✅ Успішність Операцій</h4>
+                            <p>Відсоток успішно завершених бекапів.</p>
+                            <ul>
+                                <li>Рахується за останні 24 години</li>
+                                <li>
+                                    Зелений: >90%, Жовтий: 70-90%, Червоний:
+                                    <70%
+                                </li>
+                                <li>
+                                    <a
+                                        href="sessions.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Переглянути лог помилок</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📋</span>
+                        </div>
+                        <div class="stat-value" id="stat-sessions">0</div>
+                        <div class="stat-label">Сесій (24г)</div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-sessions')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >❓</span
+                        >
+                        <div
+                            id="help-stat-sessions"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>📋 Сесії Резервного Копіювання</h4>
+                            <p>Кількість виконаних бекапів за 24 години.</p>
+                            <ul>
+                                <li>Включає планові та ручні запуски</li>
+                                <li>Кожна сесія має детальний звіт</li>
+                                <li>
+                                    <a
+                                        href="sessions.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Історія сесій</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header" style="position: relative">
+                        <h3 class="card-title">⚡ Швидкі Дії</h3>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-quick-actions')"
+                            style="position: absolute; right: 15px; top: 15px"
+                            >❓</span
+                        >
+                        <div
+                            id="help-quick-actions"
+                            class="help-tooltip"
+                            style="right: 50px"
+                        >
+                            <h4>⚡ Швидкі Дії</h4>
+                            <p>Швидкий доступ до основних операцій:</p>
+                            <ul>
+                                <li>
+                                    <strong>➕ Нове Завдання</strong> -
+                                    створення бекапу
+                                </li>
+                                <li>
+                                    <strong>▶️ Запустити Зараз</strong> -
+                                    терміновий бекап
+                                </li>
+                                <li>
+                                    <strong>♻️ Відновити</strong> - відновлення
+                                    даних
+                                </li>
+                                <li>
+                                    <strong>📊 Перегляд Сесій</strong> - історія
+                                    операцій
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="padding: 1.5rem">
+                        <div class="quick-actions">
+                            <div
+                                class="quick-action-btn"
+                                onclick="
+                                    window.location.href = 'quick-backup.html'
+                                "
+                            >
+                                <div class="quick-action-icon">➕</div>
+                                <div class="quick-action-label">
+                                    Нове Завдання
+                                </div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="
+                                    window.location.href = 'quick-backup.html'
+                                "
+                            >
+                                <div class="quick-action-icon">▶️</div>
+                                <div class="quick-action-label">
+                                    Запустити Зараз
+                                </div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="window.location.href = 'restore.html'"
+                            >
+                                <div class="quick-action-icon">♻️</div>
+                                <div class="quick-action-label">Відновити</div>
+                            </div>
+                            <div
+                                class="quick-action-btn"
+                                onclick="window.location.href = 'sessions.html'"
+                            >
+                                <div class="quick-action-icon">📊</div>
+                                <div class="quick-action-label">
+                                    Перегляд Сесій
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Активні Завдання</h3>
+                        <div
+                            style="
+                                display: flex;
+                                gap: 0.5rem;
+                                align-items: center;
+                            "
+                        >
+                            <button
+                                class="btn btn-primary"
+                                onclick="loadDashboard()"
+                                style="padding: 0.5rem 1rem; font-size: 0.85rem"
+                            >
+                                🔄 Оновити
+                            </button>
+                            <a
+                                href="quick-backup.html"
+                                class="btn btn-success"
+                                style="
+                                    padding: 0.5rem 1rem;
+                                    font-size: 0.85rem;
+                                    text-decoration: none;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.5rem;
+                                "
+                                >➕ Нове</a
+                            >
+                            <div
+                                class="help-tip"
+                                style="margin: 0; padding: 0.75rem 1rem"
+                            >
+                                <div
+                                    class="help-tip-content"
+                                    style="font-size: 0.8rem"
+                                >
+                                    💡 <strong>Порада:</strong> Використовуйте
+                                    forward slashes: D:/Documents замість
+                                    D:\Documents
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Назва Завдання</th>
+                                    <th>Джерела</th>
+                                    <th>Призначення</th>
+                                    <th>Статус</th>
+                                    <th>Останній Запуск</th>
+                                    <th>Наступний Запуск</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jobs-table-body">
+                                <tr>
+                                    <td
+                                        colspan="7"
+                                        style="
+                                            text-align: center;
+                                            padding: 3rem;
+                                            color: var(--text-secondary);
+                                        "
+                                    >
+                                        📭 Немає активних завдань<br />
+                                        <small
+                                            >Натисніть "Нове" для створення
+                                            завдання</small
+                                        >
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script>
+            // Check authentication
+            function checkAuth() {
+                const token = localStorage.getItem("authToken");
+                const passwordChanged = localStorage.getItem("passwordChanged");
+
+                if (!token) {
+                    window.location.href = "login.html";
+                    return false;
+                }
+
+                // Don't redirect if password not changed - let login.html handle it
+                return true;
+            }
+
+            // Run auth check
+            if (!checkAuth()) {
+                // Redirecting...
+            } else {
+                // Load user info
+                const user = JSON.parse(
+                    localStorage.getItem("user") || '{"username":"admin"}',
+                );
+                document.getElementById("username-display").textContent =
+                    "👤 " + user.username;
+            }
+
+            // Logout function
+            function logout() {
+                if (confirm("Ви впевнені, що хочете вийти?")) {
+                    localStorage.removeItem("authToken");
+                    localStorage.removeItem("user");
+                    window.location.href = "login.html";
+                }
+            }
+
+            // Load dashboard data
+            async function loadDashboard() {
+                const token = localStorage.getItem("authToken");
+                const headers = token ? { Authorization: token } : {};
+
+                try {
+                    const [jobsRes, sessionsRes] = await Promise.all([
+                        fetch("/api/jobs", { headers }),
+                        fetch("/api/backup/sessions", { headers }),
+                    ]);
+
+                    const jobs = await jobsRes
+                        .json()
+                        .catch(() => ({ jobs: [] }));
+                    const sessions = await sessionsRes
+                        .json()
+                        .catch(() => ({ sessions: [] }));
+
+                    // Update stats
+                    document.getElementById("stat-jobs").textContent =
+                        jobs.jobs?.length || 0;
+                    document.getElementById("stat-sessions").textContent =
+                        sessions.sessions?.length || 0;
+
+                    // Render jobs table with full management
+                    const tbody = document.getElementById("jobs-table-body");
+                    if (jobs.jobs && jobs.jobs.length > 0) {
+                        let html = "";
+                        for (const job of jobs.jobs) {
+                            const sources = (job.sources || []).join(", ");
+                            const lastRun = job.last_run
+                                ? new Date(job.last_run).toLocaleString("uk-UA")
+                                : "Ніколи";
+                            const nextRun = job.next_run
+                                ? new Date(job.next_run).toLocaleString("uk-UA")
+                                : "Вручну";
+                            const statusClass = job.enabled
+                                ? "status-success"
+                                : "status-warning";
+                            const statusText = job.enabled
+                                ? "✅ Активно"
+                                : "⏸ Вимкнено";
+
+                            html += `
+                        <tr>
+                            <td><strong>${escapeHtml(job.name)}</strong></td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(sources)}</td>
+                            <td>${escapeHtml(job.destination)}</td>
+                            <td><span class="status-badge-sm ${statusClass}">${statusText}</span></td>
+                            <td>${lastRun}</td>
+                            <td>${nextRun}</td>
+                            <td>
+                                <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">▶ Запуск</button>
+                                <a href="quick-backup.html?id=${job.id}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem; text-decoration: none; display: inline-flex; align-items: center;">✏ Редагувати</a>
+                                <button class="btn btn-danger" onclick="deleteJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">🗑 Видалити</button>
+                            </td>
+                        </tr>
+                    `;
+                        }
+                        tbody.innerHTML = html;
+                    } else {
+                        tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                        📭 Немає завдань<br />
+                                        <small>Натисніть "➕ Нове" для створення першого завдання</small>
+                                    </td>
+                                </tr>`;
+                    }
+                } catch (error) {
+                    console.error("Error loading dashboard:", error);
+                    const tbody = document.getElementById("jobs-table-body");
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--accent-red);">❌ Помилка завантаження: ${error.message}<br><small>Перевірте чи працює сервер</small></td></tr>`;
+                }
+            }
+
+            function escapeHtml(text) {
+                if (!text) return "";
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async function runJob(jobId) {
+                if (!confirm("Запустити це завдання зараз?")) return;
+
+                const token = localStorage.getItem("authToken");
+                const headers = token
+                    ? {
+                          Authorization: token,
+                          "Content-Type": "application/json",
+                      }
+                    : {};
+
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}/run`, {
+                        method: "POST",
+                        headers,
+                    });
+                    const data = await res.json().catch(() => ({}));
+
+                    if (res.ok && data.success) {
+                        alert(
+                            "✅ Завдання запущено!\nСесія: " +
+                                (data.session?.id || "N/A"),
+                        );
+                        loadDashboard();
+                    } else {
+                        alert(
+                            "❌ Помилка запуску: " +
+                                (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            async function deleteJob(jobId) {
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити це завдання?\n\nЦю дію не можна скасувати.",
+                    )
+                )
+                    return;
+
+                const token = localStorage.getItem("authToken");
+                const headers = token ? { Authorization: token } : {};
+
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}`, {
+                        method: "DELETE",
+                        headers,
+                    });
+                    const data = await res.json().catch(() => ({}));
+
+                    if (res.ok) {
+                        alert("✅ Завдання видалено!");
+                        loadDashboard();
+                    } else {
+                        alert(
+                            "❌ Помилка видалення: " +
+                                (data.error || res.statusText),
+                        );
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Initial load
+            loadDashboard();
+            setInterval(loadDashboard, 30000); // Auto-refresh every 30 seconds
+
+            // Help tooltip toggle function
+            function toggleHelp(helpId) {
+                event.stopPropagation();
+                const allTooltips = document.querySelectorAll(".help-tooltip");
+                allTooltips.forEach((t) => {
+                    if (t.id !== helpId) t.classList.remove("active");
+                });
+                const tooltip = document.getElementById(helpId);
+                if (tooltip) {
+                    tooltip.classList.toggle("active");
+                }
+            }
+
+            // Close tooltips when clicking outside
+            document.addEventListener("click", function () {
+                document.querySelectorAll(".help-tooltip").forEach((t) => {
+                    t.classList.remove("active");
+                });
+            });
+        </script>
+    </body>
+</html>

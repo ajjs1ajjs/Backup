@@ -1,0 +1,21 @@
+{
+  "directories": {
+    "backup_dir": "D:\\WORK_CODE\\Backup\\data\\backups",
+    "data_dir": "D:\\WORK_CODE\\Backup\\data",
+    "logs_dir": "D:\\WORK_CODE\\Backup\\data\\logs"
+  },
+  "notifications": {
+    "channels": {},
+    "events": {}
+  },
+  "retention": {
+    "type": "days",
+    "value": 30
+  },
+  "server": {
+    "https": false,
+    "https_port": 8443,
+    "ip": "0.0.0.0",
+    "port": 8050
+  }
+}

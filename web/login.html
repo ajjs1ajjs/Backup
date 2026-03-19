@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Вхід - NovaBackup Enterprise</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 2rem;
+                width: 100%;
+                max-width: 450px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            }
+            .card-header {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            .card-icon {
+                font-size: 4rem;
+                margin-bottom: 1rem;
+            }
+            .card-title {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .card-subtitle {
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            .form-input {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+            .form-input:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            }
+            .btn {
+                padding: 0.875rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                width: 100%;
+                font-size: 1rem;
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .alert {
+                padding: 1rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1.5rem;
+            }
+            .alert-info {
+                background: rgba(59, 130, 246, 0.15);
+                border-left: 3px solid var(--accent-blue);
+                color: var(--text-primary);
+            }
+            .alert-warning {
+                background: rgba(245, 158, 11, 0.15);
+                border-left: 3px solid var(--accent-orange);
+                color: var(--text-primary);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">🛡️</div>
+                <h1 class="card-title">NovaBackup Enterprise</h1>
+                <p class="card-subtitle">Система резервного копіювання v7.0</p>
+            </div>
+
+            <div class="alert alert-info">
+                💡 <strong>Інформація:</strong><br />
+                Логін:
+                <code
+                    style="
+                        background: var(--bg-secondary);
+                        padding: 0.2rem 0.5rem;
+                        border-radius: 0.25rem;
+                    "
+                    >admin</code
+                ><br />
+                Пароль за замовчуванням:
+                <code
+                    style="
+                        background: var(--bg-secondary);
+                        padding: 0.2rem 0.5rem;
+                        border-radius: 0.25rem;
+                    "
+                    >admin123</code
+                >
+            </div>
+
+            <div
+                id="first-login-warning"
+                class="alert alert-warning"
+                style="display: none"
+            >
+                ⚠️ <strong>Увага!</strong> Ви увійшли з паролем за
+                замовчуванням.<br />
+                Необхідно змінити пароль для безпеки системи.
+            </div>
+
+            <form id="login-form" onsubmit="return login(event);">
+                <div class="form-group">
+                    <label class="form-label">Ім'я користувача</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="username"
+                        placeholder="admin"
+                        value="admin"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Пароль</label>
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="password"
+                        placeholder="••••••••"
+                        value="admin123"
+                        required
+                    />
+                </div>
+
+                <button type="submit" class="btn btn-primary">🚀 Увійти</button>
+            </form>
+
+            <p
+                style="
+                    text-align: center;
+                    margin-top: 1.5rem;
+                    color: var(--text-secondary);
+                    font-size: 0.875rem;
+                "
+            >
+                © 2024 NovaBackup Enterprise. Всі права захищено.
+            </p>
+        </div>
+
+        <script>
+            const API_BASE = "/api";
+
+            async function login(event) {
+                event.preventDefault();
+
+                const username = document.getElementById("username").value;
+                const password = document.getElementById("password").value;
+
+                try {
+                    const res = await fetch(`${API_BASE}/auth/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, password }),
+                    });
+
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        // Save token
+                        localStorage.setItem("authToken", data.token);
+                        localStorage.setItem("user", JSON.stringify(data.user));
+
+                        // Check if default password
+                        const isDefaultPassword =
+                            username === "admin" && password === "admin123";
+                        const passwordChanged =
+                            localStorage.getItem("passwordChanged");
+
+                        if (isDefaultPassword && passwordChanged !== "true") {
+                            // Force password change
+                            window.location.href = "change-password.html";
+                        } else {
+                            // Mark as changed if new password
+                            if (isDefaultPassword) {
+                                localStorage.setItem("passwordChanged", "true");
+                            }
+                            // Go to dashboard
+                            window.location.href = "index.html";
+                        }
+                    } else {
+                        alert(
+                            "❌ Помилка входу: " +
+                                (data.error ||
+                                    "Невірне ім'я користувача або пароль"),
+                        );
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: Невірне ім'я користувача або пароль");
+                }
+            }
+
+            // Check if already logged in
+            window.addEventListener("load", function () {
+                const token = localStorage.getItem("authToken");
+                const passwordChanged = localStorage.getItem("passwordChanged");
+
+                if (token) {
+                    // Check if password needs to be changed
+                    if (passwordChanged !== "true") {
+                        window.location.href = "change-password.html";
+                    } else {
+                        window.location.href = "index.html";
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,34 @@
+[Version]
+Class=IEXPRESS
+SEDVersion=3
+[Options]
+PackagePurpose=InstallApp
+ShowIconProgramGroup=0
+PackageTitle=NovaBackup Enterprise v6.0
+PackageID=NovaBackup v6.0
+AppLaunched=Setup.bat
+PostInstallCmd=
+AdminQuietInstCmd=
+QuietUninstallCmd=
+TargetPlatform=ProgramFilesX64
+ShowWelcomeDialog=1
+ShowProgressDialog=1
+ShowDialogAfterInstall=0
+AllowAbortToCancel=1
+RebootMessage=
+LaunchApplication=1
+EnableUninstall=0
+[SourceFiles]
+SourceFiles0=InstallerFiles
+[SourceFiles0]
+%0%=build\installer\
+[InstallerFiles]
+InstallFile=Setup.bat
+InstallFile1=NovaBackup.exe
+InstallFile2=NovaBackup.dll
+InstallFile3=NovaBackup.pdb
+InstallFile4=nova.exe
+InstallFile5=MaterialDesignColors.dll
+InstallFile6=MaterialDesignThemes.Wpf.dll
+InstallFile7=Microsoft.Xaml.Behaviors.dll
+InstallFile8=System.ServiceProcess.ServiceController.dll
