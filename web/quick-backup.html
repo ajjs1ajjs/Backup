@@ -311,6 +311,19 @@
                             S3, Azure, Google Cloud
                         </p>
                     </div>
+                    <div class="source-card" onclick="selectSource('database')">
+                        <div class="source-icon">🗄️</div>
+                        <strong>Бази Даних</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            SQL Server, PostgreSQL, Oracle
+                        </p>
+                    </div>
                     <div class="source-card" onclick="selectSource('vm')">
                         <div class="source-icon">🖥️</div>
                         <strong>Віртуальні Машини</strong>
@@ -481,6 +494,260 @@
                         id="cloud-secret"
                         placeholder="••••••••"
                     />
+                </div>
+            </div>
+
+            <!-- Database Source -->
+            <div
+                id="database-source"
+                class="source-fields"
+                style="display: none"
+            >
+                <div class="form-group">
+                    <label class="form-label">Тип бази даних</label>
+                    <select class="form-select" id="db-type">
+                        <option value="mssql">Microsoft SQL Server</option>
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="oracle">Oracle Database</option>
+                        <option value="mysql">MySQL</option>
+                    </select>
+                </div>
+
+                <!-- SQL Server Settings -->
+                <div id="db-mssql-settings">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mssql-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="mssql-port"
+                                value="1433"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Метод автентифікації</label>
+                        <select
+                            class="form-select"
+                            id="mssql-auth"
+                            onchange="toggleMssqlAuth()"
+                        >
+                            <option value="windows">
+                                Автентифікація Windows
+                            </option>
+                            <option value="sql">
+                                Автентифікація SQL Server
+                            </option>
+                        </select>
+                    </div>
+                    <div id="mssql-sql-auth" style="display: none">
+                        <div class="inline-form">
+                            <div class="form-group">
+                                <label class="form-label">Логін</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="mssql-login"
+                                    placeholder="sa"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input
+                                    type="password"
+                                    class="form-input"
+                                    id="mssql-password"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="mssql-databases"
+                            placeholder="AdventureWorks, YourDB"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена БД через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PostgreSQL Settings -->
+                <div id="db-postgresql-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="pg-port"
+                                value="5432"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-login"
+                                placeholder="postgres"
+                                value="postgres"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="pg-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="pg-databases"
+                            placeholder="mydb, testdb"
+                        />
+                    </div>
+                </div>
+
+                <!-- Oracle Settings -->
+                <div id="db-oracle-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-server"
+                                placeholder="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="ora-port"
+                                value="1521"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service Name</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="ora-service"
+                            placeholder="ORCL"
+                        />
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-login"
+                                placeholder="SYS AS SYSDBA"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="ora-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MySQL Settings -->
+                <div id="db-mysql-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mysql-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="mysql-port"
+                                value="3306"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mysql-login"
+                                placeholder="root"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="mysql-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="mysql-databases"
+                            placeholder="mydb, testdb"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -978,6 +1245,36 @@
                                   .filter(Boolean)
                             : [];
                     }
+                    case "database": {
+                        // Return database configuration
+                        const dbType = document.getElementById("db-type").value;
+                        let databases = [];
+
+                        if (dbType === "mssql") {
+                            databases =
+                                document.getElementById(
+                                    "mssql-databases",
+                                ).value;
+                        } else if (dbType === "postgresql") {
+                            databases =
+                                document.getElementById("pg-databases").value;
+                        } else if (dbType === "oracle") {
+                            databases =
+                                document.getElementById("ora-service").value;
+                        } else if (dbType === "mysql") {
+                            databases =
+                                document.getElementById(
+                                    "mysql-databases",
+                                ).value;
+                        }
+
+                        return databases
+                            ? databases
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
                     default:
                         return [];
                 }
@@ -1065,6 +1362,13 @@
                         alert("Вкажіть імена ВМ для резервного копіювання.");
                         return;
                     }
+                } else if (selectedSourceType === "database") {
+                    if (sources.length === 0) {
+                        alert(
+                            "Вкажіть імена баз даних для резервного копіювання.",
+                        );
+                        return;
+                    }
                 } else if (sources.length === 0) {
                     alert("Вкажіть шлях до даних для резервного копіювання.");
                     return;
@@ -1085,7 +1389,12 @@
                 // Build job configuration
                 const job = {
                     name: jobName,
-                    type: selectedSourceType === "vm" ? "vm" : "file",
+                    type:
+                        selectedSourceType === "vm"
+                            ? "vm"
+                            : selectedSourceType === "database"
+                              ? "database"
+                              : "file",
                     sources: sources,
                     destination: destination,
                     compression: document.getElementById("compression").checked,
@@ -1147,6 +1456,58 @@
                             document.getElementById("kvm-login").value;
                         job.kvm_password =
                             document.getElementById("kvm-password").value;
+                    }
+                }
+
+                // Add database-specific fields
+                if (selectedSourceType === "database") {
+                    const dbType = document.getElementById("db-type").value;
+                    job.database_type = dbType;
+                    job.database_conn = "";
+
+                    if (dbType === "mssql") {
+                        job.server =
+                            document.getElementById("mssql-server").value;
+                        job.port = parseInt(
+                            document.getElementById("mssql-port").value,
+                        );
+                        job.auth_type =
+                            document.getElementById("mssql-auth").value;
+                        if (job.auth_type === "sql") {
+                            job.login =
+                                document.getElementById("mssql-login").value;
+                            job.password =
+                                document.getElementById("mssql-password").value;
+                        }
+                    } else if (dbType === "postgresql") {
+                        job.server = document.getElementById("pg-server").value;
+                        job.port = parseInt(
+                            document.getElementById("pg-port").value,
+                        );
+                        job.login = document.getElementById("pg-login").value;
+                        job.password =
+                            document.getElementById("pg-password").value;
+                    } else if (dbType === "oracle") {
+                        job.server =
+                            document.getElementById("ora-server").value;
+                        job.port = parseInt(
+                            document.getElementById("ora-port").value,
+                        );
+                        job.service =
+                            document.getElementById("ora-service").value;
+                        job.login = document.getElementById("ora-login").value;
+                        job.password =
+                            document.getElementById("ora-password").value;
+                    } else if (dbType === "mysql") {
+                        job.server =
+                            document.getElementById("mysql-server").value;
+                        job.port = parseInt(
+                            document.getElementById("mysql-port").value,
+                        );
+                        job.login =
+                            document.getElementById("mysql-login").value;
+                        job.password =
+                            document.getElementById("mysql-password").value;
                     }
                 }
 
@@ -1242,6 +1603,37 @@
                         kvmSettings.style.display = "block";
                     }
                 });
+
+            // Database type toggle
+            document
+                .getElementById("db-type")
+                .addEventListener("change", function () {
+                    const dbType = this.value;
+
+                    // Hide all DB settings
+                    document.getElementById("db-mssql-settings").style.display =
+                        "none";
+                    document.getElementById(
+                        "db-postgresql-settings",
+                    ).style.display = "none";
+                    document.getElementById(
+                        "db-oracle-settings",
+                    ).style.display = "none";
+                    document.getElementById("db-mysql-settings").style.display =
+                        "none";
+
+                    // Show selected
+                    document.getElementById(
+                        "db-" + dbType + "-settings",
+                    ).style.display = "block";
+                });
+
+            // MSSQL auth toggle
+            function toggleMssqlAuth() {
+                const authType = document.getElementById("mssql-auth").value;
+                document.getElementById("mssql-sql-auth").style.display =
+                    authType === "sql" ? "block" : "none";
+            }
         </script>
     </body>
 </html>
