@@ -281,6 +281,9 @@ func buildServer() (*http.Server, error) {
 			protected.POST("/database/list", api.ListDatabases)
 			protected.POST("/database/backup", api.BackupDatabase)
 
+			// VM Management
+			protected.POST("/vm/backup", api.BackupVM)
+
 			// Audit Logs
 			protected.GET("/audit/logs", api.GetAuditLogs)
 		}

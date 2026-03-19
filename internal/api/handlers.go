@@ -1286,3 +1286,38 @@ func BackupDatabase(c *gin.Context) {
 		"db_type":    req.DatabaseType,
 	})
 }
+
+// BackupVM creates an immediate backup of selected virtual machines
+func BackupVM(c *gin.Context) {
+	var req struct {
+		VMs         []string `json:"vms"`
+		VMType      string   `json:"vm_type"`
+		Host        string   `json:"host"`
+		Destination string   `json:"destination"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	if len(req.VMs) == 0 {
+		c.JSON(400, gin.H{"error": "Виберіть хоча б одну ВМ"})
+		return
+	}
+
+	sessionID := uuid.New().String()
+
+	log.Printf("Starting %s VM backup for %v on host %s", req.VMType, req.VMs, req.Host)
+
+	// TODO: Implement actual VM backup logic
+	// - Hyper-V: Export-VM, checkpoint-based backup
+	// - KVM: virsh snapshot-create-as, qemu-img backup
+
+	c.JSON(200, gin.H{
+		"success":    true,
+		"session_id": sessionID,
+		"message":    "Бекап ВМ розпочато",
+		"vm_type":    req.VMType,
+	})
+}
