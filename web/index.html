@@ -544,6 +544,13 @@
                     <span class="status-dot"></span>
                     <span>Система Працює</span>
                 </div>
+                <button
+                    class="theme-toggle"
+                    onclick="toggleTheme()"
+                    title="Перемкнути тему"
+                >
+                    <span id="theme-icon">🌙</span>
+                </button>
                 <span id="username-display">👤 Admin</span>
                 <button class="logout-btn" onclick="logout()">🚪 Вихід</button>
             </div>
@@ -800,6 +807,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Heatmap Calendar -->
+                <div id="heatmap-container" style="margin-bottom: 2rem"></div>
 
                 <div class="card">
                     <div class="card-header">
@@ -1182,7 +1192,34 @@
 
             loadDashboard();
             setInterval(loadDashboard, 30000);
+
+            // Theme toggle
+            function toggleTheme() {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+                const themeIcon = document.getElementById("theme-icon");
+
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (themeIcon) {
+                    themeIcon.textContent = newTheme === "light" ? "☀️" : "🌙";
+                }
+            }
+
+            // Load saved theme
+            (function () {
+                const savedTheme = localStorage.getItem("theme") || "dark";
+                document.documentElement.setAttribute("data-theme", savedTheme);
+                const themeIcon = document.getElementById("theme-icon");
+                if (themeIcon) {
+                    themeIcon.textContent =
+                        savedTheme === "light" ? "☀️" : "🌙";
+                }
+            })();
         </script>
         <script src="assets/toast.js"></script>
+        <script src="assets/heatmap.js"></script>
     </body>
 </html>
