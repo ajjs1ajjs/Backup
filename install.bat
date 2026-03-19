@@ -99,8 +99,8 @@ REM Cleanup
 rmdir /s /q "%TEMP_DIR%"
 
 REM Create shortcuts
-powershell -Command "$D = [Environment]::GetFolderPath('DesktopDirectory'); $S = (New-Object -ComObject WScript.Shell).CreateShortcut('$D\NovaBackup.lnk'); $S.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $S.WorkingDirectory = '%INSTALL_DIR%'; $S.Save()"
-powershell -Command "$S = [Environment]::GetFolderPath('StartMenu'); $D = Join-Path $S 'Programs\NovaBackup.lnk'; $W = (New-Object -ComObject WScript.Shell); $L = $W.CreateShortcut($D); $L.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $L.WorkingDirectory = '%INSTALL_DIR%'; $L.Save()"
+powershell -Command "$Desktop = [Environment]::GetFolderPath('DesktopDirectory'); $WScript = New-Object -ComObject WScript.Shell; $Shortcut = $WScript.CreateShortcut((Join-Path $Desktop 'NovaBackup.lnk')); $Shortcut.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Save()"
+powershell -Command "$StartMenu = [Environment]::GetFolderPath('StartMenu'); $WScript = New-Object -ComObject WScript.Shell; $Shortcut = $WScript.CreateShortcut((Join-Path $StartMenu 'Programs\NovaBackup.lnk')); $Shortcut.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Save()"
 
 echo.
 echo ========================================
