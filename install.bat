@@ -93,8 +93,8 @@ REM Cleanup
 rmdir /s /q "%TEMP_DIR%"
 
 REM Create shortcuts
-powershell -Command "$S = (New-Object -ComObject WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\NovaBackup.lnk'); $S.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $S.WorkingDirectory = '%INSTALL_DIR%'; $S.Save()"
-powershell -Command "$S = (New-Object -ComObject WScript.Shell).CreateShortcut('%APPDATA%\Microsoft\Windows\Start Menu\Programs\NovaBackup.lnk'); $S.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $S.WorkingDirectory = '%INSTALL_DIR%'; $S.Save()"
+powershell -Command "$D = [Environment]::GetFolderPath('DesktopDirectory'); $S = (New-Object -ComObject WScript.Shell).CreateShortcut('$D\NovaBackup.lnk'); $S.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $S.WorkingDirectory = '%INSTALL_DIR%'; $S.Save()"
+powershell -Command "$S = [Environment]::GetFolderPath('StartMenu'); $D = Join-Path $S 'Programs\NovaBackup.lnk'; $W = (New-Object -ComObject WScript.Shell); $L = $W.CreateShortcut($D); $L.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $L.WorkingDirectory = '%INSTALL_DIR%'; $L.Save()"
 
 echo.
 echo ========================================
