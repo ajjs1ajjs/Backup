@@ -1227,7 +1227,8 @@ func ListDatabases(c *gin.Context) {
 			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;"`,
 				server, port, req.Login, req.Password)
 		} else {
-			authScript = `$connectionString = "Server=localhost;Database=master;Integrated Security=true;TrustServerCertificate=true;"`
+			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;Integrated Security=true;TrustServerCertificate=true;"`,
+				server, port)
 		}
 
 		psScript := fmt.Sprintf(`
