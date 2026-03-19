@@ -962,17 +962,40 @@ func (e *BackupEngine) backupVM(job *BackupJob, session *BackupSession) error {
 		e.log(session, fmt.Sprintf("Експорт VM: %s", vmName))
 
 		exportPath := filepath.Join(session.BackupPath, "vms", vmName)
-		psScript := fmt.Sprintf(`Export-VM -Name "%s" -Path "%s"`, vmName, exportPath)
+		os.MkdirAll(exportPath, 0755)
+
+		// Export-VM with checkpoint for consistent backup
+		psScript := fmt.Sprintf(`
+$ErrorActionPreference = "Stop"
+try {
+    $vm = Get-VM -Name "%s"
+    $exportPath = "%s"
+
+    # Create checkpoint for consistent backup
+    $checkpoint = Checkpoint-VM -Name "%s" -Description "Backup checkpoint $(Get-Date -Format 'yyyyMMdd_HHmmss')"
+
+    # Export VM from checkpoint
+    Export-VM -Name "%s" -Path $exportPath -Snapshot $checkpoint
+
+    # Remove checkpoint after export
+    Remove-VMSnapshot -VM "%s" -Snapshot $checkpoint.Name -Confirm:$false
+
+    Write-Host "VM exported successfully"
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+`, vmName, exportPath, vmName, vmName, vmName)
 
 		cmd := exec.Command("powershell", "-Command", psScript)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			e.log(session, fmt.Sprintf("⚠️ Помилка експорту VM %s: %v - %s", vmName, err, string(output)))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("VM export failed: %v", err))
-		} else {
-			session.FilesProcessed++
-			e.log(session, fmt.Sprintf("✅ VM %s експортовано", vmName))
+			return fmt.Errorf("помилка експорту VM %s: %v", vmName, err)
 		}
+
+		session.FilesProcessed++
+		e.log(session, fmt.Sprintf("✅ VM %s експортовано", vmName))
 	}
 
 	session.FilesTotal = len(job.VMNames)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1207,37 +1208,140 @@ func ListDatabases(c *gin.Context) {
 		return
 	}
 
-	// Mock database lists for each type
 	var databases []gin.H
 
-	switch req.Type {
-	case "mssql":
-		databases = []gin.H{
-			{"name": "master", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "tempdb", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "model", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "msdb", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "AdventureWorks", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "YourDatabase", "size": "Unknown", "last_backup": "N/A"},
+	if req.Type == "mssql" {
+		// Use PowerShell to list SQL Server databases
+		server := req.Server
+		if server == "" {
+			server = "localhost"
 		}
-	case "postgresql":
-		databases = []gin.H{
-			{"name": "template0", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "template1", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "postgres", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "yourdb", "size": "Unknown", "last_backup": "N/A"},
+
+		port := req.Port
+		if port == 0 {
+			port = 1433
 		}
-	case "oracle":
-		databases = []gin.H{
-			{"name": "SYS", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "SYSTEM", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "ORCL", "size": "Unknown", "last_backup": "N/A"},
-			{"name": "YOURDB", "size": "Unknown", "last_backup": "N/A"},
+
+		authScript := ""
+		if req.AuthType == "sql" {
+			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;"`,
+				server, port, req.Login, req.Password)
+		} else {
+			authScript = `$connectionString = "Server=localhost;Database=master;Integrated Security=true;"`
 		}
-	default:
-		databases = []gin.H{
-			{"name": "master", "size": "Unknown", "last_backup": "N/A"},
+
+		psScript := fmt.Sprintf(`
+$ErrorActionPreference = "Stop"
+%s
+
+try {
+    $connection = New-Object System.Data.SqlClient.SqlConnection
+    $connection.ConnectionString = $connectionString
+    $connection.Open()
+
+    $query = "SELECT name, CAST(SUM(size) * 8 / 1024 AS VARCHAR) + ' MB' AS size FROM sys.master_files GROUP BY name ORDER BY name"
+    $command = New-Object System.Data.SqlClient.SqlCommand
+    $command.CommandText = $query
+    $command.Connection = $connection
+
+    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter
+    $adapter.SelectCommand = $command
+    $dataset = New-Object System.Data.DataSet
+    $adapter.Fill($dataset)
+
+    $connection.Close()
+
+    $dataset.Tables[0] | ConvertTo-Json
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+`, authScript)
+
+		cmd := exec.Command("powershell", "-Command", psScript)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to list SQL Server databases: %v", err)
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список БД: " + string(output)})
+			return
 		}
+
+		// Parse PowerShell output
+		var dbList []map[string]interface{}
+		if err := json.Unmarshal(output, &dbList); err != nil {
+			log.Printf("Failed to parse database list: %v", err)
+			c.JSON(500, gin.H{"error": "Помилка обробки даних БД"})
+			return
+		}
+
+		for _, db := range dbList {
+			databases = append(databases, gin.H{
+				"name": db["name"],
+				"size": db["size"],
+			})
+		}
+	} else if req.Type == "postgresql" {
+		// Use psql to list databases
+		sshCmd := fmt.Sprintf(`PGPASSWORD=%s psql -h %s -p %d -U %s -d %s -c "\l" -t`,
+			req.Password, req.Server, req.Port, req.Login, req.Database)
+
+		cmd := exec.Command("bash", "-c", sshCmd)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to list PostgreSQL databases: %v", err)
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список PostgreSQL БД"})
+			return
+		}
+
+		// Parse psql output
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.Contains(line, "|") {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) > 0 {
+				dbName := fields[0]
+				if dbName != "Name" && dbName != "List" {
+					databases = append(databases, gin.H{
+						"name": dbName,
+					})
+				}
+			}
+		}
+	} else if req.Type == "oracle" {
+		// Use sqlplus to list databases
+		databases = []gin.H{
+			{"name": req.Service},
+		}
+	} else if req.Type == "mysql" {
+		// Use mysql to list databases
+		sshCmd := fmt.Sprintf(`mysql -h %s -P %d -u %s -p%s -e "SHOW DATABASES"`,
+			req.Server, req.Port, req.Login, req.Password)
+
+		cmd := exec.Command("bash", "-c", sshCmd)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to list MySQL databases: %v", err)
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список MySQL БД"})
+			return
+		}
+
+		// Parse mysql output
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines[1:] { // Skip header
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			databases = append(databases, gin.H{
+				"name": line,
+			})
+		}
+	} else {
+		c.JSON(400, gin.H{"error": "Невідомий тип бази даних: " + req.Type})
+		return
 	}
 
 	c.JSON(200, gin.H{"databases": databases})
@@ -1320,4 +1424,104 @@ func BackupVM(c *gin.Context) {
 		"message":    "Бекап ВМ розпочато",
 		"vm_type":    req.VMType,
 	})
+}
+
+// ListVMs lists virtual machines on a hypervisor
+func ListVMs(c *gin.Context) {
+	var req struct {
+		VMType   string `json:"type"`
+		Host     string `json:"host"`
+		Login    string `json:"login"`
+		Password string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	var vms []gin.H
+
+	if req.VMType == "hyper-v" {
+		// Use PowerShell to list Hyper-V VMs
+		psScript := `
+$ErrorActionPreference = "Stop"
+try {
+    Get-VM | Select-Object Name, State, @{Name="MemoryAssigned";Expression={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{Name="Uptime";Expression={$_.Uptime.ToString()}}, @{Name="OS";Expression={$_.GuestOSInDetail}} | ConvertTo-Json -Depth 3
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+`
+		cmd := exec.Command("powershell", "-Command", psScript)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to list Hyper-V VMs: %v", err)
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список ВМ: " + string(output)})
+			return
+		}
+
+		// Parse PowerShell output
+		var vmList []map[string]interface{}
+		if err := json.Unmarshal(output, &vmList); err != nil {
+			log.Printf("Failed to parse VM list: %v", err)
+			c.JSON(500, gin.H{"error": "Помилка обробки даних ВМ"})
+			return
+		}
+
+		for _, vm := range vmList {
+			state := "unknown"
+			if vmState, ok := vm["State"].(string); ok {
+				state = vmState
+			}
+
+			vms = append(vms, gin.H{
+				"name":   vm["Name"],
+				"state":  state,
+				"memory": vm["MemoryAssigned"],
+				"uptime": vm["Uptime"],
+				"os":     vm["OS"],
+			})
+		}
+	} else if req.VMType == "kvm" {
+		// Use SSH to list KVM VMs via virsh
+		sshCmd := fmt.Sprintf(`sshpass -p '%s' ssh -o StrictHostKeyChecking=no %s@%s "virsh list --all"`,
+			req.Password, req.Login, req.Host)
+
+		cmd := exec.Command("bash", "-c", sshCmd)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to list KVM VMs: %v", err)
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список KVM ВМ"})
+			return
+		}
+
+		// Parse virsh output
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines[2:] { // Skip header lines
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) >= 3 {
+				vmName := fields[1]
+				vmState := strings.ToLower(fields[2])
+				if vmState == "running" {
+					vmState = "running"
+				} else {
+					vmState = "stopped"
+				}
+				vms = append(vms, gin.H{
+					"name":  vmName,
+					"state": vmState,
+				})
+			}
+		}
+	} else {
+		c.JSON(400, gin.H{"error": "Невідомий тип віртуалізації: " + req.VMType})
+		return
+	}
+
+	c.JSON(200, gin.H{"vms": vms})
 }

@@ -283,6 +283,7 @@ func buildServer() (*http.Server, error) {
 
 			// VM Management
 			protected.POST("/vm/backup", api.BackupVM)
+			protected.POST("/vm/list", api.ListVMs)
 
 			// Audit Logs
 			protected.GET("/audit/logs", api.GetAuditLogs)

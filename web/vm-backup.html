@@ -32,7 +32,11 @@
                 padding: 2rem;
             }
             .header {
-                background: linear-gradient(135deg, var(--bg-secondary), #0f172a);
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary),
+                    #0f172a
+                );
                 padding: 1.5rem 2rem;
                 border-radius: 1rem;
                 border: 1px solid var(--border);
@@ -93,15 +97,27 @@
                 gap: 0.5rem;
             }
             .btn-primary {
-                background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
                 color: white;
             }
             .btn-success {
-                background: linear-gradient(135deg, var(--accent-green), #059669);
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
                 color: white;
             }
             .btn-hyperv {
-                background: linear-gradient(135deg, var(--hyperv-color), #005a9e);
+                background: linear-gradient(
+                    135deg,
+                    var(--hyperv-color),
+                    #005a9e
+                );
                 color: white;
             }
             .btn-kvm {
@@ -249,15 +265,14 @@
     </head>
     <body>
         <div class="header">
-            <h1>
-                🖥️ Бекап Віртуальних Машин
-            </h1>
+            <h1>🖥️ Бекап Віртуальних Машин</h1>
             <a href="index.html" class="btn btn-primary">← На головну</a>
         </div>
 
         <div class="alert alert-info">
-            💡 <strong>Інформація:</strong> Виберіть тип віртуалізації для створення
-            резервної копії ВМ. Підтримуються Microsoft Hyper-V та KVM/QEMU.
+            💡 <strong>Інформація:</strong> Виберіть тип віртуалізації для
+            створення резервної копії ВМ. Підтримуються Microsoft Hyper-V та
+            KVM/QEMU.
         </div>
 
         <div class="card">
@@ -404,8 +419,9 @@
             <h2 style="margin-bottom: 1rem">📋 Виберіть ВМ для бекапу</h2>
 
             <div class="alert alert-warning">
-                ⚠️ <strong>Увага:</strong> Для консистентного бекапу рекомендується
-                тимчасово зупинити ВМ або використати знімки (snapshots).
+                ⚠️ <strong>Увага:</strong> Для консистентного бекапу
+                рекомендується тимчасово зупинити ВМ або використати знімки
+                (snapshots).
             </div>
 
             <div class="vm-list" id="vm-list">
@@ -451,8 +467,9 @@
                 .getElementById("hyperv-auth")
                 .addEventListener("change", function () {
                     const showRemote = this.value === "remote";
-                    document.getElementById("hyperv-remote-fields").style.display =
-                        showRemote ? "block" : "none";
+                    document.getElementById(
+                        "hyperv-remote-fields",
+                    ).style.display = showRemote ? "block" : "none";
                 });
 
             function getConnectionConfig() {
@@ -468,14 +485,17 @@
                                 : "",
                         password:
                             auth === "remote"
-                                ? document.getElementById("hyperv-password").value
+                                ? document.getElementById("hyperv-password")
+                                      .value
                                 : "",
                     };
                 } else {
                     return {
                         type: "kvm",
                         host: document.getElementById("kvm-host").value,
-                        port: parseInt(document.getElementById("kvm-port").value),
+                        port: parseInt(
+                            document.getElementById("kvm-port").value,
+                        ),
                         login: document.getElementById("kvm-login").value,
                         password: document.getElementById("kvm-password").value,
                     };
@@ -490,32 +510,33 @@
                 btn.innerHTML = '<span class="spinner"></span> Підключення...';
 
                 try {
-                    // Mock VM list for demonstration
-                    // In production, this would call the API
-                    setTimeout(() => {
-                        if (selectedVMType === "hyper-v") {
-                            allVMs = [
-                                { name: "VM-WEB-01", status: "running", os: "Ubuntu 22.04", disk: "50 GB" },
-                                { name: "VM-DB-01", status: "running", os: "Windows Server 2022", disk: "100 GB" },
-                                { name: "VM-APP-01", status: "off", os: "CentOS 8", disk: "80 GB" },
-                                { name: "VM-TEST-01", status: "paused", os: "Debian 11", disk: "40 GB" },
-                            ];
-                        } else {
-                            allVMs = [
-                                { name: "kvm-ubuntu-01", status: "running", os: "Ubuntu 20.04", disk: "60 GB" },
-                                { name: "kvm-centos-01", status: "running", os: "CentOS 7", disk: "100 GB" },
-                                { name: "kvm-windows-01", status: "off", os: "Windows 10", disk: "120 GB" },
-                            ];
-                        }
+                    const res = await fetch(`${API_BASE}/vm/list`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization:
+                                "Bearer " + localStorage.getItem("authToken"),
+                        },
+                        body: JSON.stringify(config),
+                    });
 
-                        displayVMs(allVMs);
-                        document.getElementById("vms-card").style.display = "block";
-                        showMessage(`✅ Підключено! Знайдено ВМ: ${allVMs.length}`, "success");
-                        btn.disabled = false;
-                        btn.innerHTML = originalText;
-                    }, 1000);
+                    const data = await res.json();
+
+                    if (res.ok && data.vms) {
+                        allVMs = data.vms;
+                        displayVMs(data.vms);
+                        document.getElementById("vms-card").style.display =
+                            "block";
+                        showMessage(
+                            `✅ Підключено! Знайдено ВМ: ${data.vms.length}`,
+                            "success",
+                        );
+                    } else {
+                        throw new Error(data.error || "Помилка підключення");
+                    }
                 } catch (error) {
                     showMessage("❌ Помилка: " + error.message, "error");
+                } finally {
                     btn.disabled = false;
                     btn.innerHTML = originalText;
                 }
@@ -577,7 +598,7 @@
                 const config = getConnectionConfig();
                 const jobName = prompt(
                     "Введіть назву завдання:",
-                    `${selectedVMType.toUpperCase()} Backup - ${selectedVMs.join(", ")}`
+                    `${selectedVMType.toUpperCase()} Backup - ${selectedVMs.join(", ")}`,
                 );
                 if (!jobName) return;
 
@@ -603,7 +624,7 @@
 
                     if (res.ok) {
                         alert(
-                            "✅ Завдання створено!\n\nТепер ви можете запустити його вручну або налаштувати розклад."
+                            "✅ Завдання створено!\n\nТепер ви можете запустити його вручну або налаштувати розклад.",
                         );
                         window.location.href = "jobs.html";
                     } else {
@@ -622,7 +643,7 @@
 
                 if (
                     !confirm(
-                        `Почати резервне копіювання ${selectedVMs.length} ВМ?`
+                        `Почати резервне копіювання ${selectedVMs.length} ВМ?`,
                     )
                 )
                     return;
@@ -654,7 +675,7 @@
                     if (res.ok) {
                         alert(
                             "✅ Бекап розпочато!\nСесія: " +
-                                (data.session_id || "N/A")
+                                (data.session_id || "N/A"),
                         );
                     } else {
                         throw new Error(data.error);
