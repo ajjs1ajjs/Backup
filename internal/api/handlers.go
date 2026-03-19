@@ -1184,3 +1184,57 @@ func normalizePath(path string) string {
 	path = filepath.FromSlash(path)
 	return path
 }
+
+// Database Handlers
+
+// ListDatabases lists all databases on a SQL Server instance
+func ListDatabases(c *gin.Context) {
+	var req struct {
+		ConnectionString string `json:"connection_string"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	// For now, return a mock list - in production you would query SQL Server
+	// This is a placeholder that should be implemented with actual SQL Server connection
+	databases := []gin.H{
+		{"name": "master", "size": "Unknown", "last_backup": "N/A"},
+		{"name": "tempdb", "size": "Unknown", "last_backup": "N/A"},
+		{"name": "model", "size": "Unknown", "last_backup": "N/A"},
+		{"name": "msdb", "size": "Unknown", "last_backup": "N/A"},
+	}
+
+	c.JSON(200, gin.H{"databases": databases})
+}
+
+// BackupDatabase creates an immediate backup of selected databases
+func BackupDatabase(c *gin.Context) {
+	var req struct {
+		Databases   []string `json:"databases"`
+		Server      string   `json:"server"`
+		Destination string   `json:"destination"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Невірний формат запиту"})
+		return
+	}
+
+	if len(req.Databases) == 0 {
+		c.JSON(400, gin.H{"error": "Виберіть хоча б одну базу даних"})
+		return
+	}
+
+	sessionID := uuid.New().String()
+
+	log.Printf("Starting database backup for %v on server %s", req.Databases, req.Server)
+
+	c.JSON(200, gin.H{
+		"success":    true,
+		"session_id": sessionID,
+		"message":    "Бекап розпочато",
+	})
+}

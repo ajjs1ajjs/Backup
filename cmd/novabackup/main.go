@@ -277,6 +277,10 @@ func buildServer() (*http.Server, error) {
 			protected.GET("/reports/statistics", api.GetStatistics)
 			protected.GET("/reports/daily", api.GetDailyReport)
 
+			// Database Management
+			protected.POST("/database/list", api.ListDatabases)
+			protected.POST("/database/backup", api.BackupDatabase)
+
 			// Audit Logs
 			protected.GET("/audit/logs", api.GetAuditLogs)
 		}
