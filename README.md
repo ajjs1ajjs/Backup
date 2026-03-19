@@ -88,21 +88,6 @@ Password: admin123
 6. ✅ Verifies Web UI is responding
 7. ✅ Opens browser if available
 
----
-
-## Screenshots
-
-**Dashboard**
-![Dashboard](docs/screenshots/dashboard.png)
-
-**Sessions**
-![Sessions](docs/screenshots/sessions.png)
-
-**Restore**
-![Restore](docs/screenshots/restore.png)
-
----
-
 ## Documentation
 - [README.md](README.md)
 - [INSTALL.md](INSTALL.md)
