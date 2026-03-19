@@ -14,39 +14,47 @@ Production-ready backup & recovery platform for Windows Server.
 - Incremental + deduplication + compression
 - Fast restore: files, DB, VM
 - Web UI + RBAC + audit logs
+- **One-command automated installation**
 
 ---
 
 ## Quick Start
 
-### Windows (PowerShell as Administrator)
+### Windows (PowerShell)
 
-**Install**
+**One-Command Install** (auto-elevates to administrator):
+```powershell
+iwr -Uri https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile install.bat; .\install.bat
+```
+
+**Manual Download:**
 ```powershell
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat" -OutFile "install.bat"; .\install.bat
 ```
 
-**Update**
+**Update:**
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat" -OutFile "update.bat"; .\update.bat
+iwr -Uri https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat -OutFile update.bat; .\update.bat
 ```
 
 ### Linux (Ubuntu/Debian)
 
-**Install**
+**One-Command Install** (auto-elevates to root):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash
 ```
 
-**Update**
+**Update:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh | sudo bash
 ```
 
-**Service**
+**Service Management:**
 ```bash
 sudo systemctl status novabackup
 sudo systemctl restart novabackup
+sudo systemctl stop novabackup
+sudo systemctl start novabackup
 ```
 
 ### Access Web UI
@@ -56,7 +64,29 @@ Login: admin
 Password: admin123
 ```
 
-Change the default password after first login.
+⚠️ **Important:** Change the default password after first login. The system will force you to change it.
+
+---
+
+## What Does the Installer Do?
+
+### Windows (`install.bat`)
+1. ✅ Auto-elevates to administrator privileges
+2. ✅ Downloads latest `novabackup.exe` from GitHub
+3. ✅ Creates directories: `C:\Program Files\NovaBackup\`, `C:\ProgramData\NovaBackup\`
+4. ✅ Installs Windows Service (`NovaBackup`) with auto-start
+5. ✅ Starts the service automatically
+6. ✅ Creates desktop and Start menu shortcuts
+7. ✅ Opens Web UI in browser
+
+### Linux (`install.sh`)
+1. ✅ Auto-elevates to root via sudo
+2. ✅ Downloads latest `novabackup-linux-amd64` from GitHub
+3. ✅ Creates directories: `/opt/novabackup/`, `/var/lib/novabackup/`
+4. ✅ Creates systemd service (`novabackup.service`)
+5. ✅ Enables and starts the service
+6. ✅ Verifies Web UI is responding
+7. ✅ Opens browser if available
 
 ---
 
