@@ -83,6 +83,12 @@ type BackupJob struct {
 	DatabaseType   string   `json:"database_type,omitempty"`
 	DatabaseConn   string   `json:"database_conn,omitempty"`
 	DatabaseTables []string `json:"database_tables,omitempty"`
+	Server         string   `json:"server,omitempty"`
+	Port           int      `json:"port,omitempty"`
+	AuthType       string   `json:"auth_type,omitempty"`
+	Login          string   `json:"login,omitempty"`
+	Password       string   `json:"password,omitempty"`
+	Service        string   `json:"service,omitempty"`
 
 	// VM specific
 	VMNames    []string `json:"vm_names,omitempty"`
@@ -610,6 +616,8 @@ func (e *BackupEngine) backupDatabase(job *BackupJob, session *BackupSession) er
 		dumpFile, err = e.backupPostgreSQL(job, session)
 	case DBSQLite:
 		dumpFile, err = e.backupSQLite(job, session)
+	case DBMSSQL:
+		dumpFile, err = e.backupMSSQL(job, session)
 	default:
 		return fmt.Errorf("непідтримуваний тип бази даних: %s", job.DatabaseType)
 	}
@@ -859,6 +867,86 @@ func (e *BackupEngine) backupSQLite(job *BackupJob, session *BackupSession) (str
 	}
 
 	return destFile, nil
+}
+
+// backupMSSQL backs up Microsoft SQL Server database
+func (e *BackupEngine) backupMSSQL(job *BackupJob, session *BackupSession) (string, error) {
+	e.log(session, "🗄️ Початок резервного копіювання Microsoft SQL Server...")
+
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("резервне копіювання MSSQL підтримується тільки на Windows")
+	}
+
+	// Build backup command using PowerShell and sqlcmd
+	server := job.Server
+	if server == "" {
+		server = "localhost"
+	}
+
+	port := job.Port
+	if port == 0 {
+		port = 1433
+	}
+
+	// Build database list
+	databases := job.Sources
+	if len(databases) == 0 {
+		return "", fmt.Errorf("не вказано бази даних для резервного копіювання")
+	}
+
+	backupDir := filepath.Join(session.BackupPath, "mssql")
+	os.MkdirAll(backupDir, 0755)
+
+	timestamp := time.Now().Format("20060102_150405")
+
+	// Build PowerShell script for SQL Server backup
+	psScript := fmt.Sprintf(`$server = "%s"
+$databases = @("%s")
+$backupDir = "%s"
+$timestamp = "%s"
+
+# Build connection string
+$connectionString = "Server=%s,%d;Database=master;Integrated Security=true;"
+
+try {
+    $connection = New-Object System.Data.SqlClient.SqlConnection
+    $connection.ConnectionString = $connectionString
+    $connection.Open()
+
+    foreach ($dbName in $databases) {
+        $backupFile = Join-Path $backupDir "${dbName}_${timestamp}.bak"
+
+        $query = "BACKUP DATABASE [$dbName] TO DISK = '$backupFile' WITH INIT, COMPRESSION, STATS = 10"
+
+        $command = New-Object System.Data.SqlClient.SqlCommand
+        $command.CommandText = $query
+        $command.Connection = $connection
+
+        Write-Host "Backing up database: $dbName"
+        $command.ExecuteNonQuery() | Out-Null
+
+        Write-Host "Backup completed: $backupFile"
+    }
+
+    $connection.Close()
+    Write-Host "All databases backed up successfully"
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+`, server, strings.Join(databases, `","`), backupDir, timestamp, server, port)
+
+	cmd := exec.Command("powershell", "-Command", psScript)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		e.log(session, fmt.Sprintf("⚠️ Помилка бекапу MSSQL: %v - %s", err, string(output)))
+		return "", fmt.Errorf("помилка резервного копіювання MSSQL: %v", err)
+	}
+
+	e.log(session, fmt.Sprintf("✅ MSSQL бекап виконано: %s", string(output)))
+
+	// Return backup directory (contains .bak files)
+	return backupDir, nil
 }
 
 // backupVM backs up Hyper-V VMs
