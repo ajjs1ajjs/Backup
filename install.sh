@@ -77,6 +77,19 @@ echo "[*] Enabling and starting service..."
 systemctl enable novabackup
 systemctl start novabackup
 
+# Wait for service to start
+echo "[*] Waiting for service to start..."
+sleep 3
+
+# Verify service is running
+if systemctl is-active --quiet novabackup; then
+    echo "[OK] NovaBackup service is RUNNING"
+else
+    echo "[WARNING] Service failed to start, trying manual start..."
+    "$INSTALL_DIR/NovaBackup" server &
+    sleep 2
+fi
+
 # Cleanup
 echo "[*] Cleaning up..."
 rm -f /tmp/novabackup
@@ -91,6 +104,18 @@ echo "Data Directory: $DATA_DIR"
 echo ""
 echo "Service Status:"
 systemctl status novabackup --no-pager -l
+echo ""
+
+# Check if web server is responding
+echo "[*] Checking Web UI..."
+for i in 1 2 3 4 5; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8050 | grep -q "200\|302"; then
+        echo "[OK] Web UI is responding on http://localhost:8050"
+        break
+    fi
+    sleep 1
+done
+
 echo ""
 echo "Web UI: http://localhost:8050"
 echo "Login: admin"

@@ -72,15 +72,41 @@ copy /Y "%TEMP_DIR%\novabackup.exe" "%INSTALL_DIR%\NovaBackup.exe"
 
 echo [*] Installing Windows Service...
 cd /d "%INSTALL_DIR%"
-NovaBackup.exe install
+
+REM Configure service with correct path and auto-start
+sc config NovaBackup binPath= "\"%INSTALL_DIR%\NovaBackup.exe\" server" start= auto >nul
 if %errorLevel% neq 0 (
-    echo [ERROR] Service installation failed!
-    pause
-    exit /b 1
+    echo [WARNING] Service config failed, trying install...
+    NovaBackup.exe install
+    if %errorLevel% neq 0 (
+        echo [ERROR] Service installation failed!
+        pause
+        exit /b 1
+    )
 )
 
 echo [*] Starting Service...
-NovaBackup.exe start
+sc start NovaBackup >nul
+if %errorLevel% neq 0 (
+    timeout /t 2 /nobreak >nul
+    sc start NovaBackup >nul
+    if %errorLevel% neq 0 (
+        echo [WARNING] Service start failed, trying direct start...
+        start "" "%INSTALL_DIR%\NovaBackup.exe" server
+    )
+)
+
+REM Wait for service to start
+echo [*] Waiting for service to start...
+timeout /t 3 /nobreak >nul
+
+REM Verify service is running
+sc query NovaBackup | find "RUNNING" >nul
+if %errorLevel% neq 0 (
+    echo [WARNING] Service not running, trying direct start...
+    start "" "%INSTALL_DIR%\NovaBackup.exe" server
+    timeout /t 2 /nobreak >nul
+)
 
 echo [*] Creating shortcuts...
 powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $S = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\NovaBackup.lnk'); $S.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $S.WorkingDirectory = '%INSTALL_DIR%'; $S.Description = 'NovaBackup Enterprise v7.0'; $S.Save()"
@@ -99,12 +125,24 @@ echo.
 echo Installation Directory: %INSTALL_DIR%
 echo Data Directory: %DATA_DIR%
 echo.
+
+REM Check if service is running
+sc query NovaBackup | find "RUNNING" >nul
+if %errorLevel% equ 0 (
+    echo [OK] NovaBackup service is RUNNING
+) else (
+    echo [WARNING] Service not running, starting manually...
+    start "" "%INSTALL_DIR%\NovaBackup.exe" server
+    timeout /t 2 /nobreak >nul
+)
+
+echo.
 echo Web UI: http://localhost:8050
 echo Login: admin
 echo Password: admin123
 echo.
-echo Starting NovaBackup...
-timeout /t 2 /nobreak >nul
+echo Opening Web UI in 3 seconds...
+timeout /t 3 /nobreak >nul
 start "" http://localhost:8050
 
 echo.
