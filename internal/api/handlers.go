@@ -1187,10 +1187,19 @@ func normalizePath(path string) string {
 
 // Database Handlers
 
-// ListDatabases lists all databases on a SQL Server instance
+// ListDatabases lists all databases on a database server instance
 func ListDatabases(c *gin.Context) {
 	var req struct {
+		Type             string `json:"type"`
+		Server           string `json:"server"`
+		Port             int    `json:"port"`
+		Database         string `json:"database"`
+		Login            string `json:"login"`
+		Password         string `json:"password"`
+		AuthType         string `json:"auth_type"`
 		ConnectionString string `json:"connection_string"`
+		SSL              string `json:"ssl"`
+		Service          string `json:"service"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1198,13 +1207,37 @@ func ListDatabases(c *gin.Context) {
 		return
 	}
 
-	// For now, return a mock list - in production you would query SQL Server
-	// This is a placeholder that should be implemented with actual SQL Server connection
-	databases := []gin.H{
-		{"name": "master", "size": "Unknown", "last_backup": "N/A"},
-		{"name": "tempdb", "size": "Unknown", "last_backup": "N/A"},
-		{"name": "model", "size": "Unknown", "last_backup": "N/A"},
-		{"name": "msdb", "size": "Unknown", "last_backup": "N/A"},
+	// Mock database lists for each type
+	var databases []gin.H
+
+	switch req.Type {
+	case "mssql":
+		databases = []gin.H{
+			{"name": "master", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "tempdb", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "model", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "msdb", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "AdventureWorks", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "YourDatabase", "size": "Unknown", "last_backup": "N/A"},
+		}
+	case "postgresql":
+		databases = []gin.H{
+			{"name": "template0", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "template1", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "postgres", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "yourdb", "size": "Unknown", "last_backup": "N/A"},
+		}
+	case "oracle":
+		databases = []gin.H{
+			{"name": "SYS", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "SYSTEM", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "ORCL", "size": "Unknown", "last_backup": "N/A"},
+			{"name": "YOURDB", "size": "Unknown", "last_backup": "N/A"},
+		}
+	default:
+		databases = []gin.H{
+			{"name": "master", "size": "Unknown", "last_backup": "N/A"},
+		}
 	}
 
 	c.JSON(200, gin.H{"databases": databases})
@@ -1213,9 +1246,18 @@ func ListDatabases(c *gin.Context) {
 // BackupDatabase creates an immediate backup of selected databases
 func BackupDatabase(c *gin.Context) {
 	var req struct {
-		Databases   []string `json:"databases"`
-		Server      string   `json:"server"`
-		Destination string   `json:"destination"`
+		Databases        []string `json:"databases"`
+		DatabaseType     string   `json:"database_type"`
+		Server           string   `json:"server"`
+		Port             int      `json:"port"`
+		Destination      string   `json:"destination"`
+		Login            string   `json:"login"`
+		Password         string   `json:"password"`
+		AuthType         string   `json:"auth_type"`
+		Database         string   `json:"database"`
+		SSL              string   `json:"ssl"`
+		Service          string   `json:"service"`
+		ConnectionString string   `json:"connection_string"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1230,11 +1272,17 @@ func BackupDatabase(c *gin.Context) {
 
 	sessionID := uuid.New().String()
 
-	log.Printf("Starting database backup for %v on server %s", req.Databases, req.Server)
+	log.Printf("Starting %s database backup for %v on server %s", req.DatabaseType, req.Databases, req.Server)
+
+	// TODO: Implement actual backup logic for each database type
+	// - SQL Server: BACKUP DATABASE ... TO DISK = ...
+	// - PostgreSQL: pg_dump -U user -d dbname -f backup.sql
+	// - Oracle: RMAN or expdp utility
 
 	c.JSON(200, gin.H{
 		"success":    true,
 		"session_id": sessionID,
 		"message":    "Бекап розпочато",
+		"db_type":    req.DatabaseType,
 	})
 }
