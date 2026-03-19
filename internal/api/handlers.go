@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -508,9 +510,20 @@ func RunJob(c *gin.Context) {
 		Destination: job.Destination,
 		Compression: job.Compression,
 		Encryption:  job.Encryption,
+		// Database specific fields
+		DatabaseType: job.DatabaseType,
+		Server:       job.Server,
+		Port:         job.Port,
+		AuthType:     job.AuthType,
+		Login:        job.Login,
+		Password:     job.Password,
+		Service:      job.Service,
+		// VM specific fields
+		VMNames:    job.VMNames,
+		HyperVHost: job.HyperVHost,
 	}
 
-	log.Printf("Starting backup job '%s' (%s): sources=%v, dest=%s", job.Name, job.ID, job.Sources, job.Destination)
+	log.Printf("Starting backup job '%s' (%s): type=%s, sources=%v, dest=%s", job.Name, job.ID, job.Type, job.Sources, job.Destination)
 	session, err := BackupEngine.ExecuteBackup(backupJob)
 	persistBackupSession(session)
 	if err != nil {
@@ -1208,11 +1221,18 @@ func ListDatabases(c *gin.Context) {
 		return
 	}
 
+	log.Printf("Database list request: type=%s, server=%s, port=%d, auth=%s", req.Type, req.Server, req.Port, req.AuthType)
+
 	var databases []gin.H
 
 	if req.Type == "mssql" {
 		// Use PowerShell to list SQL Server databases
 		server := req.Server
+		// Unescape JSON string - converts \\ to \
+		if unquoted, err := strconv.Unquote(`"` + server + `"`); err == nil {
+			server = unquoted
+		}
+		log.Printf("Database list request: type=%s, server=%s (normalized: %s), port=%d, auth=%s", req.Type, req.Server, server, req.Port, req.AuthType)
 		if server == "" {
 			server = "localhost"
 		}
@@ -1224,11 +1244,22 @@ func ListDatabases(c *gin.Context) {
 
 		authScript := ""
 		if req.AuthType == "sql" {
-			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;"`,
-				server, port, req.Login, req.Password)
+			// For named instances (SQLEXPRESS), don't specify port - use named pipes
+			if strings.Contains(server, "\\") {
+				authScript = fmt.Sprintf(`$connectionString = "Server=%s;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;"`,
+					server, req.Login, req.Password)
+			} else {
+				authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;"`,
+					server, port, req.Login, req.Password)
+			}
 		} else {
-			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;Integrated Security=true;TrustServerCertificate=true;"`,
-				server, port)
+			// Windows Authentication
+			if strings.Contains(server, "\\") {
+				authScript = fmt.Sprintf(`$connectionString = "Server=%s;Database=master;Integrated Security=true;TrustServerCertificate=true;"`, server)
+			} else {
+				authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;Integrated Security=true;TrustServerCertificate=true;"`,
+					server, port)
+			}
 		}
 
 		psScript := fmt.Sprintf(`
@@ -1245,14 +1276,15 @@ try {
     $command.CommandText = $query
     $command.Connection = $connection
 
-    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    $adapter.SelectCommand = $command
-    $dataset = New-Object System.Data.DataSet
-    $adapter.Fill($dataset) | Out-Null
-
+    $reader = $command.ExecuteReader()
+    $databases = @()
+    while ($reader.Read()) {
+        $databases += @{ name = $reader.GetString(0) }
+    }
+    $reader.Close()
     $connection.Close()
 
-    $dataset.Tables[0] | ConvertTo-Json
+    $databases | ConvertTo-Json -Depth 1
 } catch {
     Write-Error $_.Exception.Message
     exit 1
@@ -1260,23 +1292,35 @@ try {
 `, authScript)
 
 		cmd := exec.Command("powershell", "-Command", psScript)
-		output, err := cmd.Output()
-		log.Printf("SQL Server PowerShell output: %s", string(output))
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+
+		log.Printf("SQL Server PowerShell stdout: %s", stdout.String())
+		log.Printf("SQL Server PowerShell stderr: %s", stderr.String())
+
 		if err != nil {
 			log.Printf("Failed to list SQL Server databases: %v", err)
-			log.Printf("PowerShell error output: %s", string(output))
-			c.JSON(500, gin.H{"error": "Не вдалося отримати список БД. Деталі: " + string(output)})
+			c.JSON(500, gin.H{"error": "Не вдалося отримати список БД. Деталі: " + stderr.String()})
 			return
 		}
 
-		log.Printf("SQL Server output parsed: %s", string(output))
-
 		// Parse PowerShell output
 		var dbList []map[string]interface{}
-		if err := json.Unmarshal(output, &dbList); err != nil {
-			log.Printf("Failed to parse database list: %v", err)
-			c.JSON(500, gin.H{"error": "Помилка обробки даних БД"})
-			return
+		rawJSON := stdout.Bytes()
+
+		// Try to parse as array first
+		if err := json.Unmarshal(rawJSON, &dbList); err != nil {
+			// If it fails, try parsing as single object and wrap in array
+			var singleDB map[string]interface{}
+			if err2 := json.Unmarshal(rawJSON, &singleDB); err2 == nil {
+				dbList = append(dbList, singleDB)
+			} else {
+				log.Printf("Failed to parse database list: %v", err)
+				c.JSON(500, gin.H{"error": "Помилка обробки даних БД: " + err.Error()})
+				return
+			}
 		}
 
 		for _, db := range dbList {

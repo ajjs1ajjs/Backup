@@ -3,6 +3,12 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Cache-Control"
+            content="no-cache, no-store, must-revalidate"
+        />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
         <title>Швидке Резервне Копіювання - NovaBackup</title>
         <style>
             :root {
@@ -1073,10 +1079,27 @@
                 <div
                     style="
                         display: grid;
-                        grid-template-columns: 1fr 1fr;
+                        grid-template-columns: 1fr 1fr 1fr;
                         gap: 1rem;
                     "
                 >
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Розклад</label
+                        >
+                        <select
+                            class="form-input"
+                            id="schedule-type"
+                            value="manual"
+                        >
+                            <option value="manual">🔸 Ручний</option>
+                            <option value="daily">📅 Щодня</option>
+                            <option value="weekly">📅 Щотижня</option>
+                            <option value="monthly">📅 Щомісяця</option>
+                            <option value="hourly">⏰ Щогодини</option>
+                        </select>
+                        <div class="form-hint">Частота бекапу</div>
+                    </div>
                     <div>
                         <label class="form-label" style="font-size: 0.875rem"
                             >Зберігати (днів)</label
@@ -1428,7 +1451,9 @@
                         document.getElementById("pre-script")?.value || "",
                     post_backup_script:
                         document.getElementById("post-script")?.value || "",
-                    schedule: "manual",
+                    schedule:
+                        document.getElementById("schedule-type")?.value ||
+                        "manual",
                     enabled: true,
                     retention_days: parseInt(
                         document.getElementById("retention-days").value,

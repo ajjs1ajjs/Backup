@@ -882,11 +882,12 @@ func (e *BackupEngine) backupMSSQL(job *BackupJob, session *BackupSession) (stri
 	if server == "" {
 		server = "localhost"
 	}
+	// Normalize server name - remove escaped backslashes
+	server = strings.ReplaceAll(server, "\\\\", "\\")
 
+	// For named instances (SQLEXPRESS), don't use port - use named pipes
 	port := job.Port
-	if port == 0 {
-		port = 1433
-	}
+	usePort := !strings.Contains(server, "\\") && port != 0
 
 	// Build database list
 	databases := job.Sources
@@ -899,14 +900,31 @@ func (e *BackupEngine) backupMSSQL(job *BackupJob, session *BackupSession) (stri
 
 	timestamp := time.Now().Format("20060102_150405")
 
+	// Build connection string
+	var connectionString string
+	if job.AuthType == "sql" {
+		if usePort {
+			connectionString = fmt.Sprintf("Server=%s,%d;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;",
+				server, port, job.Login, job.Password)
+		} else {
+			connectionString = fmt.Sprintf("Server=%s;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;",
+				server, job.Login, job.Password)
+		}
+	} else {
+		if usePort {
+			connectionString = fmt.Sprintf("Server=%s,%d;Database=master;Integrated Security=true;TrustServerCertificate=true;",
+				server, port)
+		} else {
+			connectionString = fmt.Sprintf("Server=%s;Database=master;Integrated Security=true;TrustServerCertificate=true;",
+				server)
+		}
+	}
+
 	// Build PowerShell script for SQL Server backup
-	psScript := fmt.Sprintf(`$server = "%s"
-$databases = @("%s")
+	psScript := fmt.Sprintf(`$databases = @("%s")
 $backupDir = "%s"
 $timestamp = "%s"
-
-# Build connection string
-$connectionString = "Server=%s,%d;Database=master;Integrated Security=true;"
+$connectionString = "%s"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection
@@ -916,7 +934,8 @@ try {
     foreach ($dbName in $databases) {
         $backupFile = Join-Path $backupDir "${dbName}_${timestamp}.bak"
 
-        $query = "BACKUP DATABASE [$dbName] TO DISK = '$backupFile' WITH INIT, COMPRESSION, STATS = 10"
+        # Note: COMPRESSION not available in SQL Server Express Edition
+        $query = "BACKUP DATABASE [$dbName] TO DISK = '$backupFile' WITH INIT, STATS = 10"
 
         $command = New-Object System.Data.SqlClient.SqlCommand
         $command.CommandText = $query
@@ -934,7 +953,7 @@ try {
     Write-Error $_.Exception.Message
     exit 1
 }
-`, server, strings.Join(databases, `","`), backupDir, timestamp, server, port)
+`, strings.Join(databases, `","`), backupDir, timestamp, connectionString)
 
 	cmd := exec.Command("powershell", "-Command", psScript)
 	output, err := cmd.CombinedOutput()
@@ -945,8 +964,23 @@ try {
 
 	e.log(session, fmt.Sprintf("✅ MSSQL бекап виконано: %s", string(output)))
 
-	// Return backup directory (contains .bak files)
-	return backupDir, nil
+	// Return the first .bak file (for compression/size calculation)
+	// Find the .bak file we just created
+	bakFile := ""
+	files, _ := os.ReadDir(backupDir)
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".bak") {
+			bakFile = filepath.Join(backupDir, f.Name())
+			break
+		}
+	}
+
+	if bakFile == "" {
+		return "", fmt.Errorf("MSSQL бекап не створив файл")
+	}
+
+	// Return the .bak file path (not directory)
+	return bakFile, nil
 }
 
 // backupVM backs up Hyper-V VMs

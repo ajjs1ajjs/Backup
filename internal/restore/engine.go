@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -320,8 +321,12 @@ func (e *RestoreEngine) restoreDatabase(req *RestoreRequest, session *RestoreSes
 		err = e.restoreMySQL(dumpFile, req.ConnStr, req.TargetDatabase, session)
 	case "postgresql":
 		err = e.restorePostgreSQL(dumpFile, req.ConnStr, req.TargetDatabase, session)
+	case "oracle":
+		err = e.restoreOracle(dumpFile, req.ConnStr, req.TargetDatabase, session)
 	case "sqlite":
 		err = e.restoreSQLite(dumpFile, req.ConnStr, session)
+	case "mssql":
+		err = e.restoreMSSQL(dumpFile, req.ConnStr, req.TargetDatabase, session)
 	default:
 		err = fmt.Errorf("непідтримуваний тип бази даних: %s", req.DBType)
 	}
@@ -338,6 +343,7 @@ func (e *RestoreEngine) restoreDatabase(req *RestoreRequest, session *RestoreSes
 
 // findDumpFile finds the database dump file in backup
 func (e *RestoreEngine) findDumpFile(backupPath string) string {
+	// SQL dump patterns
 	patterns := []string{
 		"*.sql",
 		"*.sql.gz",
@@ -350,6 +356,53 @@ func (e *RestoreEngine) findDumpFile(backupPath string) string {
 		matches, _ := filepath.Glob(filepath.Join(backupPath, pattern))
 		if len(matches) > 0 {
 			return matches[0]
+		}
+	}
+
+	// MSSQL backup patterns (*.bak)
+	mssqlPatterns := []string{
+		"*.bak",
+		"*.bak.gz",
+		"*.bak.enc",
+	}
+
+	for _, pattern := range mssqlPatterns {
+		matches, _ := filepath.Glob(filepath.Join(backupPath, pattern))
+		if len(matches) > 0 {
+			return matches[0]
+		}
+	}
+
+	// Also check subdirectories (mssql/, mysql/, etc.)
+	subdirs, _ := filepath.Glob(filepath.Join(backupPath, "*"))
+	for _, dir := range subdirs {
+		info, _ := os.Stat(dir)
+		if info != nil && info.IsDir() {
+			// Check for .bak files in subdirectory
+			bakMatches, _ := filepath.Glob(filepath.Join(dir, "*.bak"))
+			if len(bakMatches) > 0 {
+				return bakMatches[0]
+			}
+			// Check for .bak.gz files (compressed MSSQL backup)
+			bakGzMatches, _ := filepath.Glob(filepath.Join(dir, "*.bak.gz"))
+			if len(bakGzMatches) > 0 {
+				return bakGzMatches[0]
+			}
+			// Check for .bak.enc files (encrypted MSSQL backup)
+			bakEncMatches, _ := filepath.Glob(filepath.Join(dir, "*.bak.enc"))
+			if len(bakEncMatches) > 0 {
+				return bakEncMatches[0]
+			}
+			// Check for .sql files in subdirectory
+			sqlMatches, _ := filepath.Glob(filepath.Join(dir, "*.sql"))
+			if len(sqlMatches) > 0 {
+				return sqlMatches[0]
+			}
+			// Check for .sql.gz files
+			sqlGzMatches, _ := filepath.Glob(filepath.Join(dir, "*.sql.gz"))
+			if len(sqlGzMatches) > 0 {
+				return sqlGzMatches[0]
+			}
 		}
 	}
 
@@ -410,6 +463,125 @@ func (e *RestoreEngine) restorePostgreSQL(dumpFile, connStr, targetDB string, se
 		return fmt.Errorf("помилка відновлення PostgreSQL: %v - %s", err, string(output))
 	}
 
+	return nil
+}
+
+// restoreMSSQL restores Microsoft SQL Server database from .bak file
+func (e *RestoreEngine) restoreMSSQL(bakFile, connStr, targetDB string, session *RestoreSession) error {
+	e.log(session, fmt.Sprintf("🗄️ Відновлення MSSQL з файлу: %s", bakFile))
+
+	if runtime.GOOS != "windows" {
+		return fmt.Errorf("відновлення MSSQL підтримується тільки на Windows")
+	}
+
+	// Build PowerShell script for SQL Server restore
+	psScript := fmt.Sprintf(`$ErrorActionPreference = "Stop"
+$backupFile = "%s"
+$targetDatabase = "%s"
+$connectionString = "%s"
+
+try {
+    $connection = New-Object System.Data.SqlClient.SqlConnection
+    $connection.ConnectionString = $connectionString
+    $connection.Open()
+
+    # Get logical file names from backup
+    $query = "RESTORE FILELISTONLY FROM DISK = '$backupFile'"
+    $command = New-Object System.Data.SqlClient.SqlCommand
+    $command.CommandText = $query
+    $command.Connection = $connection
+    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter
+    $adapter.SelectCommand = $command
+    $dataset = New-Object System.Data.DataSet
+    $adapter.Fill($dataset) | Out-Null
+
+    $logicalDataName = $dataset.Tables[0].Rows[0].LogicalName
+    $logicalLogName = $dataset.Tables[0].Rows[1].LogicalName
+
+    # Get physical file paths
+    $dataPath = (New-Object System.IO.FileInfo($connection.Database)).DirectoryName
+    if ([string]::IsNullOrEmpty($dataPath)) {
+        $dataPath = "C:\ProgramData\Microsoft\SQL Server\Data"
+    }
+
+    $newDataFile = Join-Path $dataPath "${targetDatabase}.mdf"
+    $newLogFile = Join-Path $dataPath "${targetDatabase}_log.ldf"
+
+    $connection.Close()
+
+    # Restore database
+    $connection2 = New-Object System.Data.SqlClient.SqlConnection
+    $connection2.ConnectionString = $connectionString
+    $connection2.Open()
+
+    $restoreQuery = @"
+RESTORE DATABASE [$targetDatabase]
+FROM DISK = '$backupFile'
+WITH
+    MOVE '$logicalDataName' TO '$newDataFile',
+    MOVE '$logicalLogName' TO '$newLogFile',
+    REPLACE,
+    STATS = 10
+"@
+
+    $command2 = New-Object System.Data.SqlClient.SqlCommand
+    $command2.CommandText = $restoreQuery
+    $command2.Connection = $connection2
+    $command2.ExecuteNonQuery() | Out-Null
+
+    $connection2.Close()
+
+    Write-Host "Database '$targetDatabase' restored successfully"
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+`, bakFile, targetDB, connStr)
+
+	cmd := exec.Command("powershell", "-Command", psScript)
+	output, err := cmd.CombinedOutput()
+
+	session.Logs = append(session.Logs, fmt.Sprintf("PowerShell output: %s", string(output)))
+
+	if err != nil {
+		return fmt.Errorf("помилка відновлення MSSQL: %v - %s", err, string(output))
+	}
+
+	e.log(session, "✅ MSSQL базу даних успішно відновлено")
+	return nil
+}
+
+// restoreOracle restores Oracle database from dump file
+func (e *RestoreEngine) restoreOracle(dumpFile, connStr, targetDB string, session *RestoreSession) error {
+	e.log(session, fmt.Sprintf("🗄️ Відновлення Oracle бази даних..."))
+
+	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
+		return fmt.Errorf("відновлення Oracle підтримується тільки на Windows/Linux")
+	}
+
+	// Use impdp (Data Pump) or imp for import
+	// Connection string format: user/password@//host:port/service_name
+
+	impPath := "impdp"
+
+	// Build impdp command
+	// Example: impdp scott/tiger@//localhost:1521/ORCL DIRECTORY=data_pump_dir DUMPFILE=export.dmp REMAP_SCHEMA=source:target
+	cmd := exec.Command(impPath,
+		connStr,
+		"DUMPFILE="+dumpFile,
+		"DIRECTORY=DATA_PUMP_DIR",
+		"FULL=Y",
+	)
+
+	output, err := cmd.CombinedOutput()
+
+	session.Logs = append(session.Logs, fmt.Sprintf("impdp output: %s", string(output)))
+
+	if err != nil {
+		return fmt.Errorf("помилка відновлення Oracle: %v - %s", err, string(output))
+	}
+
+	e.log(session, "✅ Oracle базу даних успішно відновлено")
 	return nil
 }
 
