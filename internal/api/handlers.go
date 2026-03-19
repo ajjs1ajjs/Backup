@@ -1445,43 +1445,48 @@ func ListVMs(c *gin.Context) {
 	if req.VMType == "hyper-v" {
 		// Use PowerShell to list Hyper-V VMs
 		psScript := `
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 try {
-    Get-VM | Select-Object Name, State, @{Name="MemoryAssigned";Expression={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{Name="Uptime";Expression={$_.Uptime.ToString()}}, @{Name="OS";Expression={$_.GuestOSInDetail}} | ConvertTo-Json -Depth 3
+    $vms = Get-VM -ErrorAction SilentlyContinue
+    if ($vms -eq $null -or $vms.Count -eq 0) {
+        Write-Host "No VMs found"
+        echo "[]"
+        exit 0
+    }
+    $result = $vms | Select-Object Name, State, @{Name="MemoryAssigned";Expression={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{Name="Uptime";Expression={$_.Uptime.ToString()}}, @{Name="OS";Expression={if ($_.GuestOSInDetail) { $_.GuestOSInDetail } else { "Unknown" }}} | ConvertTo-Json -Depth 3
+    if ($result -eq $null) { echo "[]" } else { echo $result }
 } catch {
-    Write-Error $_.Exception.Message
-    exit 1
+    Write-Host "Error: $($_.Exception.Message)"
+    echo "[]"
 }
 `
 		cmd := exec.Command("powershell", "-Command", psScript)
 		output, err := cmd.Output()
 		if err != nil {
-			log.Printf("Failed to list Hyper-V VMs: %v", err)
-			c.JSON(500, gin.H{"error": "Не вдалося отримати список ВМ: " + string(output)})
-			return
+			log.Printf("Failed to list Hyper-V VMs: %v, output: %s", err, string(output))
 		}
 
 		// Parse PowerShell output
 		var vmList []map[string]interface{}
 		if err := json.Unmarshal(output, &vmList); err != nil {
-			log.Printf("Failed to parse VM list: %v", err)
-			c.JSON(500, gin.H{"error": "Помилка обробки даних ВМ"})
-			return
-		}
+			log.Printf("Failed to parse VM list: %v, output: %s", err, string(output))
+			// Return empty list instead of error
+			vms = []gin.H{}
+		} else {
+			for _, vm := range vmList {
+				state := "unknown"
+				if vmState, ok := vm["State"].(string); ok {
+					state = vmState
+				}
 
-		for _, vm := range vmList {
-			state := "unknown"
-			if vmState, ok := vm["State"].(string); ok {
-				state = vmState
+				vms = append(vms, gin.H{
+					"name":   vm["Name"],
+					"state":  strings.ToLower(state),
+					"memory": vm["MemoryAssigned"],
+					"uptime": vm["Uptime"],
+					"os":     vm["OS"],
+				})
 			}
-
-			vms = append(vms, gin.H{
-				"name":   vm["Name"],
-				"state":  state,
-				"memory": vm["MemoryAssigned"],
-				"uptime": vm["Uptime"],
-				"os":     vm["OS"],
-			})
 		}
 	} else if req.VMType == "kvm" {
 		// Use SSH to list KVM VMs via virsh

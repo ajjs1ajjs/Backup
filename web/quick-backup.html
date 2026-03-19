@@ -1479,6 +1479,11 @@
                             job.password =
                                 document.getElementById("mssql-password").value;
                         }
+                        job.sources = document
+                            .getElementById("mssql-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
                     } else if (dbType === "postgresql") {
                         job.server = document.getElementById("pg-server").value;
                         job.port = parseInt(
@@ -1487,6 +1492,11 @@
                         job.login = document.getElementById("pg-login").value;
                         job.password =
                             document.getElementById("pg-password").value;
+                        job.sources = document
+                            .getElementById("pg-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
                     } else if (dbType === "oracle") {
                         job.server =
                             document.getElementById("ora-server").value;
@@ -1498,6 +1508,9 @@
                         job.login = document.getElementById("ora-login").value;
                         job.password =
                             document.getElementById("ora-password").value;
+                        job.sources = [
+                            document.getElementById("ora-service").value,
+                        ];
                     } else if (dbType === "mysql") {
                         job.server =
                             document.getElementById("mysql-server").value;
