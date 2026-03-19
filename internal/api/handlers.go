@@ -1224,10 +1224,10 @@ func ListDatabases(c *gin.Context) {
 
 		authScript := ""
 		if req.AuthType == "sql" {
-			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;"`,
+			authScript = fmt.Sprintf(`$connectionString = "Server=%s,%d;Database=master;User Id=%s;Password=%s;TrustServerCertificate=true;"`,
 				server, port, req.Login, req.Password)
 		} else {
-			authScript = `$connectionString = "Server=localhost;Database=master;Integrated Security=true;"`
+			authScript = `$connectionString = "Server=localhost;Database=master;Integrated Security=true;TrustServerCertificate=true;"`
 		}
 
 		psScript := fmt.Sprintf(`
@@ -1239,7 +1239,7 @@ try {
     $connection.ConnectionString = $connectionString
     $connection.Open()
 
-    $query = "SELECT name, CAST(SUM(size) * 8 / 1024 AS VARCHAR) + ' MB' AS size FROM sys.master_files GROUP BY name ORDER BY name"
+    $query = "SELECT name FROM sys.databases WHERE database_id > 4 ORDER BY name"
     $command = New-Object System.Data.SqlClient.SqlCommand
     $command.CommandText = $query
     $command.Connection = $connection
@@ -1247,7 +1247,7 @@ try {
     $adapter = New-Object System.Data.SqlClient.SqlDataAdapter
     $adapter.SelectCommand = $command
     $dataset = New-Object System.Data.DataSet
-    $adapter.Fill($dataset)
+    $adapter.Fill($dataset) | Out-Null
 
     $connection.Close()
 
@@ -1266,6 +1266,8 @@ try {
 			return
 		}
 
+		log.Printf("SQL Server output: %s", string(output))
+
 		// Parse PowerShell output
 		var dbList []map[string]interface{}
 		if err := json.Unmarshal(output, &dbList); err != nil {
@@ -1277,7 +1279,7 @@ try {
 		for _, db := range dbList {
 			databases = append(databases, gin.H{
 				"name": db["name"],
-				"size": db["size"],
+				"size": "Unknown",
 			})
 		}
 	} else if req.Type == "postgresql" {
@@ -1447,16 +1449,39 @@ func ListVMs(c *gin.Context) {
 		psScript := `
 $ErrorActionPreference = "Continue"
 try {
-    $vms = Get-VM -ErrorAction SilentlyContinue
-    if ($vms -eq $null -or $vms.Count -eq 0) {
-        Write-Host "No VMs found"
+    # Check if Hyper-V module is available
+    $module = Get-Module -ListAvailable -Name Hyper-V
+    if ($module -eq $null) {
+        Write-Host "Hyper-V module not found"
         echo "[]"
         exit 0
     }
+
+    # Try to get VMs
+    $vms = Get-VM -ErrorAction SilentlyContinue
+    if ($vms -eq $null) {
+        Write-Host "No VMs found or not connected to Hyper-V host"
+        echo "[]"
+        exit 0
+    }
+
+    if ($vms.Count -eq 0) {
+        Write-Host "VM list is empty"
+        echo "[]"
+        exit 0
+    }
+
     $result = $vms | Select-Object Name, State, @{Name="MemoryAssigned";Expression={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{Name="Uptime";Expression={$_.Uptime.ToString()}}, @{Name="OS";Expression={if ($_.GuestOSInDetail) { $_.GuestOSInDetail } else { "Unknown" }}} | ConvertTo-Json -Depth 3
-    if ($result -eq $null) { echo "[]" } else { echo $result }
+
+    if ($result -eq $null -or $result -eq "") {
+        Write-Host "ConvertTo-Json returned null"
+        echo "[]"
+    } else {
+        echo $result
+    }
 } catch {
     Write-Host "Error: $($_.Exception.Message)"
+    Write-Host "StackTrace: $($_.ScriptStackTrace)"
     echo "[]"
 }
 `
@@ -1464,6 +1489,8 @@ try {
 		output, err := cmd.Output()
 		if err != nil {
 			log.Printf("Failed to list Hyper-V VMs: %v, output: %s", err, string(output))
+		} else {
+			log.Printf("Hyper-V VMs output: %s", string(output))
 		}
 
 		// Parse PowerShell output
