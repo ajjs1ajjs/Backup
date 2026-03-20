@@ -3,13 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Управління завданнями - NovaBackup</title>
-        <meta
-            http-equiv="Cache-Control"
-            content="no-cache, no-store, must-revalidate"
-        />
-        <meta http-equiv="Pragma" content="no-cache" />
-        <meta http-equiv="Expires" content="0" />
+        <title>Завдання - NovaBackup Enterprise</title>
+        <link rel="stylesheet" href="assets/design-enhancements.css" />
         <style>
             :root {
                 --bg-primary: #0f172a;
@@ -18,7 +13,8 @@
                 --accent-blue: #3b82f6;
                 --accent-green: #10b981;
                 --accent-red: #ef4444;
-                --accent-yellow: #f59e0b;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
                 --text-primary: #f1f5f9;
                 --text-secondary: #94a3b8;
                 --border: #475569;
@@ -32,28 +28,51 @@
                 font-family: "Segoe UI", sans-serif;
                 background: var(--bg-primary);
                 color: var(--text-primary);
-                padding: 2rem;
+                min-height: 100vh;
             }
-            .container {
-                max-width: 1400px;
-                margin: 0 auto;
+            .header {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary) 0%,
+                    #0f172a 100%
+                );
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid var(--accent-blue);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
             }
-            h1 {
-                margin-bottom: 2rem;
+            .logo {
                 display: flex;
                 align-items: center;
                 gap: 1rem;
-                flex-wrap: wrap;
             }
-            .card {
-                background: var(--bg-card);
-                border-radius: 1rem;
-                border: 1px solid var(--border);
-                padding: 1.5rem;
-                margin-bottom: 1.5rem;
+            .logo-icon {
+                font-size: 2.5rem;
+            }
+            .logo-text h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .logo-text p {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+            }
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
             }
             .btn {
-                padding: 0.5rem 1rem;
+                padding: 0.75rem 1.5rem;
                 border-radius: 0.5rem;
                 font-weight: 600;
                 cursor: pointer;
@@ -61,7 +80,13 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 0.5rem;
-                font-size: 0.875rem;
+                transition: all 0.2s;
+                font-size: 0.9rem;
+                text-decoration: none;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             }
             .btn-primary {
                 background: linear-gradient(
@@ -86,41 +111,216 @@
             .btn-warning {
                 background: linear-gradient(
                     135deg,
-                    var(--accent-yellow),
+                    var(--accent-orange),
                     #d97706
                 );
                 color: white;
             }
-            .btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            .main-container {
+                display: flex;
+                min-height: calc(100vh - 100px);
             }
-            .btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            th,
-            td {
-                padding: 1rem;
-                text-align: left;
-                border-bottom: 1px solid var(--border);
-            }
-            th {
+            .sidebar {
+                width: 280px;
                 background: var(--bg-secondary);
+                padding: 1.5rem;
+                border-right: 1px solid var(--border);
+                overflow-y: auto;
+            }
+            .nav-section {
+                margin-bottom: 2rem;
+            }
+            .nav-section-title {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
                 font-weight: 600;
             }
-            tr:hover {
+            .nav-menu {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .nav-item {
+                padding: 0.875rem 1rem;
+                border-radius: 0.75rem;
+                display: flex;
+                align-items: center;
+                gap: 0.875rem;
+                color: var(--text-secondary);
+                text-decoration: none;
+                transition: all 0.2s;
+                font-weight: 500;
+            }
+            .nav-item:hover {
+                background: var(--bg-card);
+                color: var(--text-primary);
+            }
+            .nav-item.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .nav-icon {
+                font-size: 1.25rem;
+            }
+            .content {
+                flex: 1;
+                padding: 2rem;
+                overflow-y: auto;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .filters {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 2rem;
+                flex-wrap: wrap;
+            }
+            .filter-btn {
+                padding: 0.625rem 1.25rem;
+                border-radius: 0.5rem;
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                color: var(--text-secondary);
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .filter-btn:hover {
                 background: var(--bg-secondary);
+                border-color: var(--accent-blue);
+            }
+            .filter-btn.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                border-color: var(--accent-blue);
+            }
+            .jobs-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                gap: 1.5rem;
+            }
+            .job-card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 1.5rem;
+                transition: all 0.2s;
+            }
+            .job-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+                border-color: var(--accent-blue);
+            }
+            .job-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 1rem;
+            }
+            .job-title {
+                font-size: 1.125rem;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }
+            .job-type {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+            .job-type-database {
+                background: rgba(139, 92, 246, 0.2);
+                color: var(--accent-purple);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+            }
+            .job-type-file {
+                background: rgba(59, 130, 246, 0.2);
+                color: var(--accent-blue);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+            }
+            .job-type-vm {
+                background: rgba(245, 158, 11, 0.2);
+                color: var(--accent-orange);
+                border: 1px solid rgba(245, 158, 11, 0.3);
+            }
+            .job-type-cloud {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+            .job-info {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+            .job-info-row {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .job-actions {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+            .job-actions .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            .empty-state {
+                text-align: center;
+                padding: 4rem 2rem;
+                color: var(--text-secondary);
+            }
+            .empty-state-icon {
+                font-size: 4rem;
+                margin-bottom: 1rem;
+                opacity: 0.5;
+            }
+            .empty-state-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+                color: var(--text-primary);
             }
             .status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.375rem;
                 padding: 0.25rem 0.75rem;
-                border-radius: 999px;
+                border-radius: 9999px;
                 font-size: 0.75rem;
                 font-weight: 600;
             }
@@ -132,564 +332,677 @@
                 background: rgba(148, 163, 184, 0.2);
                 color: var(--text-secondary);
             }
-
-            .modal-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.8);
-                z-index: 1000;
-                align-items: center;
-                justify-content: center;
+            .status-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: currentColor;
             }
-            .modal-overlay.active {
-                display: flex;
-            }
-            .modal {
-                background: var(--bg-card);
-                border-radius: 1rem;
-                border: 1px solid var(--border);
-                padding: 2rem;
-                width: 90%;
-                max-width: 600px;
-                max-height: 90vh;
-                overflow-y: auto;
-            }
-            .form-group {
-                margin-bottom: 1rem;
-            }
-            .form-label {
-                display: block;
-                margin-bottom: 0.5rem;
-                font-weight: 600;
-            }
-            .form-input {
-                width: 100%;
-                padding: 0.75rem;
-                border: 1px solid var(--border);
-                border-radius: 0.5rem;
-                background: var(--bg-secondary);
-                color: var(--text-primary);
-                font-size: 1rem;
-            }
-            .actions {
-                display: flex;
-                gap: 0.5rem;
-                flex-wrap: wrap;
-            }
-            .loading {
-                text-align: center;
-                padding: 2rem;
-                color: var(--text-secondary);
-            }
-            .error {
-                background: rgba(239, 68, 68, 0.2);
-                color: var(--accent-red);
-                padding: 1rem;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
-            }
-            .info {
-                background: rgba(59, 130, 246, 0.2);
-                color: var(--accent-blue);
-                padding: 1rem;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
+            @media (max-width: 768px) {
+                .main-container {
+                    flex-direction: column;
+                }
+                .sidebar {
+                    width: 100%;
+                    border-right: none;
+                    border-bottom: 1px solid var(--border);
+                }
+                .jobs-grid {
+                    grid-template-columns: 1fr;
+                }
             }
         </style>
     </head>
     <body>
-        <div class="container">
-            <h1>
-                ⚙️ Управління завданнями
-                <button class="btn btn-primary" onclick="loadJobs()">
-                    🔄 Оновити
-                </button>
-                <button class="btn btn-success" onclick="showCreateModal()">
-                    ➕ Нове завдання
-                </button>
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>NovaBackup Enterprise</h1>
+                    <p>v7.0 - Система Резервного Копіювання</p>
+                </div>
+            </div>
+            <div class="user-menu">
                 <button
-                    class="btn btn-warning"
-                    onclick="logout()"
-                    style="margin-left: auto"
+                    class="btn btn-primary"
+                    onclick="window.location.href = 'quick-backup.html'"
                 >
-                    🚪 Вийти
+                    ➕ Нове Завдання
                 </button>
-            </h1>
+                <button class="btn btn-danger" onclick="logout()">
+                    🚪 Вихід
+                </button>
+            </div>
+        </header>
 
-            <div id="message-area"></div>
-            <div id="jobs-container"></div>
-        </div>
+        <div class="main-container">
+            <aside class="sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">Головне</div>
+                    <nav class="nav-menu">
+                        <a href="index.html" class="nav-item">
+                            <span class="nav-icon">📊</span>
+                            <span>Панель Керування</span>
+                        </a>
+                        <a href="manage-jobs.html" class="nav-item active">
+                            <span class="nav-icon">📋</span>
+                            <span>Завдання</span>
+                        </a>
+                        <a href="quick-backup.html" class="nav-item">
+                            <span class="nav-icon">🔄</span>
+                            <span>Швидке Резервне Копіювання</span>
+                        </a>
+                    </nav>
+                </div>
 
-        <!-- Modal for Create/Edit -->
-        <div class="modal-overlay" id="job-modal">
-            <div class="modal">
-                <h2 id="modal-title" style="margin-bottom: 1.5rem">
-                    Нове завдання
-                </h2>
-                <form id="job-form">
-                    <input type="hidden" id="job-id" />
-                    <div class="form-group">
-                        <label class="form-label">Назва</label>
-                        <input
-                            type="text"
-                            class="form-input"
-                            id="job-name"
-                            required
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label"
-                            >Джерела (шляхи через кому)</label
-                        >
-                        <textarea
-                            class="form-input"
-                            id="job-sources"
-                            rows="3"
-                            placeholder="D:/Documents/File1.txt, D:/Documents/Folder"
-                            required
-                        ></textarea>
-                        <small style="color: var(--text-secondary)"
-                            >💡 Використовуйте forward slashes: D:/Documents
-                            замість D:\Documents</small
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Призначення</label>
-                        <input
-                            type="text"
-                            class="form-input"
-                            id="job-destination"
-                            placeholder="D:/Backup"
-                            required
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label
-                            ><input
-                                type="checkbox"
-                                id="job-compression"
-                                checked
-                            />
-                            ✅ Стиснення</label
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label
-                            ><input type="checkbox" id="job-encryption" /> 🔒
-                            Шифрування (AES-256)</label
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label
-                            ><input type="checkbox" id="job-deduplication" /> 💾
-                            Дедуплікація</label
-                        >
-                        <div class="form-hint">
-                            Видаляє дублікати даних для економії місця
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label
-                            ><input type="checkbox" id="job-incremental" /> 🔄
-                            Інкрементальне бекапування</label
-                        >
-                        <div class="form-hint">
-                            Зберігає тільки зміни після повного бекапу
-                        </div>
-                    </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Відновлення</div>
+                    <nav class="nav-menu">
+                        <a href="restore.html" class="nav-item">
+                            <span class="nav-icon">♻️</span>
+                            <span>Відновлення</span>
+                        </a>
+                    </nav>
+                </div>
 
-                    <!-- Retention Policy -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Бази Даних</div>
+                    <nav class="nav-menu">
+                        <a href="database-backup.html" class="nav-item">
+                            <span class="nav-icon">🗄️</span>
+                            <span>SQL Server Бекап</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Віртуальні Машини</div>
+                    <nav class="nav-menu">
+                        <a href="vm-backup.html" class="nav-item">
+                            <span class="nav-icon">🖥️</span>
+                            <span>Бекап ВМ</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Інфраструктура</div>
+                    <nav class="nav-menu">
+                        <a href="repositories.html" class="nav-item">
+                            <span class="nav-icon">📁</span>
+                            <span>Сховища</span>
+                        </a>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Моніторинг</div>
+                    <nav class="nav-menu">
+                        <a href="sessions.html" class="nav-item">
+                            <span class="nav-icon">📋</span>
+                            <span>Сесії</span>
+                        </a>
+                        <a href="verification.html" class="nav-item">
+                            <span class="nav-icon">🛡️</span>
+                            <span>Перевірка</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Налаштування</div>
+                    <nav class="nav-menu">
+                        <a href="settings.html" class="nav-item">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Налаштування</span>
+                        </a>
+                        <a href="change-password.html" class="nav-item">
+                            <span class="nav-icon">🔐</span>
+                            <span>Зміна Пароля</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <main class="content">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">
+                            Завдання Резервного Копіювання
+                        </h1>
+                        <p class="page-subtitle">
+                            Керування та моніторинг всіх завдань
+                        </p>
+                    </div>
                     <div
-                        style="
-                            margin-top: 1.5rem;
-                            padding-top: 1.5rem;
-                            border-top: 1px solid var(--border);
-                        "
+                        style="display: flex; gap: 0.5rem; align-items: center"
                     >
-                        <h4
-                            style="
-                                margin-bottom: 1rem;
-                                color: var(--accent-blue);
-                            "
+                        <button
+                            class="btn btn-success"
+                            onclick="runAllJobs()"
+                            style="padding: 0.5rem 1rem; font-size: 0.85rem"
                         >
-                            📋 Політика зберігання
-                        </h4>
-                        <div class="form-group">
-                            <label class="form-label">Зберігати (днів)</label>
-                            <input
-                                type="number"
-                                class="form-input"
-                                id="job-retention-days"
-                                value="30"
-                                min="1"
-                                max="365"
-                            />
-                            <div class="form-hint">1-365 днів</div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Макс. копій</label>
-                            <input
-                                type="number"
-                                class="form-input"
-                                id="job-retention-copies"
-                                value="10"
-                                min="1"
-                                max="100"
-                            />
-                            <div class="form-hint">1-100 копій</div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label
-                            ><input type="checkbox" id="job-enabled" checked />
-                            ✅ Увімкнено</label
-                        >
-                    </div>
-                    <div class="actions" style="margin-top: 1.5rem">
-                        <button type="submit" class="btn btn-primary">
-                            💾 Зберегти
+                            ▶ Запустити всі
                         </button>
                         <button
-                            type="button"
-                            class="btn btn-danger"
-                            onclick="closeModal()"
+                            class="btn btn-warning"
+                            onclick="pauseAllJobs()"
+                            style="padding: 0.5rem 1rem; font-size: 0.85rem"
                         >
-                            ✖ Скасувати
+                            ⏸ Зупинити всі
                         </button>
                     </div>
-                </form>
-            </div>
+                </div>
+
+                <div class="search-box">
+                    <span class="search-box-icon">🔍</span>
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Пошук завдань за назвою або шляхом..."
+                        oninput="filterJobs()"
+                    />
+                    <button
+                        class="search-box-clear"
+                        onclick="clearSearch()"
+                        style="display: none"
+                    >
+                        &times;
+                    </button>
+                </div>
+
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="all">
+                        📋 Всі <span id="count-all">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="database">
+                        🗄️ SQL <span id="count-database">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="file">
+                        📁 Файли <span id="count-file">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="vm">
+                        🖥️ ВМ <span id="count-vm">0</span>
+                    </button>
+                </div>
+
+                <div id="jobs-container" class="jobs-grid">
+                    <!-- Jobs will be loaded here -->
+                </div>
+            </main>
         </div>
 
         <script>
-            const API_BASE = "";
-            let token = localStorage.getItem("token") || "";
+            let allJobs = [];
+            let currentFilter = "all";
+            let searchQuery = "";
 
-            // Better error handling for API calls
-            async function api(endpoint, options = {}) {
-                if (!token) {
-                    await login();
+            // Check authentication
+            const authToken = localStorage.getItem("authToken");
+            if (!authToken) {
+                window.location.href = "login.html";
+            }
+
+            // Get schedule label
+            function getScheduleLabel(schedule) {
+                if (!schedule || schedule === "manual") {
+                    return "🔸 Ручний запуск";
+                }
+                const labels = {
+                    daily: "📅 Щодня",
+                    weekly: "📅 Щотижня",
+                    monthly: "📅 Щомісяця",
+                    hourly: "⏰ Щогодини",
+                };
+                return labels[schedule] || `📅 ${schedule}`;
+            }
+
+            // Get next run info
+            function getNextRunInfo(job) {
+                if (!job.next_run) {
+                    return { text: "Вручну", class: "" };
+                }
+                const nextRun = new Date(job.next_run);
+                const now = new Date();
+                const diffMs = nextRun - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                if (diffHours < 0) {
+                    return { text: "Протерміновано", class: "overdue" };
+                } else if (diffHours < 24) {
+                    return {
+                        text: `Сьогодні о ${nextRun.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}`,
+                        class: "soon",
+                    };
+                } else {
+                    return {
+                        text: nextRun.toLocaleDateString("uk-UA", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        }),
+                        class: "",
+                    };
+                }
+            }
+
+            // Logout function
+            function logout() {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("user");
+                window.location.href = "login.html";
+            }
+
+            // Search functions
+            function clearSearch() {
+                document.getElementById("search-input").value = "";
+                document.querySelector(".search-box-clear").style.display =
+                    "none";
+                searchQuery = "";
+                renderJobs();
+            }
+
+            function filterJobs() {
+                const searchInput = document.getElementById("search-input");
+                searchQuery = searchInput.value.toLowerCase().trim();
+                document.querySelector(".search-box-clear").style.display =
+                    searchQuery ? "block" : "none";
+                renderJobs();
+            }
+
+            // Group actions
+            async function runAllJobs() {
+                if (!confirm("Запустити всі активні завдання?")) return;
+
+                let count = 0;
+                for (const job of allJobs) {
+                    if (job.enabled) {
+                        try {
+                            await fetch(`/api/jobs/${job.id}/run`, {
+                                method: "POST",
+                                headers: { Authorization: authToken },
+                            });
+                            count++;
+                        } catch (error) {
+                            console.error(
+                                `Failed to run job ${job.id}:`,
+                                error,
+                            );
+                        }
+                    }
                 }
 
+                showSuccess(`Запущено ${count} завдань!`, 3000);
+                setTimeout(
+                    () => (window.location.href = "sessions.html"),
+                    1000,
+                );
+            }
+
+            async function pauseAllJobs() {
+                if (!confirm("Зупинити всі активні завдання?")) return;
+
+                let count = 0;
+                for (const job of allJobs) {
+                    if (job.enabled) {
+                        try {
+                            await fetch(`/api/jobs/${job.id}`, {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: authToken,
+                                },
+                                body: JSON.stringify({
+                                    ...job,
+                                    enabled: false,
+                                }),
+                            });
+                            count++;
+                        } catch (error) {
+                            console.error(
+                                `Failed to pause job ${job.id}:`,
+                                error,
+                            );
+                        }
+                    }
+                }
+
+                showSuccess(`Зупинено ${count} завдань!`, 3000);
+                loadJobs();
+            }
+
+            // Load jobs
+            async function loadJobs() {
                 try {
-                    const response = await fetch(`${API_BASE}${endpoint}`, {
-                        ...options,
+                    const response = await fetch("/api/jobs", {
                         headers: {
-                            "Content-Type": "application/json",
-                            Authorization: token,
-                            ...options.headers,
+                            Authorization: authToken,
                         },
                     });
 
-                    // Handle 401 Unauthorized - token expired
-                    if (response.status === 401) {
-                        console.log("Token expired, re-login...");
-                        localStorage.removeItem("token");
-                        token = "";
-                        await login();
-                        return api(endpoint, options);
-                    }
-
-                    // Read response as text first
-                    const text = await response.text();
-
-                    // Check if response is OK
                     if (!response.ok) {
-                        try {
-                            const data = JSON.parse(text);
-                            throw new Error(
-                                data.error || "Помилка: " + response.status,
-                            );
-                        } catch (e) {
-                            throw new Error(
-                                text || "HTTP помилка: " + response.status,
-                            );
+                        if (response.status === 401) {
+                            logout();
+                            return;
                         }
+                        throw new Error("Failed to load jobs");
                     }
 
-                    // Parse JSON if there's content
-                    if (!text || text.trim() === "") {
-                        return {};
-                    }
-
-                    try {
-                        return JSON.parse(text);
-                    } catch (e) {
-                        console.error("JSON parse error:", e);
-                        console.error("Response text:", text);
-                        throw new Error("Помилка відповіді сервера");
-                    }
-                } catch (err) {
-                    console.error("API error:", err);
-                    throw err;
+                    const data = await response.json();
+                    allJobs = data.jobs || [];
+                    renderJobs();
+                    updateCounts();
+                } catch (error) {
+                    console.error("Error loading jobs:", error);
+                    document.getElementById("jobs-container").innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⚠️</div>
+                            <div class="empty-state-title">Помилка завантаження</div>
+                            <p>Не вдалося завантажити список завдань</p>
+                        </div>
+                    `;
                 }
             }
 
-            async function login() {
-                const username = prompt("Логін (admin):") || "admin";
-                const password = prompt("Пароль (admin123):") || "admin123";
+            // Update filter counts
+            function updateCounts() {
+                const counts = {
+                    all: allJobs.length,
+                    database: allJobs.filter((j) => j.type === "database")
+                        .length,
+                    file: allJobs.filter((j) => j.type === "file").length,
+                    vm: allJobs.filter((j) => j.type === "vm").length,
+                };
 
-                try {
-                    const response = await fetch(`${API_BASE}/api/auth/login`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ username, password }),
-                    });
-
-                    const text = await response.text();
-                    const data = JSON.parse(text);
-
-                    if (data.success) {
-                        token = data.token;
-                        localStorage.setItem("token", token);
-                        showMessage("✅ Успішний вхід!", "info");
-                    } else {
-                        alert("Помилка входу: " + data.error);
-                        throw new Error("Login failed");
-                    }
-                } catch (err) {
-                    alert("Помилка з'єднання: " + err.message);
-                    throw err;
-                }
+                document.getElementById("count-all").textContent = counts.all;
+                document.getElementById("count-database").textContent =
+                    counts.database;
+                document.getElementById("count-file").textContent = counts.file;
+                document.getElementById("count-vm").textContent = counts.vm;
             }
 
-            async function loadJobs() {
+            // Render jobs
+            function renderJobs() {
                 const container = document.getElementById("jobs-container");
-                container.innerHTML =
-                    '<div class="loading">⏳ Завантаження...</div>';
 
-                try {
-                    const data = await api("/api/jobs");
-                    const jobs = data.jobs || [];
+                let filteredJobs = allJobs;
 
-                    if (jobs.length === 0) {
-                        container.innerHTML =
-                            '<div class="card info">ℹ️ Немає завдань. Натисніть "Нове завдання" для створення!</div>';
-                        return;
-                    }
-
-                    let html =
-                        '<div class="card"><table><thead><tr>' +
-                        "<th>Назва</th>" +
-                        "<th>Джерела</th>" +
-                        "<th>Призначення</th>" +
-                        "<th>Статус</th>" +
-                        "<th>Дії</th>" +
-                        "</tr></thead><tbody>";
-
-                    for (const job of jobs) {
-                        const sources = (job.sources || []).join(", ");
-                        html += `<tr>
-                        <td><strong>${escapeHtml(job.name)}</strong></td>
-                        <td>${escapeHtml(sources)}</td>
-                        <td>${escapeHtml(job.destination)}</td>
-                        <td><span class="status-badge ${job.enabled ? "status-enabled" : "status-disabled"}">${job.enabled ? "✅ Увімкнено" : "❌ Вимкнено"}</span></td>
-                        <td class="actions">
-                            <button class="btn btn-success" onclick="runJob('${job.id}')">▶ Запуск</button>
-                            <button class="btn btn-warning" onclick="editJob('${job.id}')">✏ Редагувати</button>
-                            <button class="btn btn-danger" onclick="deleteJob('${job.id}')">🗑 Видалити</button>
-                        </td>
-                    </tr>`;
-                    }
-
-                    html += "</tbody></table></div>";
-                    container.innerHTML = html;
-                    showMessage(
-                        `✅ Завантажено ${jobs.length} завдань`,
-                        "info",
+                // Apply type filter
+                if (currentFilter !== "all") {
+                    filteredJobs = allJobs.filter(
+                        (job) => job.type === currentFilter,
                     );
-                } catch (err) {
-                    container.innerHTML = `<div class="card error">❌ Помилка: ${err.message}<br><small>Перевірте чи працює сервер і оновіть сторінку</small></div>`;
                 }
-            }
 
-            function showCreateModal() {
-                document.getElementById("modal-title").textContent =
-                    "Нове завдання";
-                document.getElementById("job-id").value = "";
-                document.getElementById("job-name").value = "";
-                document.getElementById("job-sources").value = "";
-                document.getElementById("job-destination").value = "";
-                document.getElementById("job-compression").checked = true;
-                document.getElementById("job-enabled").checked = true;
-                document.getElementById("job-modal").classList.add("active");
-            }
-
-            async function editJob(jobId) {
-                try {
-                    const jobsData = await api("/api/jobs");
-                    const job = jobsData.jobs.find((j) => j.id === jobId);
-                    if (!job) throw new Error("Завдання не знайдено");
-
-                    document.getElementById("modal-title").textContent =
-                        "Редагування завдання";
-                    document.getElementById("job-id").value = job.id;
-                    document.getElementById("job-name").value = job.name;
-                    document.getElementById("job-sources").value = (
-                        job.sources || []
-                    ).join(", ");
-                    document.getElementById("job-destination").value =
-                        job.destination;
-                    document.getElementById("job-compression").checked =
-                        job.compression;
-                    document.getElementById("job-encryption").checked =
-                        job.encryption || false;
-                    document.getElementById("job-deduplication").checked =
-                        job.deduplication || false;
-                    document.getElementById("job-incremental").checked =
-                        job.incremental || false;
-                    document.getElementById("job-retention-days").value =
-                        job.retention_days || 30;
-                    document.getElementById("job-retention-copies").value =
-                        job.retention_copies || 10;
-                    document.getElementById("job-enabled").checked =
-                        job.enabled;
-                    document
-                        .getElementById("job-modal")
-                        .classList.add("active");
-                } catch (err) {
-                    showMessage("❌ Помилка: " + err.message, "error");
-                }
-            }
-
-            function closeModal() {
-                document.getElementById("job-modal").classList.remove("active");
-            }
-
-            document
-                .getElementById("job-form")
-                .addEventListener("submit", async (e) => {
-                    e.preventDefault();
-
-                    const jobId = document.getElementById("job-id").value;
-                    const jobData = {
-                        name: document.getElementById("job-name").value,
-                        sources: document
-                            .getElementById("job-sources")
-                            .value.split(",")
-                            .map((s) => s.trim())
-                            .filter((s) => s),
-                        destination: document
-                            .getElementById("job-destination")
-                            .value.trim(),
-                        compression:
-                            document.getElementById("job-compression").checked,
-                        encryption:
-                            document.getElementById("job-encryption").checked,
-                        deduplication:
-                            document.getElementById("job-deduplication")
-                                .checked,
-                        incremental:
-                            document.getElementById("job-incremental").checked,
-                        retention_days:
-                            parseInt(
-                                document.getElementById("job-retention-days")
-                                    .value,
-                            ) || 30,
-                        retention_copies:
-                            parseInt(
-                                document.getElementById("job-retention-copies")
-                                    .value,
-                            ) || 10,
-                        schedule: "manual",
-                        enabled: document.getElementById("job-enabled").checked,
-                    };
-
-                    try {
-                        if (jobId) {
-                            await api(`/api/jobs/${jobId}`, {
-                                method: "PUT",
-                                body: JSON.stringify(jobData),
-                            });
-                            showMessage("✅ Завдання оновлено!", "info");
-                        } else {
-                            await api("/api/jobs", {
-                                method: "POST",
-                                body: JSON.stringify(jobData),
-                            });
-                            showMessage("✅ Завдання створено!", "info");
-                        }
-                        closeModal();
-                        loadJobs();
-                    } catch (err) {
-                        showMessage("❌ Помилка: " + err.message, "error");
-                    }
-                });
-
-            async function runJob(jobId) {
-                if (!confirm("Запустити резервне копіювання зараз?")) return;
-
-                try {
-                    const result = await api(`/api/jobs/${jobId}/run`, {
-                        method: "POST",
+                // Apply search filter
+                if (searchQuery) {
+                    filteredJobs = filteredJobs.filter((job) => {
+                        const name = (job.name || "").toLowerCase();
+                        const destination = (
+                            job.destination || ""
+                        ).toLowerCase();
+                        const server = (job.server || "").toLowerCase();
+                        return (
+                            name.includes(searchQuery) ||
+                            destination.includes(searchQuery) ||
+                            server.includes(searchQuery)
+                        );
                     });
-                    showMessage(
-                        `✅ Запущено! Сесія: ${result.session?.id || "N/A"}`,
-                        "info",
-                    );
-                } catch (err) {
-                    showMessage("❌ Помилка запуску: " + err.message, "error");
                 }
+
+                if (filteredJobs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div class="empty-state-title">Немає завдань</div>
+                            <p>Створіть нове завдання резервного копіювання</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filteredJobs
+                    .map((job) => {
+                        const typeClass =
+                            {
+                                database: "job-type-database",
+                                file: "job-type-file",
+                                vm: "job-type-vm",
+                                cloud: "job-type-cloud",
+                            }[job.type] || "job-type-file";
+
+                        const typeLabel =
+                            {
+                                database: "База Даних",
+                                file: "Файли",
+                                vm: "Віртуальна Машина",
+                                cloud: "Хмара",
+                            }[job.type] || job.type;
+
+                        const statusClass = job.enabled
+                            ? "status-enabled"
+                            : "status-disabled";
+                        const statusText = job.enabled
+                            ? "Увімкнено"
+                            : "Вимкнено";
+
+                        // Get next run info
+                        const nextRunInfo = getNextRunInfo(job);
+
+                        // Get database/server info for database jobs
+                        let extraInfo = "";
+                        if (job.type === "database") {
+                            const dbType = job.database_type
+                                ? job.database_type.toUpperCase()
+                                : "DB";
+                            const server = job.server || "";
+                            extraInfo = `
+                            <div class="job-info-row">
+                                <span>🗄️ ${dbType}</span>
+                                ${server ? `<span>• ${server}</span>` : ""}
+                            </div>
+                        `;
+                        } else if (job.type === "file") {
+                            const sources = job.sources || [];
+                            extraInfo = `
+                            <div class="job-info-row">
+                                <span>📁 Джерел: ${sources.length}</span>
+                            </div>
+                        `;
+                        } else if (job.type === "vm") {
+                            const vms = job.vm_names || [];
+                            extraInfo = `
+                            <div class="job-info-row">
+                                <span>🖥️ ВМ: ${vms.length}</span>
+                            </div>
+                        `;
+                        }
+
+                        return `
+                        <div class="job-card">
+                            <div class="job-header">
+                                <div>
+                                    <div class="job-title">${escapeHtml(job.name)}</div>
+                                    <span class="job-type ${typeClass}">${typeLabel}</span>
+                                </div>
+                                <span class="status-badge ${statusClass}">
+                                    <span class="status-dot"></span>
+                                    ${statusText}
+                                </span>
+                            </div>
+                            <div class="job-info">
+                                ${extraInfo}
+                                <div class="job-info-row">
+                                    <span>📍 ${escapeHtml(job.destination || "Не вказано")}</span>
+                                </div>
+                                <div class="job-info-row">
+                                    <span>⏰ ${getScheduleLabel(job.schedule)}</span>
+                                </div>
+                                <div class="job-info-row">
+                                    <span class="next-run-badge ${nextRunInfo.class}">
+                                        📅 Наступний: ${nextRunInfo.text}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="job-actions">
+                                <button class="btn btn-success" onclick="runJob('${job.id}')">
+                                    ▶ Запуск
+                                </button>
+                                <a href="jobs.html?id=${job.id}" class="btn btn-primary" style="text-decoration: none; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                                    ✏ Редагувати
+                                </a>
+                                ${
+                                    job.enabled
+                                        ? `
+                                <button class="btn btn-warning" onclick="toggleJob('${job.id}', false)">
+                                    ⏸ Пауза
+                                </button>
+                                `
+                                        : `
+                                <button class="btn btn-primary" onclick="toggleJob('${job.id}', true)">
+                                    ▶ Активувати
+                                </button>
+                                `
+                                }
+                                <button class="btn btn-danger" onclick="deleteJob('${job.id}')" style="padding: 0.5rem 1rem;">
+                                    🗑
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    })
+                    .join("");
             }
 
-            async function deleteJob(jobId) {
-                if (!confirm("Ви впевнені? Це не можна скасувати.")) return;
-
-                try {
-                    await api(`/api/jobs/${jobId}`, { method: "DELETE" });
-                    showMessage("✅ Завдання видалено!", "info");
-                    loadJobs();
-                } catch (err) {
-                    showMessage("❌ Помилка: " + err.message, "error");
+            // Replace alert calls with toast
+            const originalAlert = window.alert;
+            window.alert = function (message) {
+                if (message.includes("✅")) {
+                    showSuccess(message.replace("✅", "").trim(), 5000);
+                } else if (message.includes("❌")) {
+                    showError(message.replace("❌", "").trim(), 5000);
+                } else {
+                    showInfo(message, 5000);
                 }
-            }
+            };
 
-            function logout() {
-                if (confirm("Вийти з системи?")) {
-                    localStorage.removeItem("token");
-                    token = "";
-                    showMessage(
-                        "👋 До побачення! Оновіть сторінку для входу.",
-                        "info",
-                    );
-                    setTimeout(() => location.reload(), 1000);
-                }
-            }
-
+            // Escape HTML
             function escapeHtml(text) {
                 const div = document.createElement("div");
                 div.textContent = text;
                 return div.innerHTML;
             }
 
-            function showMessage(text, type) {
-                const area = document.getElementById("message-area");
-                area.innerHTML = `<div class="${type}">${text}</div>`;
-                setTimeout(() => (area.innerHTML = ""), 5000);
-            }
+            // Run job
+            async function runJob(jobId) {
+                if (!confirm("Запустити резервне копіювання зараз?")) return;
 
-            // Auto-login if token exists
-            async function init() {
-                if (token) {
-                    try {
-                        await loadJobs();
-                    } catch (err) {
-                        console.log(
-                            "Auto-login failed, will prompt on first action",
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/run`, {
+                        method: "POST",
+                        headers: {
+                            Authorization: authToken,
+                        },
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(
+                            "✅ Завдання запущено!\n\n" +
+                                (data.session?.id || ""),
                         );
-                        loadJobs();
+                        window.location.href = "sessions.html";
+                    } else {
+                        throw new Error(data.error || "Failed to run job");
                     }
-                } else {
-                    loadJobs();
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
                 }
             }
 
-            init();
+            // Toggle job enabled/disabled
+            async function toggleJob(jobId, enabled) {
+                try {
+                    const job = allJobs.find((j) => j.id === jobId);
+                    if (!job) return;
+
+                    const response = await fetch(`/api/jobs/${jobId}`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: authToken,
+                        },
+                        body: JSON.stringify({
+                            ...job,
+                            enabled: enabled,
+                        }),
+                    });
+
+                    if (response.ok) {
+                        loadJobs();
+                    } else {
+                        const data = await response.json();
+                        throw new Error(data.error || "Failed to update job");
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Delete job
+            async function deleteJob(jobId) {
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити це завдання?\n\nЦя дія незворотна!",
+                    )
+                )
+                    return;
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`, {
+                        method: "DELETE",
+                        headers: {
+                            Authorization: authToken,
+                        },
+                    });
+
+                    if (response.ok) {
+                        loadJobs();
+                    } else {
+                        const data = await response.json();
+                        throw new Error(data.error || "Failed to delete job");
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Filter buttons
+            document.querySelectorAll(".filter-btn").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    document
+                        .querySelectorAll(".filter-btn")
+                        .forEach((b) => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    currentFilter = btn.dataset.filter;
+                    renderJobs();
+                });
+            });
+
+            // Initialize
+            loadJobs();
+            setInterval(loadJobs, 30000); // Auto-refresh every 30 seconds
         </script>
+        <script src="assets/toast.js"></script>
     </body>
 </html>

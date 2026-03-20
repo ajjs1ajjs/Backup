@@ -6,6 +6,7 @@
         <title>
             NovaBackup Enterprise v7.0 - Система Резервного Копіювання
         </title>
+        <link rel="stylesheet" href="assets/design-enhancements.css" />
         <style>
             :root {
                 --bg-primary: #0f172a;
@@ -338,6 +339,108 @@
                 opacity: 0.6;
                 cursor: not-allowed;
             }
+            /* Filter buttons */
+            .filter-btn-small {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                color: var(--text-secondary);
+                padding: 0.4rem 0.75rem;
+                border-radius: 0.375rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .filter-btn-small:hover {
+                background: var(--bg-secondary);
+                border-color: var(--accent-blue);
+            }
+            .filter-btn-small.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                border-color: var(--accent-blue);
+            }
+            /* Gauge indicators */
+            .job-gauges {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+            .gauge-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                opacity: 0.5;
+            }
+            .gauge-item:hover {
+                opacity: 0.8;
+                transform: translateY(-4px);
+            }
+            .gauge-item.active {
+                opacity: 1;
+                transform: scale(1.1);
+                filter: drop-shadow(0 0 15px currentColor);
+            }
+            .gauge-ring {
+                position: relative;
+                width: 90px;
+                height: 90px;
+            }
+            .gauge-svg {
+                width: 100%;
+                height: 100%;
+                transform: rotate(-90deg);
+            }
+            .gauge-bg {
+                fill: none;
+                stroke: var(--bg-secondary);
+                stroke-width: 4;
+            }
+            .gauge-fill {
+                fill: none;
+                stroke-width: 4;
+                stroke-linecap: round;
+                transition: stroke-dasharray 0.5s ease;
+            }
+            .gauge-fill.all {
+                stroke: var(--accent-blue);
+            }
+            .gauge-fill.database {
+                stroke: var(--accent-purple);
+            }
+            .gauge-fill.file {
+                stroke: var(--accent-green);
+            }
+            .gauge-fill.vm {
+                stroke: var(--accent-orange);
+            }
+            .gauge-icon {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 1.75rem;
+            }
+            .gauge-count {
+                font-size: 1.75rem;
+                font-weight: 800;
+                color: var(--text-primary);
+                text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            }
+            .gauge-label {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-weight: 600;
+            }
             @media (max-width: 768px) {
                 body {
                     padding: 0;
@@ -441,6 +544,13 @@
                     <span class="status-dot"></span>
                     <span>Система Працює</span>
                 </div>
+                <button
+                    class="theme-toggle"
+                    onclick="toggleTheme()"
+                    title="Перемкнути тему"
+                >
+                    <span id="theme-icon">🌙</span>
+                </button>
                 <span id="username-display">👤 Admin</span>
                 <button class="logout-btn" onclick="logout()">🚪 Вихід</button>
             </div>
@@ -455,6 +565,10 @@
                             <span class="nav-icon">📊</span>
                             <span>Панель Керування</span>
                         </a>
+                        <a href="manage-jobs.html" class="nav-item">
+                            <span class="nav-icon">📋</span>
+                            <span>Завдання</span>
+                        </a>
                         <a href="quick-backup.html" class="nav-item">
                             <span class="nav-icon">🔄</span>
                             <span>Швидке Резервне Копіювання</span>
@@ -468,6 +582,26 @@
                         <a href="restore.html" class="nav-item">
                             <span class="nav-icon">♻️</span>
                             <span>Відновлення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Бази Даних</div>
+                    <nav class="nav-menu">
+                        <a href="database-backup.html" class="nav-item">
+                            <span class="nav-icon">🗄️</span>
+                            <span>SQL Server Бекап</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Віртуальні Машини</div>
+                    <nav class="nav-menu">
+                        <a href="vm-backup.html" class="nav-item">
+                            <span class="nav-icon">🖥️</span>
+                            <span>Бекап ВМ</span>
                         </a>
                     </nav>
                 </div>
@@ -674,96 +808,132 @@
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header" style="position: relative">
-                        <h3 class="card-title">⚡ Швидкі Дії</h3>
-                        <span
-                            class="help-icon-btn"
-                            onclick="toggleHelp('help-quick-actions')"
-                            style="position: absolute; right: 15px; top: 15px"
-                            >❓</span
-                        >
-                        <div
-                            id="help-quick-actions"
-                            class="help-tooltip"
-                            style="right: 50px"
-                        >
-                            <h4>⚡ Швидкі Дії</h4>
-                            <p>Швидкий доступ до основних операцій:</p>
-                            <ul>
-                                <li>
-                                    <strong>➕ Нове Завдання</strong> -
-                                    створення бекапу
-                                </li>
-                                <li>
-                                    <strong>▶️ Запустити Зараз</strong> -
-                                    терміновий бекап
-                                </li>
-                                <li>
-                                    <strong>♻️ Відновити</strong> - відновлення
-                                    даних
-                                </li>
-                                <li>
-                                    <strong>📊 Перегляд Сесій</strong> - історія
-                                    операцій
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div style="padding: 1.5rem">
-                        <div class="quick-actions">
-                            <div
-                                class="quick-action-btn"
-                                onclick="
-                                    window.location.href = 'quick-backup.html'
-                                "
-                            >
-                                <div class="quick-action-icon">➕</div>
-                                <div class="quick-action-label">
-                                    Нове Завдання
-                                </div>
-                            </div>
-                            <div
-                                class="quick-action-btn"
-                                onclick="
-                                    window.location.href = 'quick-backup.html'
-                                "
-                            >
-                                <div class="quick-action-icon">▶️</div>
-                                <div class="quick-action-label">
-                                    Запустити Зараз
-                                </div>
-                            </div>
-                            <div
-                                class="quick-action-btn"
-                                onclick="window.location.href = 'restore.html'"
-                            >
-                                <div class="quick-action-icon">♻️</div>
-                                <div class="quick-action-label">Відновити</div>
-                            </div>
-                            <div
-                                class="quick-action-btn"
-                                onclick="window.location.href = 'sessions.html'"
-                            >
-                                <div class="quick-action-icon">📊</div>
-                                <div class="quick-action-label">
-                                    Перегляд Сесій
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Heatmap Calendar -->
+                <div id="heatmap-container" style="margin-bottom: 2rem"></div>
 
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Активні Завдання</h3>
+                        <h3 class="card-title">Огляд Завдань</h3>
                         <div
                             style="
                                 display: flex;
-                                gap: 0.5rem;
+                                gap: 1rem;
                                 align-items: center;
                             "
                         >
+                            <!-- Gauge indicators -->
+                            <div class="job-gauges">
+                                <div
+                                    class="gauge-item all active"
+                                    onclick="filterJobs('all')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill"
+                                                id="gauge-all"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">📋</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-all"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">Всі</span>
+                                </div>
+                                <div
+                                    class="gauge-item database"
+                                    onclick="filterJobs('database')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill database"
+                                                id="gauge-database"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">🗄️</span>
+                                    </div>
+                                    <span
+                                        class="gauge-count"
+                                        id="count-database"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">SQL</span>
+                                </div>
+                                <div
+                                    class="gauge-item file"
+                                    onclick="filterJobs('file')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill file"
+                                                id="gauge-file"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">📁</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-file"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">Файли</span>
+                                </div>
+                                <div
+                                    class="gauge-item vm"
+                                    onclick="filterJobs('vm')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill vm"
+                                                id="gauge-vm"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">🖥️</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-vm"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">ВМ</span>
+                                </div>
+                            </div>
                             <button
                                 class="btn btn-primary"
                                 onclick="loadDashboard()"
@@ -784,6 +954,19 @@
                                 "
                                 >➕ Нове</a
                             >
+                            <a
+                                href="manage-jobs.html"
+                                class="btn btn-primary"
+                                style="
+                                    padding: 0.5rem 1rem;
+                                    font-size: 0.85rem;
+                                    text-decoration: none;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.5rem;
+                                "
+                                >📋 Всі завдання</a
+                            >
                             <div
                                 class="help-tip"
                                 style="margin: 0; padding: 0.75rem 1rem"
@@ -799,38 +982,28 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Назва Завдання</th>
-                                    <th>Джерела</th>
-                                    <th>Призначення</th>
-                                    <th>Статус</th>
-                                    <th>Останній Запуск</th>
-                                    <th>Наступний Запуск</th>
-                                    <th>Дії</th>
-                                </tr>
-                            </thead>
-                            <tbody id="jobs-table-body">
-                                <tr>
-                                    <td
-                                        colspan="7"
-                                        style="
-                                            text-align: center;
-                                            padding: 3rem;
-                                            color: var(--text-secondary);
-                                        "
-                                    >
-                                        📭 Немає активних завдань<br />
-                                        <small
-                                            >Натисніть "Нове" для створення
-                                            завдання</small
-                                        >
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div
+                        style="
+                            padding: 1rem;
+                            text-align: center;
+                            color: var(--text-secondary);
+                        "
+                    >
+                        <p style="margin-bottom: 0.5rem">
+                            📊 Керуйте завданнями на окремих сторінках
+                        </p>
+                        <a
+                            href="manage-jobs.html"
+                            class="btn btn-primary"
+                            style="
+                                text-decoration: none;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 0.5rem;
+                            "
+                        >
+                            📋 Всі Завдання
+                        </a>
                     </div>
                 </div>
             </main>
@@ -875,7 +1048,9 @@
             // Load dashboard data
             async function loadDashboard() {
                 const token = localStorage.getItem("authToken");
-                const headers = token ? { Authorization: token } : {};
+                const headers = token
+                    ? { Authorization: "Bearer " + token }
+                    : {};
 
                 try {
                     const [jobsRes, sessionsRes] = await Promise.all([
@@ -896,155 +1071,155 @@
                     document.getElementById("stat-sessions").textContent =
                         sessions.sessions?.length || 0;
 
-                    // Render jobs table with full management
-                    const tbody = document.getElementById("jobs-table-body");
-                    if (jobs.jobs && jobs.jobs.length > 0) {
-                        let html = "";
-                        for (const job of jobs.jobs) {
-                            const sources = (job.sources || []).join(", ");
-                            const lastRun = job.last_run
-                                ? new Date(job.last_run).toLocaleString("uk-UA")
-                                : "Ніколи";
-                            const nextRun = job.next_run
-                                ? new Date(job.next_run).toLocaleString("uk-UA")
-                                : "Вручну";
-                            const statusClass = job.enabled
-                                ? "status-success"
-                                : "status-warning";
-                            const statusText = job.enabled
-                                ? "✅ Активно"
-                                : "⏸ Вимкнено";
+                    // Update gauge indicators
+                    const allJobs = jobs.jobs || [];
+                    const dbJobs = allJobs.filter(
+                        (j) => j.type === "database",
+                    ).length;
+                    const fileJobs = allJobs.filter(
+                        (j) => j.type === "file",
+                    ).length;
+                    const vmJobs = allJobs.filter(
+                        (j) => j.type === "vm",
+                    ).length;
+                    const total = allJobs.length || 1;
 
-                            html += `
-                        <tr>
-                            <td><strong>${escapeHtml(job.name)}</strong></td>
-                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(sources)}</td>
-                            <td>${escapeHtml(job.destination)}</td>
-                            <td><span class="status-badge-sm ${statusClass}">${statusText}</span></td>
-                            <td>${lastRun}</td>
-                            <td>${nextRun}</td>
-                            <td>
-                                <button class="btn btn-success" onclick="runJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">▶ Запуск</button>
-                                <a href="quick-backup.html?id=${job.id}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem; text-decoration: none; display: inline-flex; align-items: center;">✏ Редагувати</a>
-                                <button class="btn btn-danger" onclick="deleteJob('${job.id}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; margin-left: 0.5rem;">🗑 Видалити</button>
-                            </td>
-                        </tr>
-                    `;
-                        }
-                        tbody.innerHTML = html;
-                    } else {
-                        tbody.innerHTML = `
-                                <tr>
-                                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                        📭 Немає завдань<br />
-                                        <small>Натисніть "➕ Нове" для створення першого завдання</small>
-                                    </td>
-                                </tr>`;
-                    }
+                    // Update counts
+                    document.getElementById("count-all").textContent =
+                        allJobs.length;
+                    document.getElementById("count-database").textContent =
+                        dbJobs;
+                    document.getElementById("count-file").textContent =
+                        fileJobs;
+                    document.getElementById("count-vm").textContent = vmJobs;
+
+                    // Update gauge fills
+                    const dbPercent = (dbJobs / total) * 100;
+                    const filePercent = (fileJobs / total) * 100;
+                    const vmPercent = (vmJobs / total) * 100;
+                    const allPercent = 100;
+
+                    document
+                        .getElementById("gauge-all")
+                        .setAttribute("stroke-dasharray", `${allPercent}, 100`);
+                    document
+                        .getElementById("gauge-database")
+                        .setAttribute("stroke-dasharray", `${dbPercent}, 100`);
+                    document
+                        .getElementById("gauge-file")
+                        .setAttribute(
+                            "stroke-dasharray",
+                            `${filePercent}, 100`,
+                        );
+                    document
+                        .getElementById("gauge-vm")
+                        .setAttribute("stroke-dasharray", `${vmPercent}, 100`);
+
+                    // Update active gauge
+                    document.querySelectorAll(".gauge-item").forEach((item) => {
+                        item.classList.remove("active");
+                    });
+                    document
+                        .querySelector(`.gauge-item.${currentFilter || "all"}`)
+                        ?.classList.add("active");
                 } catch (error) {
                     console.error("Error loading dashboard:", error);
-                    const tbody = document.getElementById("jobs-table-body");
-                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--accent-red);">❌ Помилка завантаження: ${error.message}<br><small>Перевірте чи працює сервер</small></td></tr>`;
                 }
             }
 
+            // Filter by gauge click
+            let currentFilter = "all";
+            function filterJobs(type) {
+                currentFilter = type;
+                document.querySelectorAll(".gauge-item").forEach((item) => {
+                    item.classList.remove("active");
+                });
+                event.currentTarget.classList.add("active");
+            }
+
+            // Helper: escape HTML
             function escapeHtml(text) {
-                if (!text) return "";
                 const div = document.createElement("div");
                 div.textContent = text;
                 return div.innerHTML;
             }
 
+            // Run job
             async function runJob(jobId) {
-                if (!confirm("Запустити це завдання зараз?")) return;
-
-                const token = localStorage.getItem("authToken");
-                const headers = token
-                    ? {
-                          Authorization: token,
-                          "Content-Type": "application/json",
-                      }
-                    : {};
-
+                if (!confirm("Запустити резервне копіювання зараз?")) return;
                 try {
-                    const res = await fetch(`/api/jobs/${jobId}/run`, {
+                    const response = await fetch(`/api/jobs/${jobId}/run`, {
                         method: "POST",
-                        headers,
+                        headers: { Authorization: authToken },
                     });
-                    const data = await res.json().catch(() => ({}));
-
-                    if (res.ok && data.success) {
-                        alert(
-                            "✅ Завдання запущено!\nСесія: " +
-                                (data.session?.id || "N/A"),
-                        );
-                        loadDashboard();
+                    const data = await response.json();
+                    if (response.ok) {
+                        alert("✅ Завдання запущено!");
+                        window.location.href = "sessions.html";
                     } else {
-                        alert(
-                            "❌ Помилка запуску: " +
-                                (data.error || res.statusText),
-                        );
+                        throw new Error(data.error);
                     }
                 } catch (error) {
                     alert("❌ Помилка: " + error.message);
                 }
             }
 
+            // Delete job
             async function deleteJob(jobId) {
-                if (
-                    !confirm(
-                        "Ви впевнені, що хочете видалити це завдання?\n\nЦю дію не можна скасувати.",
-                    )
-                )
-                    return;
-
-                const token = localStorage.getItem("authToken");
-                const headers = token ? { Authorization: token } : {};
-
+                if (!confirm("Ви впевнені?")) return;
                 try {
-                    const res = await fetch(`/api/jobs/${jobId}`, {
+                    const response = await fetch(`/api/jobs/${jobId}`, {
                         method: "DELETE",
-                        headers,
+                        headers: { Authorization: authToken },
                     });
-                    const data = await res.json().catch(() => ({}));
-
-                    if (res.ok) {
-                        alert("✅ Завдання видалено!");
-                        loadDashboard();
-                    } else {
-                        alert(
-                            "❌ Помилка видалення: " +
-                                (data.error || res.statusText),
-                        );
-                    }
+                    if (response.ok) loadDashboard();
                 } catch (error) {
                     alert("❌ Помилка: " + error.message);
                 }
             }
 
-            // Initial load
-            loadDashboard();
-            setInterval(loadDashboard, 30000); // Auto-refresh every 30 seconds
+            // Initialize
+            const authToken = localStorage.getItem("authToken");
+            if (!authToken) {
+                window.location.href = "login.html";
+            } else {
+                const user = JSON.parse(
+                    localStorage.getItem("user") || '{"username":"admin"}',
+                );
+                document.getElementById("username-display").textContent =
+                    "👤 " + user.username;
+            }
 
-            // Help tooltip toggle function
-            function toggleHelp(helpId) {
-                event.stopPropagation();
-                const allTooltips = document.querySelectorAll(".help-tooltip");
-                allTooltips.forEach((t) => {
-                    if (t.id !== helpId) t.classList.remove("active");
-                });
-                const tooltip = document.getElementById(helpId);
-                if (tooltip) {
-                    tooltip.classList.toggle("active");
+            loadDashboard();
+            setInterval(loadDashboard, 30000);
+
+            // Theme toggle
+            function toggleTheme() {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+                const themeIcon = document.getElementById("theme-icon");
+
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (themeIcon) {
+                    themeIcon.textContent = newTheme === "light" ? "☀️" : "🌙";
                 }
             }
 
-            // Close tooltips when clicking outside
-            document.addEventListener("click", function () {
-                document.querySelectorAll(".help-tooltip").forEach((t) => {
-                    t.classList.remove("active");
-                });
-            });
+            // Load saved theme
+            (function () {
+                const savedTheme = localStorage.getItem("theme") || "dark";
+                document.documentElement.setAttribute("data-theme", savedTheme);
+                const themeIcon = document.getElementById("theme-icon");
+                if (themeIcon) {
+                    themeIcon.textContent =
+                        savedTheme === "light" ? "☀️" : "🌙";
+                }
+            })();
         </script>
+        <script src="assets/toast.js"></script>
+        <script src="assets/heatmap.js"></script>
     </body>
 </html>

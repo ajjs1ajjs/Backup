@@ -4,6 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Відновлення - NovaBackup Enterprise</title>
+        <link rel="stylesheet" href="assets/design-enhancements.css" />
         <style>
             :root {
                 --bg-primary: #0f172a;
@@ -531,12 +532,11 @@
                         <div class="form-group">
                             <label class="form-label">🗄️ Тип бази даних</label>
                             <select class="form-select" id="db-type">
-                                <option value="mysql">MySQL</option>
-                                <option value="postgresql">PostgreSQL</option>
-                                <option value="sqlite">SQLite</option>
                                 <option value="mssql">
                                     Microsoft SQL Server
                                 </option>
+                                <option value="postgresql">Postgres SQL</option>
+                                <option value="oracle">Oracle SQL</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -547,11 +547,66 @@
                                 type="text"
                                 class="form-input"
                                 id="db-conn"
-                                placeholder="user:password@tcp(host:port)/database"
+                                placeholder="server=localhost\SQLEXPRESS;database=master;trusted_connection=true;"
                             />
                             <div class="form-hint">
-                                Наприклад:
-                                root:password@tcp(localhost:3306)/mydb
+                                <strong>Приклади рядків підключення:</strong
+                                ><br />
+                                <code
+                                    style="
+                                        display: block;
+                                        margin: 0.5rem 0;
+                                        padding: 0.5rem;
+                                        background: var(--bg-secondary);
+                                        border-radius: 0.25rem;
+                                        font-size: 0.75rem;
+                                        line-height: 1.6;
+                                    "
+                                >
+                                    <span style="color: var(--accent-purple)"
+                                        >🗄️
+                                        <strong>Microsoft SQL:</strong></span
+                                    ><br />
+                                    <span style="color: var(--text-secondary)"
+                                        >server=localhost\SQLEXPRESS;database=master;trusted_connection=true;</span
+                                    ><br /><br />
+                                    <span style="color: var(--accent-blue)"
+                                        >🐘 <strong>Postgres SQL:</strong></span
+                                    ><br />
+                                    <span style="color: var(--text-secondary)"
+                                        >Host=localhost;Port=5432;Username=postgres;Password=myPass;Database=postgres;</span
+                                    ><br /><br />
+                                    <span style="color: var(--accent-orange)"
+                                        >☀️ <strong>Oracle SQL:</strong></span
+                                    ><br />
+                                    <span style="color: var(--text-secondary)"
+                                        >Data
+                                        Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORCL)));User
+                                        Id=scott;Password=tiger;</span
+                                    >
+                                </code>
+                                <div
+                                    style="
+                                        margin-top: 0.5rem;
+                                        padding: 0.5rem;
+                                        background: rgba(245, 158, 11, 0.1);
+                                        border-left: 3px solid
+                                            var(--accent-orange);
+                                        border-radius: 0.25rem;
+                                        font-size: 0.75rem;
+                                    "
+                                >
+                                    ⚠️ <strong>Важливо:</strong> Використовуйте
+                                    <code
+                                        style="
+                                            background: var(--bg-card);
+                                            padding: 0.125rem 0.25rem;
+                                            border-radius: 0.125rem;
+                                        "
+                                        >database=master</code
+                                    >
+                                    для підключення, а не базу яку відновлюєте!
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -735,7 +790,7 @@
                         name:
                             session.job_name ||
                             `Backup ${session.job_id?.substring(0, 8)}`,
-                        type: "files", // All current backups are file type
+                        type: session.type || "files", // Use actual session type
                         date: session.start_time || session.created_at,
                         size:
                             session.total_size ||
@@ -1253,5 +1308,6 @@
             // Initialize
             loadBackupPoints();
         </script>
+        <script src="assets/toast.js"></script>
     </body>
 </html>

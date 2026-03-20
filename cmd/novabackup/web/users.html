@@ -558,18 +558,8 @@
                     updateStats();
                 } catch (error) {
                     console.error("Failed to load users:", error);
-                    // Mock data for demo
-                    users = [
-                        {
-                            id: "admin",
-                            username: "admin",
-                            email: "admin@novabackup.local",
-                            full_name: "Administrator",
-                            role: "admin",
-                            enabled: true,
-                            last_login: new Date().toISOString(),
-                        },
-                    ];
+                    // Show empty state if failed to load
+                    users = [];
                     renderUsers();
                     updateStats();
                 }
@@ -739,23 +729,7 @@
                         );
                     }
                 } catch (error) {
-                    // Demo mode - add locally
-                    alert(
-                        "✅ Користувача додано (демо режим)\n\n" +
-                            "Ім'я: " +
-                            user.username +
-                            "\n" +
-                            "Роль: " +
-                            getRoleUA(user.role),
-                    );
-                    users.push({
-                        ...user,
-                        id: "user_" + Date.now(),
-                        last_login: null,
-                    });
-                    renderUsers();
-                    updateStats();
-                    closeAddModal();
+                    alert("❌ Помилка: " + (error.error || "Невідома помилка"));
                 }
             }
 

@@ -3,6 +3,12 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Cache-Control"
+            content="no-cache, no-store, must-revalidate"
+        />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
         <title>Швидке Резервне Копіювання - NovaBackup</title>
         <style>
             :root {
@@ -311,6 +317,32 @@
                             S3, Azure, Google Cloud
                         </p>
                     </div>
+                    <div class="source-card" onclick="selectSource('database')">
+                        <div class="source-icon">🗄️</div>
+                        <strong>Бази Даних</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            SQL Server, PostgreSQL, Oracle
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('vm')">
+                        <div class="source-icon">🖥️</div>
+                        <strong>Віртуальні Машини</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Hyper-V, KVM/QEMU віртуальні машини
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -468,6 +500,356 @@
                         id="cloud-secret"
                         placeholder="••••••••"
                     />
+                </div>
+            </div>
+
+            <!-- Database Source -->
+            <div
+                id="database-source"
+                class="source-fields"
+                style="display: none"
+            >
+                <div class="form-group">
+                    <label class="form-label">Тип бази даних</label>
+                    <select class="form-select" id="db-type">
+                        <option value="mssql">Microsoft SQL Server</option>
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="oracle">Oracle Database</option>
+                        <option value="mysql">MySQL</option>
+                    </select>
+                </div>
+
+                <!-- SQL Server Settings -->
+                <div id="db-mssql-settings">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mssql-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="mssql-port"
+                                value="1433"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Метод автентифікації</label>
+                        <select
+                            class="form-select"
+                            id="mssql-auth"
+                            onchange="toggleMssqlAuth()"
+                        >
+                            <option value="windows">
+                                Автентифікація Windows
+                            </option>
+                            <option value="sql">
+                                Автентифікація SQL Server
+                            </option>
+                        </select>
+                    </div>
+                    <div id="mssql-sql-auth" style="display: none">
+                        <div class="inline-form">
+                            <div class="form-group">
+                                <label class="form-label">Логін</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="mssql-login"
+                                    placeholder="sa"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input
+                                    type="password"
+                                    class="form-input"
+                                    id="mssql-password"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="mssql-databases"
+                            placeholder="AdventureWorks, YourDB"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена БД через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PostgreSQL Settings -->
+                <div id="db-postgresql-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="pg-port"
+                                value="5432"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-login"
+                                placeholder="postgres"
+                                value="postgres"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="pg-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="pg-databases"
+                            placeholder="mydb, testdb"
+                        />
+                    </div>
+                </div>
+
+                <!-- Oracle Settings -->
+                <div id="db-oracle-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-server"
+                                placeholder="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="ora-port"
+                                value="1521"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service Name</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="ora-service"
+                            placeholder="ORCL"
+                        />
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-login"
+                                placeholder="SYS AS SYSDBA"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="ora-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MySQL Settings -->
+                <div id="db-mysql-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mysql-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="mysql-port"
+                                value="3306"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mysql-login"
+                                placeholder="root"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="mysql-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="mysql-databases"
+                            placeholder="mydb, testdb"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- VM Source -->
+            <div id="vm-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">Тип віртуалізації</label>
+                    <select class="form-select" id="vm-type">
+                        <option value="hyper-v">Microsoft Hyper-V</option>
+                        <option value="kvm">KVM/QEMU (Linux)</option>
+                    </select>
+                </div>
+
+                <!-- Hyper-V Settings -->
+                <div id="vm-hyperv-settings">
+                    <div class="form-group">
+                        <label class="form-label">Hyper-V хост</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-host"
+                            placeholder="localhost"
+                            value="localhost"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-vms"
+                            placeholder="VM-WEB-01, VM-DB-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KVM Settings -->
+                <div id="vm-kvm-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">KVM хост</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-host"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт SSH</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="kvm-port"
+                                value="22"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-login"
+                                placeholder="root"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="kvm-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="kvm-vms"
+                            placeholder="vm-ubuntu-01, vm-centos-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -697,10 +1079,27 @@
                 <div
                     style="
                         display: grid;
-                        grid-template-columns: 1fr 1fr;
+                        grid-template-columns: 1fr 1fr 1fr;
                         gap: 1rem;
                     "
                 >
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Розклад</label
+                        >
+                        <select
+                            class="form-input"
+                            id="schedule-type"
+                            value="manual"
+                        >
+                            <option value="manual">🔸 Ручний</option>
+                            <option value="daily">📅 Щодня</option>
+                            <option value="weekly">📅 Щотижня</option>
+                            <option value="monthly">📅 Щомісяця</option>
+                            <option value="hourly">⏰ Щогодини</option>
+                        </select>
+                        <div class="form-hint">Частота бекапу</div>
+                    </div>
                     <div>
                         <label class="form-label" style="font-size: 0.875rem"
                             >Зберігати (днів)</label
@@ -855,6 +1254,50 @@
                     case "server":
                     case "cloud":
                         return [];
+                    case "vm": {
+                        // Return VM configuration
+                        const vmType = document.getElementById("vm-type").value;
+                        const vms =
+                            vmType === "hyper-v"
+                                ? document.getElementById("hyperv-vms").value
+                                : document.getElementById("kvm-vms").value;
+                        return vms
+                            ? vms
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
+                    case "database": {
+                        // Return database configuration
+                        const dbType = document.getElementById("db-type").value;
+                        let databases = [];
+
+                        if (dbType === "mssql") {
+                            databases =
+                                document.getElementById(
+                                    "mssql-databases",
+                                ).value;
+                        } else if (dbType === "postgresql") {
+                            databases =
+                                document.getElementById("pg-databases").value;
+                        } else if (dbType === "oracle") {
+                            databases =
+                                document.getElementById("ora-service").value;
+                        } else if (dbType === "mysql") {
+                            databases =
+                                document.getElementById(
+                                    "mysql-databases",
+                                ).value;
+                        }
+
+                        return databases
+                            ? databases
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
                     default:
                         return [];
                 }
@@ -925,6 +1368,7 @@
             }
 
             async function startBackup() {
+                // Check for unsupported sources
                 if (
                     selectedSourceType === "server" ||
                     selectedSourceType === "cloud"
@@ -934,7 +1378,21 @@
                 }
 
                 const sources = buildSources();
-                if (sources.length === 0) {
+
+                // VM backup validation
+                if (selectedSourceType === "vm") {
+                    if (sources.length === 0) {
+                        alert("Вкажіть імена ВМ для резервного копіювання.");
+                        return;
+                    }
+                } else if (selectedSourceType === "database") {
+                    if (sources.length === 0) {
+                        alert(
+                            "Вкажіть імена баз даних для резервного копіювання.",
+                        );
+                        return;
+                    }
+                } else if (sources.length === 0) {
                     alert("Вкажіть шлях до даних для резервного копіювання.");
                     return;
                 }
@@ -951,9 +1409,15 @@
                     document.getElementById("job-name").value.trim() ||
                     defaultJobName();
 
+                // Build job configuration
                 const job = {
                     name: jobName,
-                    type: "file",
+                    type:
+                        selectedSourceType === "vm"
+                            ? "vm"
+                            : selectedSourceType === "database"
+                              ? "database"
+                              : "file",
                     sources: sources,
                     destination: destination,
                     compression: document.getElementById("compression").checked,
@@ -987,7 +1451,9 @@
                         document.getElementById("pre-script")?.value || "",
                     post_backup_script:
                         document.getElementById("post-script")?.value || "",
-                    schedule: "manual",
+                    schedule:
+                        document.getElementById("schedule-type")?.value ||
+                        "manual",
                     enabled: true,
                     retention_days: parseInt(
                         document.getElementById("retention-days").value,
@@ -996,6 +1462,92 @@
                         document.getElementById("retention-copies").value,
                     ),
                 };
+
+                // Add VM-specific fields
+                if (selectedSourceType === "vm") {
+                    const vmType = document.getElementById("vm-type").value;
+                    job.vm_type = vmType;
+
+                    if (vmType === "hyper-v") {
+                        job.hyperv_host =
+                            document.getElementById("hyperv-host").value;
+                    } else {
+                        job.kvm_host =
+                            document.getElementById("kvm-host").value;
+                        job.kvm_port = parseInt(
+                            document.getElementById("kvm-port").value,
+                        );
+                        job.kvm_login =
+                            document.getElementById("kvm-login").value;
+                        job.kvm_password =
+                            document.getElementById("kvm-password").value;
+                    }
+                }
+
+                // Add database-specific fields
+                if (selectedSourceType === "database") {
+                    const dbType = document.getElementById("db-type").value;
+                    job.database_type = dbType;
+                    job.database_conn = "";
+
+                    if (dbType === "mssql") {
+                        job.server =
+                            document.getElementById("mssql-server").value;
+                        job.port = parseInt(
+                            document.getElementById("mssql-port").value,
+                        );
+                        job.auth_type =
+                            document.getElementById("mssql-auth").value;
+                        if (job.auth_type === "sql") {
+                            job.login =
+                                document.getElementById("mssql-login").value;
+                            job.password =
+                                document.getElementById("mssql-password").value;
+                        }
+                        job.sources = document
+                            .getElementById("mssql-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                    } else if (dbType === "postgresql") {
+                        job.server = document.getElementById("pg-server").value;
+                        job.port = parseInt(
+                            document.getElementById("pg-port").value,
+                        );
+                        job.login = document.getElementById("pg-login").value;
+                        job.password =
+                            document.getElementById("pg-password").value;
+                        job.sources = document
+                            .getElementById("pg-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                    } else if (dbType === "oracle") {
+                        job.server =
+                            document.getElementById("ora-server").value;
+                        job.port = parseInt(
+                            document.getElementById("ora-port").value,
+                        );
+                        job.service =
+                            document.getElementById("ora-service").value;
+                        job.login = document.getElementById("ora-login").value;
+                        job.password =
+                            document.getElementById("ora-password").value;
+                        job.sources = [
+                            document.getElementById("ora-service").value,
+                        ];
+                    } else if (dbType === "mysql") {
+                        job.server =
+                            document.getElementById("mysql-server").value;
+                        job.port = parseInt(
+                            document.getElementById("mysql-port").value,
+                        );
+                        job.login =
+                            document.getElementById("mysql-login").value;
+                        job.password =
+                            document.getElementById("mysql-password").value;
+                    }
+                }
 
                 document.getElementById("loading").classList.add("active");
 
@@ -1071,6 +1623,54 @@
                 } catch (error) {
                     console.log("Could not load repositories:", error);
                 }
+            }
+            // VM type toggle
+            document
+                .getElementById("vm-type")
+                .addEventListener("change", function () {
+                    const hypervSettings =
+                        document.getElementById("vm-hyperv-settings");
+                    const kvmSettings =
+                        document.getElementById("vm-kvm-settings");
+
+                    if (this.value === "hyper-v") {
+                        hypervSettings.style.display = "block";
+                        kvmSettings.style.display = "none";
+                    } else {
+                        hypervSettings.style.display = "none";
+                        kvmSettings.style.display = "block";
+                    }
+                });
+
+            // Database type toggle
+            document
+                .getElementById("db-type")
+                .addEventListener("change", function () {
+                    const dbType = this.value;
+
+                    // Hide all DB settings
+                    document.getElementById("db-mssql-settings").style.display =
+                        "none";
+                    document.getElementById(
+                        "db-postgresql-settings",
+                    ).style.display = "none";
+                    document.getElementById(
+                        "db-oracle-settings",
+                    ).style.display = "none";
+                    document.getElementById("db-mysql-settings").style.display =
+                        "none";
+
+                    // Show selected
+                    document.getElementById(
+                        "db-" + dbType + "-settings",
+                    ).style.display = "block";
+                });
+
+            // MSSQL auth toggle
+            function toggleMssqlAuth() {
+                const authType = document.getElementById("mssql-auth").value;
+                document.getElementById("mssql-sql-auth").style.display =
+                    authType === "sql" ? "block" : "none";
             }
         </script>
     </body>
