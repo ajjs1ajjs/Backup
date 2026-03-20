@@ -222,20 +222,14 @@
                         localStorage.setItem("authToken", data.token);
                         localStorage.setItem("user", JSON.stringify(data.user));
 
-                        // Check if default password
+                        // Check if default password - ALWAYS force change for admin/admin123
                         const isDefaultPassword =
                             username === "admin" && password === "admin123";
-                        const passwordChanged =
-                            localStorage.getItem("passwordChanged");
 
-                        if (isDefaultPassword && passwordChanged !== "true") {
-                            // Force password change
+                        if (isDefaultPassword) {
+                            // Always force password change for default password
                             window.location.href = "change-password.html";
                         } else {
-                            // Mark as changed if new password
-                            if (isDefaultPassword) {
-                                localStorage.setItem("passwordChanged", "true");
-                            }
                             // Go to dashboard
                             window.location.href = "index.html";
                         }
@@ -254,15 +248,10 @@
             // Check if already logged in
             window.addEventListener("load", function () {
                 const token = localStorage.getItem("authToken");
-                const passwordChanged = localStorage.getItem("passwordChanged");
 
                 if (token) {
-                    // Check if password needs to be changed
-                    if (passwordChanged !== "true") {
-                        window.location.href = "change-password.html";
-                    } else {
-                        window.location.href = "index.html";
-                    }
+                    // Always go to dashboard if already logged in
+                    window.location.href = "index.html";
                 }
             });
         </script>
