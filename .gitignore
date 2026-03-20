@@ -4,52 +4,11 @@ bin/
 obj/
 publish/
 
-# Data directories
-data/
-*.db
-*.db-shm
-*.db-wal
-
-# IDE
-.vs/
-.vscode/
-*.user
-*.suo
-*.cache
-
-# Go
-*.exe
-*.exe~
+# Go binaries (allow novabackup.exe for deployment)
+# *.exe
 *.dll
 *.so
 *.dylib
 *.test
 *.out
 vendor/
-
-# Test
-coverage.txt
-*.cover
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-Icon?
-
-# Logs
-*.log
-logs/
-
-# Temp
-tmp/
-temp/
-*.tmp
-$null
-nul
-
-# Database
-*.db
-
-# Config (keep sample)
-# Config/*.json
