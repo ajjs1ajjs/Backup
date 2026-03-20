@@ -682,10 +682,16 @@
 
             // Load jobs
             async function loadJobs() {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    logout();
+                    return;
+                }
+
                 try {
                     const response = await fetch("/api/jobs", {
                         headers: {
-                            Authorization: authToken,
+                            Authorization: "Bearer " + token,
                         },
                     });
 
@@ -703,13 +709,7 @@
                     updateCounts();
                 } catch (error) {
                     console.error("Error loading jobs:", error);
-                    document.getElementById("jobs-container").innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">⚠️</div>
-                            <div class="empty-state-title">Помилка завантаження</div>
-                            <p>Не вдалося завантажити список завдань</p>
-                        </div>
-                    `;
+                    showError("Не вдалося завантажити список завдань");
                 }
             }
 
