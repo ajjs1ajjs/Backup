@@ -551,6 +551,15 @@
                     enabled: document.getElementById("job-enabled").checked,
                 };
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
                 showLoading("Збереження...");
 
                 try {
@@ -558,12 +567,24 @@
                         `${API_BASE}/jobs/${currentJobId}`,
                         {
                             method: "PUT",
-                            headers: { "Content-Type": "application/json" },
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: "Bearer " + token,
+                            },
                             body: JSON.stringify(jobData),
                         },
                     );
 
                     if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
                         const data = await res.json().catch(() => ({}));
                         throw new Error(data.error || "Помилка збереження");
                     }
@@ -582,6 +603,15 @@
                 if (!currentJobId) return;
                 if (!confirm("Запустити це завдання зараз?")) return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
                 showLoading("Запуск завдання...");
 
                 try {
@@ -589,10 +619,22 @@
                         `${API_BASE}/jobs/${currentJobId}/run`,
                         {
                             method: "POST",
+                            headers: {
+                                Authorization: "Bearer " + token,
+                            },
                         },
                     );
 
                     if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
                         const data = await res.json().catch(() => ({}));
                         throw new Error(data.error || "Помилка запуску");
                     }
@@ -616,6 +658,13 @@
                 )
                     return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    hideLoading();
+                    return;
+                }
+
                 showLoading("Видалення завдання...");
 
                 try {
@@ -623,10 +672,23 @@
                         `${API_BASE}/jobs/${currentJobId}`,
                         {
                             method: "DELETE",
+                            headers: {
+                                Authorization: "Bearer " + token,
+                            },
                         },
                     );
 
                     if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            hideLoading();
+                            return;
+                        }
                         const data = await res.json().catch(() => ({}));
                         throw new Error(data.error || "Помилка видалення");
                     }
