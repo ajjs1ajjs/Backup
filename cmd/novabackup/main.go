@@ -124,13 +124,16 @@ func buildServer() (*http.Server, error) {
 	api.ConfigPath = configPath
 
 	// Load configuration
-	_ = loadConfig()
+	config := loadConfig()
 	fmt.Println("✓ Configuration loaded")
 
 	// Initialize RBAC engine
 	rbacEngine = rbac.NewRBACEngine()
 	// Set database for session persistence
 	rbacEngine.DB = db
+	if err := rbacEngine.LoadUsersFromDB(); err != nil {
+		log.Printf("Warning: Failed to load users from DB: %v", err)
+	}
 	fmt.Println("✓ RBAC engine initialized")
 
 	// Initialize audit engine
@@ -143,10 +146,12 @@ func buildServer() (*http.Server, error) {
 
 	// Initialize backup engine
 	backupEngine = backup.NewBackupEngine(dataDir)
+	backupEngine.AllowScripts = getAllowScripts(config)
 	fmt.Println("✓ Backup engine initialized")
 
 	// Initialize restore engine
 	restoreEngine = restore.NewRestoreEngine(dataDir)
+	restoreEngine.AllowScripts = getAllowScripts(config)
 	fmt.Println("✓ Restore engine initialized")
 
 	// Initialize storage engine
@@ -229,67 +234,67 @@ func buildServer() (*http.Server, error) {
 		// Change password requires authentication
 		auth.POST("/change-password", api.AuthMiddleware(), api.ChangePassword)
 
-		// Protected routes (require authentication)
-		protected := apiGroup.Group("")
-		protected.Use(api.AuthMiddleware(), api.AuditMiddleware())
-		{
-			// Jobs
-			protected.GET("/jobs", api.ListJobs)
-			protected.POST("/jobs", api.CreateJob)
-			protected.PUT("/jobs/:id", api.UpdateJob)
-			protected.DELETE("/jobs/:id", api.DeleteJob)
-			protected.POST("/jobs/:id/run", api.RunJob)
-			protected.POST("/jobs/:id/stop", api.StopJob)
+	// Protected routes (require authentication)
+	protected := apiGroup.Group("")
+	protected.Use(api.AuthMiddleware(), api.AuditMiddleware())
+	{
+		// Jobs
+		protected.GET("/jobs", api.RequirePermission(rbac.PermJobsRead), api.ListJobs)
+		protected.POST("/jobs", api.RequirePermission(rbac.PermJobsCreate), api.CreateJob)
+		protected.PUT("/jobs/:id", api.RequirePermission(rbac.PermJobsUpdate), api.UpdateJob)
+		protected.DELETE("/jobs/:id", api.RequirePermission(rbac.PermJobsDelete), api.DeleteJob)
+		protected.POST("/jobs/:id/run", api.RequirePermission(rbac.PermBackupRun), api.RunJob)
+		protected.POST("/jobs/:id/stop", api.RequirePermission(rbac.PermBackupRun), api.StopJob)
 
-			// Backup
-			protected.POST("/backup/run", api.RunBackup)
-			protected.GET("/backup/sessions", api.ListSessions)
-			protected.GET("/backup/sessions/:id", api.GetSession)
-			protected.GET("/backup/sessions/:id/files", api.BrowseBackupFiles)
-			protected.POST("/backup/verify", api.VerifyBackup)
-			protected.GET("/backup/verifications", api.GetVerificationHistory)
-			protected.GET("/backup/cbt-stats", api.GetCBTStatistics)
+		// Backup
+		protected.POST("/backup/run", api.RequirePermission(rbac.PermBackupRun), api.RunBackup)
+		protected.GET("/backup/sessions", api.RequirePermission(rbac.PermBackupRead), api.ListSessions)
+		protected.GET("/backup/sessions/:id", api.RequirePermission(rbac.PermBackupRead), api.GetSession)
+		protected.GET("/backup/sessions/:id/files", api.RequirePermission(rbac.PermBackupRead), api.BrowseBackupFiles)
+		protected.POST("/backup/verify", api.RequirePermission(rbac.PermBackupRun), api.VerifyBackup)
+		protected.GET("/backup/verifications", api.RequirePermission(rbac.PermBackupRead), api.GetVerificationHistory)
+		protected.GET("/backup/cbt-stats", api.RequirePermission(rbac.PermBackupRead), api.GetCBTStatistics)
 
-			// Restore
-			protected.GET("/restore/points", api.ListRestorePoints)
-			protected.POST("/restore/files", api.RestoreFiles)
-			protected.POST("/restore/database", api.RestoreDatabase)
-			protected.POST("/restore/instant", api.InstantRestore)
+		// Restore
+		protected.GET("/restore/points", api.RequirePermission(rbac.PermRestoreRead), api.ListRestorePoints)
+		protected.POST("/restore/files", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreFiles)
+		protected.POST("/restore/database", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreDatabase)
+		protected.POST("/restore/instant", api.RequirePermission(rbac.PermRestoreCreate), api.InstantRestore)
 
-			// Storage
-			protected.GET("/storage/repos", api.ListRepos)
-			protected.POST("/storage/repos", api.CreateRepo)
-			protected.PUT("/storage/repos/:id", api.UpdateRepo)
-			protected.DELETE("/storage/repos/:id", api.DeleteRepo)
+		// Storage
+		protected.GET("/storage/repos", api.RequirePermission(rbac.PermSettingsRead), api.ListRepos)
+		protected.POST("/storage/repos", api.RequirePermission(rbac.PermSettingsUpdate), api.CreateRepo)
+		protected.PUT("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateRepo)
+		protected.DELETE("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.DeleteRepo)
 
-			// Settings
-			protected.GET("/settings", api.GetSettings)
-			protected.PUT("/settings", api.UpdateSettings)
+		// Settings
+		protected.GET("/settings", api.RequirePermission(rbac.PermSettingsRead), api.GetSettings)
+		protected.PUT("/settings", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateSettings)
 
-			// Users
-			protected.GET("/users", api.ListUsers)
-			protected.GET("/users/:id", api.GetUser)
-			protected.POST("/users", api.CreateUser)
-			protected.PUT("/users/:id", api.UpdateUser)
-			protected.DELETE("/users/:id", api.DeleteUser)
-			protected.POST("/users/:id/enable", api.EnableUser)
-			protected.POST("/users/:id/disable", api.DisableUser)
+		// Users
+		protected.GET("/users", api.RequirePermission(rbac.PermUsersRead), api.ListUsers)
+		protected.GET("/users/:id", api.RequirePermission(rbac.PermUsersRead), api.GetUser)
+		protected.POST("/users", api.RequirePermission(rbac.PermUsersCreate), api.CreateUser)
+		protected.PUT("/users/:id", api.RequirePermission(rbac.PermUsersUpdate), api.UpdateUser)
+		protected.DELETE("/users/:id", api.RequirePermission(rbac.PermUsersDelete), api.DeleteUser)
+		protected.POST("/users/:id/enable", api.RequirePermission(rbac.PermUsersUpdate), api.EnableUser)
+		protected.POST("/users/:id/disable", api.RequirePermission(rbac.PermUsersUpdate), api.DisableUser)
 
-			// Reports & Statistics
-			protected.GET("/reports/statistics", api.GetStatistics)
-			protected.GET("/reports/daily", api.GetDailyReport)
+		// Reports & Statistics
+		protected.GET("/reports/statistics", api.RequirePermission(rbac.PermBackupRead), api.GetStatistics)
+		protected.GET("/reports/daily", api.RequirePermission(rbac.PermBackupRead), api.GetDailyReport)
 
-			// Database Management
-			protected.POST("/database/list", api.ListDatabases)
-			protected.POST("/database/backup", api.BackupDatabase)
+		// Database Management
+		protected.POST("/database/list", api.RequirePermission(rbac.PermBackupRead), api.ListDatabases)
+		protected.POST("/database/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupDatabase)
 
-			// VM Management
-			protected.POST("/vm/backup", api.BackupVM)
-			protected.POST("/vm/list", api.ListVMs)
+		// VM Management
+		protected.POST("/vm/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupVM)
+		protected.POST("/vm/list", api.RequirePermission(rbac.PermBackupRead), api.ListVMs)
 
-			// Audit Logs
-			protected.GET("/audit/logs", api.GetAuditLogs)
-		}
+		// Audit Logs
+		protected.GET("/audit/logs", api.RequirePermission(rbac.PermLogsRead), api.GetAuditLogs)
+	}
 	}
 
 	// Get server IP
@@ -391,6 +396,9 @@ func loadConfig() map[string]interface{} {
 				"backup_dir": filepath.Join(dataDir, "backups"),
 				"logs_dir":   filepath.Join(dataDir, "logs"),
 			},
+			"security": map[string]interface{}{
+				"allow_scripts": false,
+			},
 		}
 
 		// Save default config
@@ -403,6 +411,30 @@ func loadConfig() map[string]interface{} {
 	var config map[string]interface{}
 	json.Unmarshal(data, &config)
 	return config
+}
+
+func getAllowScripts(config map[string]interface{}) bool {
+	if config == nil {
+		return false
+	}
+	security, ok := config["security"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	value, ok := security["allow_scripts"]
+	if !ok {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true") || v == "1"
+	case float64:
+		return v != 0
+	default:
+		return false
+	}
 }
 
 func getLocalIP() string {

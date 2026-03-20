@@ -313,7 +313,44 @@
             </button>
         </div>
 
+        <!-- Security Settings -->
+        <div class="card">
+            <h2 class="card-title">🔐 Безпека</h2>
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="allow-scripts" />
+                    <label for="allow-scripts"
+                        >Дозволити виконання pre/post скриптів</label
+                    >
+                </div>
+                <div class="form-hint">
+                    Увімкніть лише для довірених середовищ
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSecuritySettings()">
+                💾 Зберегти
+            </button>
+        </div>
+
         <script>
+            function getAuthHeaders() {
+                const token = localStorage.getItem("authToken");
+                const headers = { "Content-Type": "application/json" };
+                if (token) {
+                    headers.Authorization = "Bearer " + token;
+                }
+                return headers;
+            }
+
+            function ensureAuth() {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return false;
+                }
+                return true;
+            }
             // Toggle HTTPS port
             document
                 .getElementById("https-enabled")
@@ -332,6 +369,7 @@
 
             // Save server settings
             async function saveServerSettings() {
+                if (!ensureAuth()) return;
                 const settings = {
                     ip: document.getElementById("server-ip").value,
                     port: parseInt(
@@ -346,7 +384,7 @@
                 try {
                     const res = await fetch("/api/settings/server", {
                         method: "PUT",
-                        headers: { "Content-Type": "application/json" },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(settings),
                     });
 
@@ -367,6 +405,7 @@
 
             // Save directory settings
             async function saveDirectorySettings() {
+                if (!ensureAuth()) return;
                 const settings = {
                     data_dir: document.getElementById("data-dir").value,
                     backup_dir: document.getElementById("backup-dir").value,
@@ -376,7 +415,7 @@
                 try {
                     const res = await fetch("/api/settings/directories", {
                         method: "PUT",
-                        headers: { "Content-Type": "application/json" },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(settings),
                     });
 
@@ -390,6 +429,7 @@
 
             // Save retention
             async function saveRetention() {
+                if (!ensureAuth()) return;
                 const settings = {
                     type: document.getElementById("retention-type").value,
                     value: parseInt(
@@ -400,7 +440,7 @@
                 try {
                     const res = await fetch("/api/settings/retention", {
                         method: "PUT",
-                        headers: { "Content-Type": "application/json" },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(settings),
                     });
 
@@ -409,6 +449,30 @@
                     }
                 } catch (error) {
                     alert("✅ Налаштування збережено (демо режим)");
+                }
+            }
+
+            // Save security settings
+            async function saveSecuritySettings() {
+                if (!ensureAuth()) return;
+                const settings = {
+                    allow_scripts:
+                        document.getElementById("allow-scripts").checked,
+                };
+
+                try {
+                    const res = await fetch("/api/settings", {
+                        method: "PUT",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ security: settings }),
+                    });
+                    if (res.ok) {
+                        alert("✅ Налаштування безпеки збережено!");
+                    } else {
+                        alert("❌ Помилка збереження");
+                    }
+                } catch (error) {
+                    alert("❌ Помилка збереження");
                 }
             }
 
@@ -461,7 +525,9 @@
             // Load current settings
             async function loadSettings() {
                 try {
-                    const res = await fetch("/api/settings");
+                    const res = await fetch("/api/settings", {
+                        headers: getAuthHeaders(),
+                    });
                     const settings = await res.json();
 
                     if (settings.server) {
@@ -489,6 +555,10 @@
                             settings.retention.type === "days"
                                 ? "Днів"
                                 : "Копій";
+                    }
+                    if (settings.security) {
+                        document.getElementById("allow-scripts").checked =
+                            settings.security.allow_scripts || false;
                     }
                 } catch (error) {
                     console.log("Using default settings");

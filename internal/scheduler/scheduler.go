@@ -32,6 +32,7 @@ type ScheduledJob struct {
 	NextRun        time.Time
 	LastRun        *time.Time
 	Enabled        bool
+	Running        bool
 	job            *backup.BackupJob
 }
 
@@ -103,31 +104,36 @@ func (s *Scheduler) run() {
 
 // checkAndRunJobs checks for jobs that should run
 func (s *Scheduler) checkAndRunJobs() {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	now := time.Now()
+	var toRun []*ScheduledJob
 
+	s.mu.Lock()
 	for _, job := range s.jobs {
-		if !job.Enabled {
+		if !job.Enabled || job.Running {
 			continue
 		}
-
 		if job.NextRun.IsZero() {
 			continue
 		}
-
 		// Check if job should run (within 1 minute window)
 		if now.After(job.NextRun) || now.Equal(job.NextRun) {
-			// Run job in background
-			go s.executeJob(job)
+			job.Running = true
+			toRun = append(toRun, job)
 		}
+	}
+	s.mu.Unlock()
+
+	for _, job := range toRun {
+		go s.executeJob(job)
 	}
 }
 
 // executeJob executes a scheduled backup job
 func (s *Scheduler) executeJob(job *ScheduledJob) {
 	if s.backupEngine == nil {
+		s.mu.Lock()
+		job.Running = false
+		s.mu.Unlock()
 		return
 	}
 
@@ -164,8 +170,11 @@ func (s *Scheduler) executeJob(job *ScheduledJob) {
 	}
 
 	// Update in-memory job
+	s.mu.Lock()
 	job.LastRun = &now
 	job.NextRun = s.calculateNextRun(job)
+	job.Running = false
+	s.mu.Unlock()
 }
 
 // calculateNextRun calculates the next run time for a job
@@ -367,6 +376,9 @@ func (s *Scheduler) loadJobs() error {
 			JobID:        job.ID,
 			JobName:      job.Name,
 			ScheduleType: job.Schedule,
+			ScheduleTime: job.ScheduleTime,
+			ScheduleDays: job.ScheduleDays,
+			CronExpression: job.CronExpression,
 			Enabled:      job.Enabled,
 			job: &backup.BackupJob{
 				ID:          job.ID,
@@ -375,7 +387,31 @@ func (s *Scheduler) loadJobs() error {
 				Sources:     job.Sources,
 				Destination: job.Destination,
 				Compression: job.Compression,
+				CompressionLevel: job.CompressionLevel,
 				Encryption:  job.Encryption,
+				Incremental: job.Incremental,
+				FullBackupEvery: job.FullBackupEvery,
+				Schedule: job.Schedule,
+				ScheduleTime: job.ScheduleTime,
+				ScheduleDays: job.ScheduleDays,
+				CronExpression: job.CronExpression,
+				DatabaseType: job.DatabaseType,
+				Server: job.Server,
+				Port: job.Port,
+				AuthType: job.AuthType,
+				Login: job.Login,
+				Password: job.Password,
+				Service: job.Service,
+				VMNames: job.VMNames,
+				HyperVHost: job.HyperVHost,
+				RetentionDays: job.RetentionDays,
+				RetentionCopies: job.RetentionCopies,
+				ExcludePatterns: job.ExcludePatterns,
+				IncludePatterns: job.IncludePatterns,
+				PreBackupScript: job.PreBackupScript,
+				PostBackupScript: job.PostBackupScript,
+				MaxThreads: job.MaxThreads,
+				BlockSize: job.BlockSize,
 			},
 		}
 
@@ -397,7 +433,7 @@ func (s *Scheduler) loadJobs() error {
 }
 
 // AddJob adds a job to the scheduler
-func (s *Scheduler) AddJob(job *backup.BackupJob, scheduleType, scheduleTime string, scheduleDays []string) error {
+func (s *Scheduler) AddJob(job *backup.BackupJob, scheduleType, scheduleTime string, scheduleDays []string, cronExpression string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -407,6 +443,7 @@ func (s *Scheduler) AddJob(job *backup.BackupJob, scheduleType, scheduleTime str
 		ScheduleType: scheduleType,
 		ScheduleTime: scheduleTime,
 		ScheduleDays: scheduleDays,
+		CronExpression: cronExpression,
 		Enabled:      true,
 		job:          job,
 	}

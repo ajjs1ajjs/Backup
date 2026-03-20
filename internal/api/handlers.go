@@ -138,6 +138,49 @@ func persistBackupSession(session *backup.BackupSession) {
 	}
 }
 
+func toBackupJob(job database.Job) *backup.BackupJob {
+	return &backup.BackupJob{
+		ID:               job.ID,
+		Name:             job.Name,
+		Type:             job.Type,
+		Sources:          job.Sources,
+		Destination:      job.Destination,
+		Compression:      job.Compression,
+		CompressionLevel: job.CompressionLevel,
+		Encryption:       job.Encryption,
+		EncryptionKey:    job.EncryptionKey,
+		Incremental:      job.Incremental,
+		FullBackupEvery:  job.FullBackupEvery,
+		Schedule:         job.Schedule,
+		ScheduleTime:     job.ScheduleTime,
+		ScheduleDays:     job.ScheduleDays,
+		CronExpression:   job.CronExpression,
+		DatabaseType:     job.DatabaseType,
+		Server:           job.Server,
+		Port:             job.Port,
+		AuthType:         job.AuthType,
+		Login:            job.Login,
+		Password:         job.Password,
+		Service:          job.Service,
+		VMNames:          job.VMNames,
+		HyperVHost:       job.HyperVHost,
+		RetentionDays:    job.RetentionDays,
+		RetentionCopies:  job.RetentionCopies,
+		ExcludePatterns:  job.ExcludePatterns,
+		IncludePatterns:  job.IncludePatterns,
+		PreBackupScript:  job.PreBackupScript,
+		PostBackupScript: job.PostBackupScript,
+		MaxThreads:       job.MaxThreads,
+		BlockSize:        job.BlockSize,
+	}
+}
+
+func sanitizeJobForResponse(job database.Job) database.Job {
+	job.Password = ""
+	job.EncryptionKey = ""
+	return job
+}
+
 // ServerConfig represents server configuration
 type ServerConfig struct {
 	IP        string `json:"ip"`
@@ -279,6 +322,10 @@ func UpdateSettings(c *gin.Context) {
 			c.JSON(500, gin.H{"error": fmt.Sprintf("Не вдалося зберегти налаштування: %v", err)})
 			return
 		}
+
+		if section == "security" {
+			applySecuritySettings(data)
+		}
 	}
 
 	c.JSON(200, gin.H{"success": true, "message": "Налаштування збережено"})
@@ -397,7 +444,12 @@ func ListJobs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"jobs": jobs})
+	safeJobs := make([]database.Job, 0, len(jobs))
+	for _, job := range jobs {
+		safeJobs = append(safeJobs, sanitizeJobForResponse(job))
+	}
+
+	c.JSON(200, gin.H{"jobs": safeJobs})
 }
 
 func CreateJob(c *gin.Context) {
@@ -413,6 +465,14 @@ func CreateJob(c *gin.Context) {
 	}
 	job.Destination = normalizePath(job.Destination)
 
+	if job.Encryption && job.EncryptionKey == "" {
+		c.JSON(400, gin.H{"error": "Потрібен ключ шифрування"})
+		return
+	}
+	if !job.Encryption {
+		job.EncryptionKey = ""
+	}
+
 	job.ID = uuid.New().String()
 	job.CreatedAt = time.Now()
 
@@ -422,8 +482,12 @@ func CreateJob(c *gin.Context) {
 		return
 	}
 
+	if Scheduler != nil {
+		_ = Scheduler.AddJob(toBackupJob(job), job.Schedule, job.ScheduleTime, job.ScheduleDays, job.CronExpression)
+	}
+
 	log.Printf("Job '%s' (%s) created successfully", job.Name, job.ID)
-	c.JSON(201, gin.H{"success": true, "job": job})
+	c.JSON(201, gin.H{"success": true, "job": sanitizeJobForResponse(job)})
 }
 
 func UpdateJob(c *gin.Context) {
@@ -453,6 +517,15 @@ func UpdateJob(c *gin.Context) {
 	job.Destination = update.Destination
 	job.Compression = update.Compression
 	job.Encryption = update.Encryption
+	if !update.Encryption {
+		job.EncryptionKey = ""
+	} else if update.EncryptionKey != "" {
+		job.EncryptionKey = update.EncryptionKey
+	}
+	if job.Encryption && job.EncryptionKey == "" {
+		c.JSON(400, gin.H{"error": "Потрібен ключ шифрування"})
+		return
+	}
 	job.Schedule = update.Schedule
 	job.Enabled = update.Enabled
 
@@ -461,7 +534,14 @@ func UpdateJob(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"success": true, "job": job})
+	if Scheduler != nil {
+		_ = Scheduler.RemoveJob(job.ID)
+		if job.Enabled {
+			_ = Scheduler.AddJob(toBackupJob(*job), job.Schedule, job.ScheduleTime, job.ScheduleDays, job.CronExpression)
+		}
+	}
+
+	c.JSON(200, gin.H{"success": true, "job": sanitizeJobForResponse(*job)})
 }
 
 func DeleteJob(c *gin.Context) {
@@ -510,6 +590,7 @@ func RunJob(c *gin.Context) {
 		Destination: job.Destination,
 		Compression: job.Compression,
 		Encryption:  job.Encryption,
+		EncryptionKey: job.EncryptionKey,
 		// Database specific fields
 		DatabaseType: job.DatabaseType,
 		Server:       job.Server,
@@ -569,9 +650,19 @@ func StopJob(c *gin.Context) {
 		log.Printf("Job '%s' stopped by user", job.Name)
 	}
 
+	canceled := false
+	if BackupEngine != nil {
+		canceled = BackupEngine.CancelJob(id)
+	}
+
 	c.JSON(200, gin.H{
 		"success": true,
-		"message": "Завдання зупинено",
+		"message": func() string {
+			if canceled {
+				return "Завдання скасовано"
+			}
+			return "Завдання зупинено"
+		}(),
 	})
 }
 
@@ -583,6 +674,7 @@ func RunBackup(c *gin.Context) {
 		Sources     []string `json:"sources"`
 		Destination string   `json:"destination"`
 		Compression bool     `json:"compression"`
+		EncryptionKey string `json:"encryption_key"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -597,6 +689,8 @@ func RunBackup(c *gin.Context) {
 		Sources:     req.Sources,
 		Destination: req.Destination,
 		Compression: req.Compression,
+		Encryption:  req.EncryptionKey != "",
+		EncryptionKey: req.EncryptionKey,
 	}
 
 	log.Printf("Starting manual backup '%s': sources=%v, dest=%s", req.Name, req.Sources, req.Destination)
@@ -713,6 +807,7 @@ func RestoreFiles(c *gin.Context) {
 		Files           []string `json:"files"`
 		RestoreOriginal bool     `json:"restore_original"`
 		Overwrite       bool     `json:"overwrite"`
+		EncryptionKey   string   `json:"encryption_key"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -728,6 +823,7 @@ func RestoreFiles(c *gin.Context) {
 		Files:           req.Files,
 		RestoreOriginal: req.RestoreOriginal,
 		Overwrite:       req.Overwrite,
+		EncryptionKey:   req.EncryptionKey,
 	}
 
 	session, err := RestoreEngine.ExecuteRestore(restoreReq)
@@ -1144,6 +1240,9 @@ func loadConfig() map[string]interface{} {
 				"channels": map[string]interface{}{},
 				"events":   map[string]bool{},
 			},
+			"security": map[string]interface{}{
+				"allow_scripts": false,
+			},
 		}
 	}
 
@@ -1180,6 +1279,29 @@ func saveConfigField(section string, data interface{}) error {
 func updateNotificationEngine(settings NotificationSettings) {
 	// Update notification engine with new settings
 	// This is a simplified version
+}
+
+type SecuritySettings struct {
+	AllowScripts bool `json:"allow_scripts"`
+}
+
+func applySecuritySettings(data interface{}) {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	var settings SecuritySettings
+	if err := json.Unmarshal(payload, &settings); err != nil {
+		return
+	}
+
+	if BackupEngine != nil {
+		BackupEngine.AllowScripts = settings.AllowScripts
+	}
+	if RestoreEngine != nil {
+		RestoreEngine.AllowScripts = settings.AllowScripts
+	}
 }
 
 // normalizePath removes Unicode characters and converts slashes for Windows paths

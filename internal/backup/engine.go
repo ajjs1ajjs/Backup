@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -12,6 +13,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -155,11 +157,13 @@ type BackupSession struct {
 type BackupEngine struct {
 	DataDir       string
 	LogFile       string
+	AllowScripts  bool
 	mu            sync.Mutex
 	sessions      map[string]*BackupSession
-	blockHashes   map[string]string // for deduplication
 	encryptionKey []byte
 	changeTracker *ChangeTracker // Changed Block Tracking
+	activeMu      sync.Mutex
+	activeCancels map[string]context.CancelFunc
 }
 
 // NewBackupEngine creates a new backup engine
@@ -168,8 +172,8 @@ func NewBackupEngine(dataDir string) *BackupEngine {
 		DataDir:       dataDir,
 		LogFile:       filepath.Join(dataDir, "logs", "backup.log"),
 		sessions:      make(map[string]*BackupSession),
-		blockHashes:   make(map[string]string),
 		changeTracker: NewChangeTracker(dataDir),
+		activeCancels: make(map[string]context.CancelFunc),
 	}
 
 	// Create necessary directories
@@ -183,8 +187,48 @@ func NewBackupEngine(dataDir string) *BackupEngine {
 	return engine
 }
 
+func (e *BackupEngine) registerCancel(jobID string, cancel context.CancelFunc) {
+	if jobID == "" {
+		return
+	}
+	e.activeMu.Lock()
+	e.activeCancels[jobID] = cancel
+	e.activeMu.Unlock()
+}
+
+func (e *BackupEngine) unregisterCancel(jobID string) {
+	if jobID == "" {
+		return
+	}
+	e.activeMu.Lock()
+	delete(e.activeCancels, jobID)
+	e.activeMu.Unlock()
+}
+
+// CancelJob requests cancellation for a running job.
+func (e *BackupEngine) CancelJob(jobID string) bool {
+	if jobID == "" {
+		return false
+	}
+	e.activeMu.Lock()
+	cancel, ok := e.activeCancels[jobID]
+	if ok {
+		delete(e.activeCancels, jobID)
+	}
+	e.activeMu.Unlock()
+	if ok {
+		cancel()
+	}
+	return ok
+}
+
 // ExecuteBackup runs a backup job
 func (e *BackupEngine) ExecuteBackup(job *BackupJob) (*BackupSession, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	e.registerCancel(job.ID, cancel)
+	defer e.unregisterCancel(job.ID)
+	defer cancel()
+
 	e.mu.Lock()
 
 	session := &BackupSession{
@@ -223,33 +267,43 @@ func (e *BackupEngine) ExecuteBackup(job *BackupJob) (*BackupSession, error) {
 
 	// Run pre-backup script
 	if job.PreBackupScript != "" {
-		e.log(session, fmt.Sprintf("📜 Виконання скрипта перед бекапом: %s", job.PreBackupScript))
-		if err := e.runScript(job.PreBackupScript); err != nil {
-			e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("Pre-script failed: %v", err))
+		if !e.AllowScripts {
+			e.log(session, "⚠️ Виконання скриптів вимкнено політикою безпеки")
+			session.Warnings = append(session.Warnings, "Pre-script skipped: scripts are disabled by security policy")
+		} else {
+			e.log(session, fmt.Sprintf("📜 Виконання скрипта перед бекапом: %s", job.PreBackupScript))
+			if err := e.runScript(ctx, job.PreBackupScript); err != nil {
+				e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
+				session.Warnings = append(session.Warnings, fmt.Sprintf("Pre-script failed: %v", err))
+			}
 		}
 	}
 
 	var err error
 	switch job.Type {
 	case TypeFile:
-		err = e.backupFiles(job, session)
+		err = e.backupFiles(ctx, job, session)
 	case TypeDatabase:
-		err = e.backupDatabase(job, session)
+		err = e.backupDatabase(ctx, job, session)
 	case TypeVM:
-		err = e.backupVM(job, session)
+		err = e.backupVM(ctx, job, session)
 	case TypeCloud:
-		err = e.backupToCloud(job, session)
+		err = e.backupToCloud(ctx, job, session)
 	default:
 		err = fmt.Errorf("непідтримуваний тип резервного копіювання: %s", job.Type)
 	}
 
 	// Run post-backup script
 	if job.PostBackupScript != "" {
-		e.log(session, fmt.Sprintf("📜 Виконання скрипта після бекапу: %s", job.PostBackupScript))
-		if err := e.runScript(job.PostBackupScript); err != nil {
-			e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("Post-script failed: %v", err))
+		if !e.AllowScripts {
+			e.log(session, "⚠️ Виконання скриптів вимкнено політикою безпеки")
+			session.Warnings = append(session.Warnings, "Post-script skipped: scripts are disabled by security policy")
+		} else {
+			e.log(session, fmt.Sprintf("📜 Виконання скрипта після бекапу: %s", job.PostBackupScript))
+			if err := e.runScript(ctx, job.PostBackupScript); err != nil {
+				e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
+				session.Warnings = append(session.Warnings, fmt.Sprintf("Post-script failed: %v", err))
+			}
 		}
 	}
 
@@ -258,8 +312,13 @@ func (e *BackupEngine) ExecuteBackup(job *BackupJob) (*BackupSession, error) {
 
 	if err != nil {
 		session.Status = "failed"
-		session.Error = err.Error()
-		e.log(session, fmt.Sprintf("❌ Резервне копіювання НЕ ВДАЛОСЬ: %v", err))
+		if errors.Is(err, context.Canceled) {
+			session.Error = "backup canceled"
+			e.log(session, "⛔ Резервне копіювання скасовано")
+		} else {
+			session.Error = err.Error()
+			e.log(session, fmt.Sprintf("❌ Резервне копіювання НЕ ВДАЛОСЬ: %v", err))
+		}
 	} else {
 		session.Status = "success"
 
@@ -290,7 +349,7 @@ func (e *BackupEngine) ExecuteBackup(job *BackupJob) (*BackupSession, error) {
 }
 
 // backupFiles backs up files and folders with deduplication
-func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error {
+func (e *BackupEngine) backupFiles(ctx context.Context, job *BackupJob, session *BackupSession) error {
 	e.log(session, "📁 Початок резервного копіювання файлів...")
 
 	// Collect all files
@@ -298,6 +357,9 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	var totalSize int64
 
 	for _, source := range job.Sources {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		e.log(session, fmt.Sprintf("🔍 Сканування джерела: %s", source))
 
 		found, size, err := e.collectFiles(source, job)
@@ -330,20 +392,15 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	// Create zip writer with compression
 	zipWriter := zip.NewWriter(archiveFile)
 
-	// Initialize encryption if enabled
-	var blockCipher cipher.Block
-	if job.Encryption && job.EncryptionKey != "" {
-		e.log(session, "🔐 Увімкнено шифрування AES-256...")
-		hash := sha256.Sum256([]byte(job.EncryptionKey))
-		blockCipher, err = aes.NewCipher(hash[:])
-		if err != nil {
-			archiveFile.Close()
-			return err
-		}
+	// Validate encryption key (archive-level encryption happens after ZIP is written)
+	if job.Encryption && job.EncryptionKey == "" {
+		e.log(session, "⚠️ Шифрування увімкнено, але ключ відсутній")
+		session.Warnings = append(session.Warnings, "Encryption enabled but key is missing")
 	}
 
 	// Backup files with deduplication
 	var bytesWritten int64
+	blockHashes := make(map[string]struct{})
 	blockSize := job.BlockSize
 	if blockSize == 0 {
 		blockSize = 1024 * 1024 // 1MB default
@@ -352,10 +409,13 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	e.log(session, fmt.Sprintf("📝 Starting to write %d files to ZIP...", len(files)))
 
 	for i, file := range files {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		zipName := e.zipEntryName(file, job.Sources)
 		e.log(session, fmt.Sprintf("   Adding file %d/%d: %s -> %s", i+1, len(files), file, zipName))
 
-		if err := e.addFileToZipWithDedup(zipWriter, file, zipName, blockCipher, blockSize, session, job.Compression); err != nil {
+		if err := e.addFileToZipWithDedup(ctx, zipWriter, file, zipName, nil, blockSize, session, job.Compression, blockHashes); err != nil {
 			e.log(session, fmt.Sprintf("⚠️ Не вдалося додати %s: %v", file, err))
 			session.FilesSkipped++
 			continue
@@ -393,7 +453,7 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 		"compressed_size":   session.BytesWritten,
 		"is_incremental":    job.Incremental,
 		"compression":       job.Compression,
-		"encryption":        job.Encryption,
+		"encryption":        job.Encryption && job.EncryptionKey != "",
 		"compression_ratio": session.CompressionRatio,
 		"dedup_ratio":       session.DeduplicationRatio,
 	}
@@ -409,13 +469,29 @@ func (e *BackupEngine) backupFiles(job *BackupJob, session *BackupSession) error
 	// Close archive file
 	archiveFile.Close()
 
+	// Encrypt archive if enabled
+	if job.Encryption && job.EncryptionKey != "" {
+		encryptedPath := archivePath + ".enc"
+		if err := e.encryptFile(archivePath, encryptedPath, job.EncryptionKey); err != nil {
+			e.log(session, fmt.Sprintf("⚠️ Помилка шифрування архіву: %v", err))
+			session.Warnings = append(session.Warnings, fmt.Sprintf("Archive encryption failed: %v", err))
+		} else {
+			_ = os.Remove(archivePath)
+			if info, err := os.Stat(encryptedPath); err == nil {
+				session.BytesWritten = info.Size()
+			}
+			e.log(session, fmt.Sprintf("🔐 Архів зашифровано: %s (%s)", encryptedPath, e.formatBytes(session.BytesWritten)))
+			return nil
+		}
+	}
+
 	e.log(session, fmt.Sprintf("📦 Створено архів: %s (%s)", archivePath, e.formatBytes(session.BytesWritten)))
 
 	return nil
 }
 
 // addFileToZipWithDedup adds a file to zip with simple deduplication tracking
-func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName string, blockCipher cipher.Block, blockSize int, session *BackupSession, compression bool) error {
+func (e *BackupEngine) addFileToZipWithDedup(ctx context.Context, zw *zip.Writer, filePath, zipName string, blockCipher cipher.Block, blockSize int, session *BackupSession, compression bool, blockHashes map[string]struct{}) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -448,6 +524,9 @@ func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName s
 	// Buffer for encryption/copying
 	buffer := make([]byte, 64*1024) // 64KB buffer
 	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		n, err := file.Read(buffer)
 		if n > 0 {
 			block := buffer[:n]
@@ -459,8 +538,8 @@ func (e *BackupEngine) addFileToZipWithDedup(zw *zip.Writer, filePath, zipName s
 			session.ProcessedBlocks++
 
 			// Track unique blocks
-			if _, exists := e.blockHashes[hashHex]; !exists {
-				e.blockHashes[hashHex] = filePath
+			if _, exists := blockHashes[hashHex]; !exists {
+				blockHashes[hashHex] = struct{}{}
 				session.DeduplicatedBlocks++
 			}
 
@@ -603,7 +682,7 @@ func (e *BackupEngine) shouldInclude(path string, job *BackupJob) bool {
 }
 
 // backupDatabase backs up databases
-func (e *BackupEngine) backupDatabase(job *BackupJob, session *BackupSession) error {
+func (e *BackupEngine) backupDatabase(ctx context.Context, job *BackupJob, session *BackupSession) error {
 	e.log(session, fmt.Sprintf("🗄️ Початок резервного копіювання бази даних %s...", job.DatabaseType))
 
 	var dumpFile string
@@ -611,19 +690,22 @@ func (e *BackupEngine) backupDatabase(job *BackupJob, session *BackupSession) er
 
 	switch job.DatabaseType {
 	case DBMySQL:
-		dumpFile, err = e.backupMySQL(job, session)
+		dumpFile, err = e.backupMySQL(ctx, job, session)
 	case DBPostgreSQL:
-		dumpFile, err = e.backupPostgreSQL(job, session)
+		dumpFile, err = e.backupPostgreSQL(ctx, job, session)
 	case DBSQLite:
-		dumpFile, err = e.backupSQLite(job, session)
+		dumpFile, err = e.backupSQLite(ctx, job, session)
 	case DBMSSQL:
-		dumpFile, err = e.backupMSSQL(job, session)
+		dumpFile, err = e.backupMSSQL(ctx, job, session)
 	default:
 		return fmt.Errorf("непідтримуваний тип бази даних: %s", job.DatabaseType)
 	}
 
 	if err != nil {
 		return err
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	// Compress if enabled
@@ -641,6 +723,9 @@ func (e *BackupEngine) backupDatabase(job *BackupJob, session *BackupSession) er
 
 	// Encrypt if enabled
 	if job.Encryption && job.EncryptionKey != "" {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		e.log(session, "🔐 Шифрування резервної копії...")
 		encryptedFile := dumpFile + ".enc"
 		if err := e.encryptFile(dumpFile, encryptedFile, job.EncryptionKey); err != nil {
@@ -663,7 +748,10 @@ func (e *BackupEngine) backupDatabase(job *BackupJob, session *BackupSession) er
 }
 
 // backupMySQL creates MySQL dump
-func (e *BackupEngine) backupMySQL(job *BackupJob, session *BackupSession) (string, error) {
+func (e *BackupEngine) backupMySQL(ctx context.Context, job *BackupJob, session *BackupSession) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	dumpFile := filepath.Join(session.BackupPath, "mysql_dump.sql")
 
 	// Try mysqldump
@@ -681,30 +769,39 @@ func (e *BackupEngine) backupMySQL(job *BackupJob, session *BackupSession) (stri
 		}
 	}
 
-	args := []string{
-		"--result-file=" + dumpFile,
-		"--single-transaction",
-		"--quick",
-		"--lock-tables=false",
+	args, err := buildMySQLDumpArgs(job, dumpFile)
+	if err != nil {
+		return "", err
 	}
 
-	// Parse connection string to get database name
-	args = append(args, job.DatabaseConn)
-
-	cmd := exec.Command(mysqldumpPath, args...)
+	cmd := exec.CommandContext(ctx, mysqldumpPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		e.log(session, fmt.Sprintf("mysqldump: %s", string(output)))
 		// Fallback to direct export
-		return e.backupMySQLDirect(job, session, dumpFile)
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		return e.backupMySQLDirect(ctx, job, session, dumpFile)
 	}
 
 	return dumpFile, nil
 }
 
 // backupMySQLDirect exports MySQL using direct connection
-func (e *BackupEngine) backupMySQLDirect(job *BackupJob, session *BackupSession, dumpFile string) (string, error) {
-	db, err := sql.Open("mysql", job.DatabaseConn)
+func (e *BackupEngine) backupMySQLDirect(ctx context.Context, job *BackupJob, session *BackupSession, dumpFile string) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	dsn := job.DatabaseConn
+	if dsn == "" {
+		var buildErr error
+		dsn, buildErr = buildMySQLDSN(job)
+		if buildErr != nil {
+			return "", buildErr
+		}
+	}
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return "", err
 	}
@@ -729,6 +826,9 @@ func (e *BackupEngine) backupMySQLDirect(job *BackupJob, session *BackupSession,
 
 	var tables []string
 	for rows.Next() {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		var table string
 		rows.Scan(&table)
 		tables = append(tables, table)
@@ -739,6 +839,9 @@ func (e *BackupEngine) backupMySQLDirect(job *BackupJob, session *BackupSession,
 
 	// Export each table
 	for _, table := range tables {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		// CREATE TABLE
 		createRow := db.QueryRow(fmt.Sprintf("SHOW CREATE TABLE `%s`", table))
 		var tableName, createSQL string
@@ -782,7 +885,10 @@ func (e *BackupEngine) backupMySQLDirect(job *BackupJob, session *BackupSession,
 }
 
 // backupPostgreSQL creates PostgreSQL dump
-func (e *BackupEngine) backupPostgreSQL(job *BackupJob, session *BackupSession) (string, error) {
+func (e *BackupEngine) backupPostgreSQL(ctx context.Context, job *BackupJob, session *BackupSession) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	dumpFile := filepath.Join(session.BackupPath, "postgres_dump.sql")
 
 	pgdumpPath := "pg_dump"
@@ -799,10 +905,20 @@ func (e *BackupEngine) backupPostgreSQL(job *BackupJob, session *BackupSession) 
 		}
 	}
 
-	cmd := exec.Command(pgdumpPath, job.DatabaseConn)
+	args, err := buildPostgresDumpArgs(job)
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.CommandContext(ctx, pgdumpPath, args...)
+	if job.Password != "" {
+		cmd.Env = append(os.Environ(), "PGPASSWORD="+job.Password)
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return e.backupPostgreSQLDirect(job, session, dumpFile)
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		return e.backupPostgreSQLDirect(ctx, job, session, dumpFile)
 	}
 
 	os.WriteFile(dumpFile, output, 0644)
@@ -810,8 +926,19 @@ func (e *BackupEngine) backupPostgreSQL(job *BackupJob, session *BackupSession) 
 }
 
 // backupPostgreSQLDirect exports PostgreSQL using direct connection
-func (e *BackupEngine) backupPostgreSQLDirect(job *BackupJob, session *BackupSession, dumpFile string) (string, error) {
-	db, err := sql.Open("postgres", job.DatabaseConn)
+func (e *BackupEngine) backupPostgreSQLDirect(ctx context.Context, job *BackupJob, session *BackupSession, dumpFile string) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	dsn := job.DatabaseConn
+	if dsn == "" {
+		var buildErr error
+		dsn, buildErr = buildPostgresDSN(job)
+		if buildErr != nil {
+			return "", buildErr
+		}
+	}
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return "", err
 	}
@@ -836,6 +963,9 @@ func (e *BackupEngine) backupPostgreSQLDirect(job *BackupJob, session *BackupSes
 
 	var tables []string
 	for rows.Next() {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		var table string
 		rows.Scan(&table)
 		tables = append(tables, table)
@@ -845,6 +975,9 @@ func (e *BackupEngine) backupPostgreSQLDirect(job *BackupJob, session *BackupSes
 
 	// Export
 	for _, table := range tables {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		fmt.Fprintf(file, "-- Table: %s\n", table)
 		session.FilesProcessed++
 	}
@@ -853,7 +986,10 @@ func (e *BackupEngine) backupPostgreSQLDirect(job *BackupJob, session *BackupSes
 }
 
 // backupSQLite backs up SQLite database
-func (e *BackupEngine) backupSQLite(job *BackupJob, session *BackupSession) (string, error) {
+func (e *BackupEngine) backupSQLite(ctx context.Context, job *BackupJob, session *BackupSession) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	sourceFile := job.DatabaseConn
 	destFile := filepath.Join(session.BackupPath, "sqlite_backup.db")
 
@@ -870,11 +1006,14 @@ func (e *BackupEngine) backupSQLite(job *BackupJob, session *BackupSession) (str
 }
 
 // backupMSSQL backs up Microsoft SQL Server database
-func (e *BackupEngine) backupMSSQL(job *BackupJob, session *BackupSession) (string, error) {
+func (e *BackupEngine) backupMSSQL(ctx context.Context, job *BackupJob, session *BackupSession) (string, error) {
 	e.log(session, "🗄️ Початок резервного копіювання Microsoft SQL Server...")
 
 	if runtime.GOOS != "windows" {
 		return "", fmt.Errorf("резервне копіювання MSSQL підтримується тільки на Windows")
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
 	}
 
 	// Build backup command using PowerShell and sqlcmd
@@ -961,12 +1100,15 @@ try {
 `, strings.Join(databases, `","`), backupDir, timestamp, connectionString)
 
 	e.log(session, "📝 Виконання PowerShell скрипта...")
-	cmd := exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-Command", psScript)
+	cmd := exec.CommandContext(ctx, "powershell", "-ExecutionPolicy", "Bypass", "-Command", psScript)
 	output, err := cmd.CombinedOutput()
 
 	e.log(session, fmt.Sprintf("Результат виконання: %s", string(output)))
 
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		e.log(session, fmt.Sprintf("⚠️ Помилка бекапу MSSQL: %v", err))
 		e.log(session, fmt.Sprintf("📄 Вивід PowerShell: %s", string(output)))
 
@@ -1006,11 +1148,14 @@ try {
 }
 
 // backupVM backs up Hyper-V VMs
-func (e *BackupEngine) backupVM(job *BackupJob, session *BackupSession) error {
+func (e *BackupEngine) backupVM(ctx context.Context, job *BackupJob, session *BackupSession) error {
 	e.log(session, "🖥️ Початок резервного копіювання віртуальних машин...")
 
 	if runtime.GOOS != "windows" {
 		return fmt.Errorf("резервне копіювання VM підтримується тільки на Windows")
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	// Use PowerShell to export VMs
@@ -1043,9 +1188,12 @@ try {
 }
 `, vmName, exportPath, vmName, vmName, vmName)
 
-		cmd := exec.Command("powershell", "-Command", psScript)
+		cmd := exec.CommandContext(ctx, "powershell", "-Command", psScript)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			e.log(session, fmt.Sprintf("⚠️ Помилка експорту VM %s: %v - %s", vmName, err, string(output)))
 			return fmt.Errorf("помилка експорту VM %s: %v", vmName, err)
 		}
@@ -1059,7 +1207,7 @@ try {
 }
 
 // backupToCloud uploads backup to cloud storage
-func (e *BackupEngine) backupToCloud(job *BackupJob, session *BackupSession) error {
+func (e *BackupEngine) backupToCloud(ctx context.Context, job *BackupJob, session *BackupSession) error {
 	e.log(session, fmt.Sprintf("☁️ Початок хмарного резервного копіювання (%s)...", job.CloudProvider))
 
 	// First create local backup
@@ -1082,7 +1230,7 @@ func (e *BackupEngine) backupToCloud(job *BackupJob, session *BackupSession) err
 		StartTime: time.Now(),
 	}
 
-	if err := e.backupFiles(localJob, localSession); err != nil {
+	if err := e.backupFiles(ctx, localJob, localSession); err != nil {
 		return err
 	}
 
@@ -1157,8 +1305,8 @@ func (e *BackupEngine) applyRetentionPolicy(job *BackupJob, currentBackup string
 	}
 }
 
-func (e *BackupEngine) runScript(scriptPath string) error {
-	cmd := exec.Command(scriptPath)
+func (e *BackupEngine) runScript(ctx context.Context, scriptPath string) error {
+	cmd := exec.CommandContext(ctx, scriptPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v - %s", err, string(output))
@@ -1254,4 +1402,176 @@ func (e *BackupEngine) uploadToGoogle(job *BackupJob, backupDir string) error {
 	e.log(nil, "📤 Завантаження в Google Cloud Storage...")
 	// TODO: Implement GCS SDK upload
 	return nil
+}
+
+func normalizeDatabaseList(dbs []string) []string {
+	clean := make([]string, 0, len(dbs))
+	for _, db := range dbs {
+		name := strings.TrimSpace(db)
+		if name != "" {
+			clean = append(clean, name)
+		}
+	}
+	return clean
+}
+
+func extractMySQLDBFromDSN(dsn string) string {
+	if dsn == "" {
+		return ""
+	}
+	// user:pass@tcp(host:port)/dbname?params
+	slash := strings.LastIndex(dsn, "/")
+	if slash == -1 || slash == len(dsn)-1 {
+		return ""
+	}
+	db := dsn[slash+1:]
+	if idx := strings.Index(db, "?"); idx != -1 {
+		db = db[:idx]
+	}
+	return strings.TrimSpace(db)
+}
+
+func extractPostgresDBFromDSN(dsn string) string {
+	if dsn == "" {
+		return ""
+	}
+	parts := strings.Fields(dsn)
+	for _, part := range parts {
+		if strings.HasPrefix(part, "dbname=") {
+			return strings.TrimPrefix(part, "dbname=")
+		}
+	}
+	return ""
+}
+
+func buildMySQLDumpArgs(job *BackupJob, dumpFile string) ([]string, error) {
+	dbs := normalizeDatabaseList(job.Sources)
+	if len(dbs) == 0 && job.DatabaseConn != "" {
+		if db := extractMySQLDBFromDSN(job.DatabaseConn); db != "" {
+			dbs = []string{db}
+		}
+	}
+	if len(dbs) == 0 {
+		return nil, fmt.Errorf("не вказано базу даних для MySQL бекапу")
+	}
+
+	host := strings.TrimSpace(job.Server)
+	if host == "" {
+		host = "localhost"
+	}
+	port := job.Port
+	if port == 0 {
+		port = 3306
+	}
+
+	args := []string{
+		"--result-file=" + dumpFile,
+		"--single-transaction",
+		"--quick",
+		"--lock-tables=false",
+		"-h", host,
+		"-P", fmt.Sprintf("%d", port),
+	}
+	if job.Login != "" {
+		args = append(args, "-u", job.Login)
+	}
+	if job.Password != "" {
+		args = append(args, "-p"+job.Password)
+	}
+	if len(dbs) > 0 {
+		args = append(args, "--databases")
+		args = append(args, dbs...)
+	}
+
+	return args, nil
+}
+
+func buildMySQLDSN(job *BackupJob) (string, error) {
+	dbs := normalizeDatabaseList(job.Sources)
+	if len(dbs) == 0 && job.DatabaseConn != "" {
+		if db := extractMySQLDBFromDSN(job.DatabaseConn); db != "" {
+			dbs = []string{db}
+		}
+	}
+	if len(dbs) == 0 {
+		return "", fmt.Errorf("не вказано базу даних для MySQL підключення")
+	}
+
+	host := strings.TrimSpace(job.Server)
+	if host == "" {
+		host = "localhost"
+	}
+	port := job.Port
+	if port == 0 {
+		port = 3306
+	}
+
+	auth := job.Login
+	if job.Password != "" {
+		auth = fmt.Sprintf("%s:%s", job.Login, job.Password)
+	}
+
+	return fmt.Sprintf("%s@tcp(%s:%d)/%s", auth, host, port, dbs[0]), nil
+}
+
+func buildPostgresDumpArgs(job *BackupJob) ([]string, error) {
+	dbs := normalizeDatabaseList(job.Sources)
+	if len(dbs) == 0 && job.DatabaseConn != "" {
+		if db := extractPostgresDBFromDSN(job.DatabaseConn); db != "" {
+			dbs = []string{db}
+		}
+	}
+	if len(dbs) == 0 {
+		return nil, fmt.Errorf("не вказано базу даних для PostgreSQL бекапу")
+	}
+
+	host := strings.TrimSpace(job.Server)
+	if host == "" {
+		host = "localhost"
+	}
+	port := job.Port
+	if port == 0 {
+		port = 5432
+	}
+
+	args := []string{"-h", host, "-p", fmt.Sprintf("%d", port), "-d", dbs[0]}
+	if job.Login != "" {
+		args = append(args, "-U", job.Login)
+	}
+	return args, nil
+}
+
+func buildPostgresDSN(job *BackupJob) (string, error) {
+	dbs := normalizeDatabaseList(job.Sources)
+	if len(dbs) == 0 && job.DatabaseConn != "" {
+		if db := extractPostgresDBFromDSN(job.DatabaseConn); db != "" {
+			dbs = []string{db}
+		}
+	}
+	if len(dbs) == 0 {
+		return "", fmt.Errorf("не вказано базу даних для PostgreSQL підключення")
+	}
+
+	host := strings.TrimSpace(job.Server)
+	if host == "" {
+		host = "localhost"
+	}
+	port := job.Port
+	if port == 0 {
+		port = 5432
+	}
+
+	dsnParts := []string{
+		fmt.Sprintf("host=%s", host),
+		fmt.Sprintf("port=%d", port),
+		fmt.Sprintf("dbname=%s", dbs[0]),
+	}
+	if job.Login != "" {
+		dsnParts = append(dsnParts, fmt.Sprintf("user=%s", job.Login))
+	}
+	if job.Password != "" {
+		dsnParts = append(dsnParts, fmt.Sprintf("password=%s", job.Password))
+	}
+	dsnParts = append(dsnParts, "sslmode=disable")
+	return strings.Join(dsnParts, " "), nil
 }

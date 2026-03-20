@@ -908,19 +908,19 @@
                     </button>
                 </div>
 
-                <!-- Advanced Options Panel -->
-                <div
-                    id="advanced-panel"
-                    style="
-                        display: none;
-                        margin-top: 1rem;
-                        padding: 1rem;
-                        background: var(--bg-primary);
-                        border-radius: 0.5rem;
-                    "
-                >
-                    <!-- Compression Level -->
-                    <div class="form-group" style="margin-bottom: 1rem">
+                    <!-- Advanced Options Panel -->
+                    <div
+                        id="advanced-panel"
+                        style="
+                            display: none;
+                            margin-top: 1rem;
+                            padding: 1rem;
+                            background: var(--bg-primary);
+                            border-radius: 0.5rem;
+                        "
+                    >
+                        <!-- Compression Level -->
+                        <div class="form-group" style="margin-bottom: 1rem">
                         <label class="form-label" style="font-size: 0.875rem"
                             >🗜️ Рівень стиснення</label
                         >
@@ -935,8 +935,25 @@
                                 Нормальне (Normal)
                             </option>
                             <option value="9">Максимальне (Maximum)</option>
-                        </select>
-                    </div>
+                            </select>
+                        </div>
+
+                        <!-- Encryption Key -->
+                        <div class="form-group" style="margin-bottom: 1rem">
+                            <label class="form-label" style="font-size: 0.875rem"
+                                >🔐 Ключ шифрування</label
+                            >
+                            <input
+                                type="password"
+                                id="encryption-key"
+                                class="form-input"
+                                placeholder="Введіть ключ для шифрування"
+                                style="font-size: 0.875rem"
+                            />
+                            <div class="form-hint">
+                                Потрібен для відновлення зашифрованого архіву
+                            </div>
+                        </div>
 
                     <!-- Block Size -->
                     <div class="form-group" style="margin-bottom: 1rem">
@@ -1367,7 +1384,7 @@
                 return `QuickBackup_${stamp}`;
             }
 
-            async function startBackup() {
+                async function startBackup() {
                 // Check for unsupported sources
                 if (
                     selectedSourceType === "server" ||
@@ -1405,27 +1422,37 @@
 
                 if (!confirm("Запустити резервне копіювання?")) return;
 
-                const jobName =
-                    document.getElementById("job-name").value.trim() ||
-                    defaultJobName();
+                    const jobName =
+                        document.getElementById("job-name").value.trim() ||
+                        defaultJobName();
 
-                // Build job configuration
-                const job = {
-                    name: jobName,
-                    type:
-                        selectedSourceType === "vm"
-                            ? "vm"
-                            : selectedSourceType === "database"
-                              ? "database"
-                              : "file",
-                    sources: sources,
-                    destination: destination,
-                    compression: document.getElementById("compression").checked,
-                    compression_level: parseInt(
-                        document.getElementById("compression-level")?.value ||
-                            "5",
-                    ),
-                    encryption: document.getElementById("encryption").checked,
+                    const encryptionEnabled =
+                        document.getElementById("encryption").checked;
+                    const encryptionKey =
+                        document.getElementById("encryption-key")?.value || "";
+                    if (encryptionEnabled && !encryptionKey) {
+                        alert("Вкажіть ключ шифрування або вимкніть шифрування.");
+                        return;
+                    }
+
+                    // Build job configuration
+                    const job = {
+                        name: jobName,
+                        type:
+                            selectedSourceType === "vm"
+                                ? "vm"
+                                : selectedSourceType === "database"
+                                  ? "database"
+                                  : "file",
+                        sources: sources,
+                        destination: destination,
+                        compression: document.getElementById("compression").checked,
+                        compression_level: parseInt(
+                            document.getElementById("compression-level")?.value ||
+                                "5",
+                        ),
+                        encryption: encryptionEnabled,
+                        encryption_key: encryptionEnabled ? encryptionKey : "",
                     deduplication: document.getElementById("dedup").checked,
                     block_size: parseInt(
                         document.getElementById("block-size")?.value ||

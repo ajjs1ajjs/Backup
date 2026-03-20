@@ -12,6 +12,9 @@
     "type": "days",
     "value": 30
   },
+  "security": {
+    "allow_scripts": false
+  },
   "server": {
     "https": false,
     "https_port": 8443,

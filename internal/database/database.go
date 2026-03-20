@@ -25,6 +25,7 @@ type Job struct {
 	Compression       bool       `json:"compression"`
 	CompressionLevel  int        `json:"compression_level"` // 0-9
 	Encryption        bool       `json:"encryption"`
+	EncryptionKey     string     `json:"encryption_key,omitempty"`
 	Deduplication     bool       `json:"deduplication"`
 	BlockSize         int        `json:"block_size"`  // Block size for dedup
 	MaxThreads        int        `json:"max_threads"` // Parallel threads
@@ -91,6 +92,19 @@ type UserSession struct {
 	UserAgent string    `json:"user_agent"`
 }
 
+type User struct {
+	ID              string     `json:"id"`
+	Username        string     `json:"username"`
+	PasswordHash    string     `json:"password_hash"`
+	Email           string     `json:"email"`
+	FullName        string     `json:"full_name"`
+	Role            string     `json:"role"`
+	Enabled         bool       `json:"enabled"`
+	CreatedAt       time.Time  `json:"created_at"`
+	LastLogin       *time.Time `json:"last_login,omitempty"`
+	PasswordExpires *time.Time `json:"password_expires,omitempty"`
+}
+
 func NewDatabase(dbPath string) (*Database, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -107,6 +121,19 @@ func NewDatabase(dbPath string) (*Database, error) {
 
 func (d *Database) init() error {
 	schema := `
+	CREATE TABLE IF NOT EXISTS users (
+		id TEXT PRIMARY KEY,
+		username TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		email TEXT,
+		full_name TEXT,
+		role TEXT NOT NULL,
+		enabled BOOLEAN DEFAULT true,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_login DATETIME,
+		password_expires DATETIME
+	);
+
 	CREATE TABLE IF NOT EXISTS jobs (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
@@ -116,6 +143,7 @@ func (d *Database) init() error {
 		compression BOOLEAN DEFAULT false,
 		compression_level INTEGER DEFAULT 5,
 		encryption BOOLEAN DEFAULT false,
+		encryption_key TEXT,
 		deduplication BOOLEAN DEFAULT false,
 		block_size INTEGER DEFAULT 1048576,
 		max_threads INTEGER DEFAULT 4,
@@ -126,9 +154,30 @@ func (d *Database) init() error {
 		pre_backup_script TEXT,
 		post_backup_script TEXT,
 		schedule TEXT DEFAULT 'manual',
+		schedule_time TEXT,
+		schedule_days TEXT,
+		cron_expression TEXT,
 		enabled BOOLEAN DEFAULT true,
 		retention_days INTEGER DEFAULT 30,
 		retention_copies INTEGER DEFAULT 10,
+		gfs_daily INTEGER DEFAULT 7,
+		gfs_weekly INTEGER DEFAULT 4,
+		gfs_monthly INTEGER DEFAULT 12,
+		gfs_quarterly INTEGER DEFAULT 40,
+		gfs_yearly INTEGER DEFAULT 7,
+		backup_copy_enabled BOOLEAN DEFAULT false,
+		backup_copy_dest_id TEXT,
+		backup_copy_delay INTEGER DEFAULT 0,
+		backup_copy_encrypt BOOLEAN DEFAULT false,
+		database_type TEXT,
+		server TEXT,
+		port INTEGER DEFAULT 0,
+		auth_type TEXT,
+		login TEXT,
+		password TEXT,
+		service TEXT,
+		vm_names TEXT,
+		hyperv_host TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		last_run DATETIME,
 		next_run DATETIME
@@ -173,6 +222,7 @@ func (d *Database) CreateJob(job *Job) error {
 	sources, _ := json.Marshal(job.Sources)
 	excludePatterns, _ := json.Marshal(job.ExcludePatterns)
 	includePatterns, _ := json.Marshal(job.IncludePatterns)
+	scheduleDays, _ := json.Marshal(job.ScheduleDays)
 	databaseType, _ := json.Marshal(job.DatabaseType)
 	server, _ := json.Marshal(job.Server)
 	authType, _ := json.Marshal(job.AuthType)
@@ -182,16 +232,46 @@ func (d *Database) CreateJob(job *Job) error {
 	vmNames, _ := json.Marshal(job.VMNames)
 
 	_, err := d.db.Exec(`
-		INSERT INTO jobs (id, name, type, sources, destination, compression, compression_level, encryption, deduplication, block_size, max_threads, incremental, full_backup_every, exclude_patterns, include_patterns, pre_backup_script, post_backup_script, schedule, enabled, retention_days, retention_copies, database_type, server, port, auth_type, login, password, service, vm_names, hyperv_host)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, job.ID, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.CompressionLevel, job.Encryption, job.Deduplication, job.BlockSize, job.MaxThreads, job.Incremental, job.FullBackupEvery, string(excludePatterns), string(includePatterns), job.PreBackupScript, job.PostBackupScript, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies, string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service), string(vmNames), job.HyperVHost)
+		INSERT INTO jobs (
+			id, name, type, sources, destination,
+			compression, compression_level, encryption, encryption_key, deduplication, block_size, max_threads,
+			incremental, full_backup_every, exclude_patterns, include_patterns,
+			pre_backup_script, post_backup_script,
+			schedule, schedule_time, schedule_days, cron_expression,
+			enabled, retention_days, retention_copies,
+			gfs_daily, gfs_weekly, gfs_monthly, gfs_quarterly, gfs_yearly,
+			backup_copy_enabled, backup_copy_dest_id, backup_copy_delay, backup_copy_encrypt,
+			database_type, server, port, auth_type, login, password, service,
+			vm_names, hyperv_host
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, job.ID, job.Name, job.Type, string(sources), job.Destination,
+		job.Compression, job.CompressionLevel, job.Encryption, job.EncryptionKey, job.Deduplication, job.BlockSize, job.MaxThreads,
+		job.Incremental, job.FullBackupEvery, string(excludePatterns), string(includePatterns),
+		job.PreBackupScript, job.PostBackupScript,
+		job.Schedule, job.ScheduleTime, string(scheduleDays), job.CronExpression,
+		job.Enabled, job.RetentionDays, job.RetentionCopies,
+		job.GFSDaily, job.GFSWeekly, job.GFSMonthly, job.GFSQuarterly, job.GFSYearly,
+		job.BackupCopyEnabled, job.BackupCopyDestID, job.BackupCopyDelay, job.BackupCopyEncrypt,
+		string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service),
+		string(vmNames), job.HyperVHost)
 
 	return err
 }
 
 func (d *Database) ListJobs() ([]Job, error) {
 	rows, err := d.db.Query(`
-		SELECT id, name, type, sources, destination, compression, encryption, deduplication, incremental, schedule, enabled, retention_days, retention_copies, created_at, last_run, next_run, database_type, server, port, auth_type, login, password, service, vm_names, hyperv_host
+		SELECT id, name, type, sources, destination,
+			compression, compression_level, encryption, encryption_key, deduplication, block_size, max_threads,
+			incremental, full_backup_every,
+			exclude_patterns, include_patterns, pre_backup_script, post_backup_script,
+			schedule, schedule_time, schedule_days, cron_expression,
+			enabled, retention_days, retention_copies,
+			gfs_daily, gfs_weekly, gfs_monthly, gfs_quarterly, gfs_yearly,
+			backup_copy_enabled, backup_copy_dest_id, backup_copy_delay, backup_copy_encrypt,
+			created_at, last_run, next_run,
+			database_type, server, port, auth_type, login, password, service,
+			vm_names, hyperv_host
 		FROM jobs ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -202,19 +282,37 @@ func (d *Database) ListJobs() ([]Job, error) {
 	var jobs []Job
 	for rows.Next() {
 		var job Job
-		var sources string
+		var sources, excludePatterns, includePatterns, scheduleDays string
 		var lastRun, nextRun sql.NullTime
 		var databaseType, server, authType, login, password, service, vmNames sql.NullString
 
-		err := rows.Scan(&job.ID, &job.Name, &job.Type, &sources, &job.Destination,
-			&job.Compression, &job.Encryption, &job.Deduplication, &job.Incremental,
-			&job.Schedule, &job.Enabled, &job.RetentionDays, &job.RetentionCopies,
-			&job.CreatedAt, &lastRun, &nextRun, &databaseType, &server, &job.Port, &authType, &login, &password, &service, &vmNames, &job.HyperVHost)
+		err := rows.Scan(
+			&job.ID, &job.Name, &job.Type, &sources, &job.Destination,
+			&job.Compression, &job.CompressionLevel, &job.Encryption, &job.EncryptionKey, &job.Deduplication, &job.BlockSize, &job.MaxThreads,
+			&job.Incremental, &job.FullBackupEvery,
+			&excludePatterns, &includePatterns, &job.PreBackupScript, &job.PostBackupScript,
+			&job.Schedule, &job.ScheduleTime, &scheduleDays, &job.CronExpression,
+			&job.Enabled, &job.RetentionDays, &job.RetentionCopies,
+			&job.GFSDaily, &job.GFSWeekly, &job.GFSMonthly, &job.GFSQuarterly, &job.GFSYearly,
+			&job.BackupCopyEnabled, &job.BackupCopyDestID, &job.BackupCopyDelay, &job.BackupCopyEncrypt,
+			&job.CreatedAt, &lastRun, &nextRun,
+			&databaseType, &server, &job.Port, &authType, &login, &password, &service,
+			&vmNames, &job.HyperVHost,
+		)
 		if err != nil {
 			return nil, err
 		}
 
 		json.Unmarshal([]byte(sources), &job.Sources)
+		if excludePatterns != "" {
+			_ = json.Unmarshal([]byte(excludePatterns), &job.ExcludePatterns)
+		}
+		if includePatterns != "" {
+			_ = json.Unmarshal([]byte(includePatterns), &job.IncludePatterns)
+		}
+		if scheduleDays != "" {
+			_ = json.Unmarshal([]byte(scheduleDays), &job.ScheduleDays)
+		}
 
 		if databaseType.Valid {
 			json.Unmarshal([]byte(databaseType.String), &job.DatabaseType)
@@ -253,22 +351,49 @@ func (d *Database) ListJobs() ([]Job, error) {
 
 func (d *Database) GetJob(id string) (*Job, error) {
 	var job Job
-	var sources string
+	var sources, excludePatterns, includePatterns, scheduleDays string
 	var lastRun, nextRun sql.NullTime
 	var databaseType, server, authType, login, password, service, vmNames sql.NullString
 
 	err := d.db.QueryRow(`
-		SELECT id, name, type, sources, destination, compression, encryption, schedule, enabled, created_at, last_run, next_run, database_type, server, port, auth_type, login, password, service, vm_names, hyperv_host
+		SELECT id, name, type, sources, destination,
+			compression, compression_level, encryption, encryption_key, deduplication, block_size, max_threads,
+			incremental, full_backup_every,
+			exclude_patterns, include_patterns, pre_backup_script, post_backup_script,
+			schedule, schedule_time, schedule_days, cron_expression,
+			enabled, retention_days, retention_copies,
+			gfs_daily, gfs_weekly, gfs_monthly, gfs_quarterly, gfs_yearly,
+			backup_copy_enabled, backup_copy_dest_id, backup_copy_delay, backup_copy_encrypt,
+			created_at, last_run, next_run,
+			database_type, server, port, auth_type, login, password, service, vm_names, hyperv_host
 		FROM jobs WHERE id = ?
-	`, id).Scan(&job.ID, &job.Name, &job.Type, &sources, &job.Destination,
-		&job.Compression, &job.Encryption, &job.Schedule, &job.Enabled,
-		&job.CreatedAt, &lastRun, &nextRun, &databaseType, &server, &job.Port, &authType, &login, &password, &service, &vmNames, &job.HyperVHost)
+	`, id).Scan(
+		&job.ID, &job.Name, &job.Type, &sources, &job.Destination,
+		&job.Compression, &job.CompressionLevel, &job.Encryption, &job.EncryptionKey, &job.Deduplication, &job.BlockSize, &job.MaxThreads,
+		&job.Incremental, &job.FullBackupEvery,
+		&excludePatterns, &includePatterns, &job.PreBackupScript, &job.PostBackupScript,
+		&job.Schedule, &job.ScheduleTime, &scheduleDays, &job.CronExpression,
+		&job.Enabled, &job.RetentionDays, &job.RetentionCopies,
+		&job.GFSDaily, &job.GFSWeekly, &job.GFSMonthly, &job.GFSQuarterly, &job.GFSYearly,
+		&job.BackupCopyEnabled, &job.BackupCopyDestID, &job.BackupCopyDelay, &job.BackupCopyEncrypt,
+		&job.CreatedAt, &lastRun, &nextRun,
+		&databaseType, &server, &job.Port, &authType, &login, &password, &service, &vmNames, &job.HyperVHost,
+	)
 
 	if err != nil {
 		return nil, err
 	}
 
 	json.Unmarshal([]byte(sources), &job.Sources)
+	if excludePatterns != "" {
+		_ = json.Unmarshal([]byte(excludePatterns), &job.ExcludePatterns)
+	}
+	if includePatterns != "" {
+		_ = json.Unmarshal([]byte(includePatterns), &job.IncludePatterns)
+	}
+	if scheduleDays != "" {
+		_ = json.Unmarshal([]byte(scheduleDays), &job.ScheduleDays)
+	}
 
 	if databaseType.Valid {
 		json.Unmarshal([]byte(databaseType.String), &job.DatabaseType)
@@ -304,6 +429,9 @@ func (d *Database) GetJob(id string) (*Job, error) {
 
 func (d *Database) UpdateJob(job *Job) error {
 	sources, _ := json.Marshal(job.Sources)
+	excludePatterns, _ := json.Marshal(job.ExcludePatterns)
+	includePatterns, _ := json.Marshal(job.IncludePatterns)
+	scheduleDays, _ := json.Marshal(job.ScheduleDays)
 	databaseType, _ := json.Marshal(job.DatabaseType)
 	server, _ := json.Marshal(job.Server)
 	authType, _ := json.Marshal(job.AuthType)
@@ -313,9 +441,28 @@ func (d *Database) UpdateJob(job *Job) error {
 	vmNames, _ := json.Marshal(job.VMNames)
 
 	_, err := d.db.Exec(`
-		UPDATE jobs SET name=?, type=?, sources=?, destination=?, compression=?, encryption=?, deduplication=?, incremental=?, schedule=?, enabled=?, retention_days=?, retention_copies=?, database_type=?, server=?, port=?, auth_type=?, login=?, password=?, service=?, vm_names=?, hyperv_host=?
+		UPDATE jobs SET
+			name=?, type=?, sources=?, destination=?,
+			compression=?, compression_level=?, encryption=?, encryption_key=?, deduplication=?, block_size=?, max_threads=?,
+			incremental=?, full_backup_every=?,
+			exclude_patterns=?, include_patterns=?, pre_backup_script=?, post_backup_script=?,
+			schedule=?, schedule_time=?, schedule_days=?, cron_expression=?,
+			enabled=?, retention_days=?, retention_copies=?,
+			gfs_daily=?, gfs_weekly=?, gfs_monthly=?, gfs_quarterly=?, gfs_yearly=?,
+			backup_copy_enabled=?, backup_copy_dest_id=?, backup_copy_delay=?, backup_copy_encrypt=?,
+			database_type=?, server=?, port=?, auth_type=?, login=?, password=?, service=?,
+			vm_names=?, hyperv_host=?
 		WHERE id=?
-	`, job.Name, job.Type, string(sources), job.Destination, job.Compression, job.Encryption, job.Deduplication, job.Incremental, job.Schedule, job.Enabled, job.RetentionDays, job.RetentionCopies, string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service), string(vmNames), job.HyperVHost, job.ID)
+	`, job.Name, job.Type, string(sources), job.Destination,
+		job.Compression, job.CompressionLevel, job.Encryption, job.EncryptionKey, job.Deduplication, job.BlockSize, job.MaxThreads,
+		job.Incremental, job.FullBackupEvery,
+		string(excludePatterns), string(includePatterns), job.PreBackupScript, job.PostBackupScript,
+		job.Schedule, job.ScheduleTime, string(scheduleDays), job.CronExpression,
+		job.Enabled, job.RetentionDays, job.RetentionCopies,
+		job.GFSDaily, job.GFSWeekly, job.GFSMonthly, job.GFSQuarterly, job.GFSYearly,
+		job.BackupCopyEnabled, job.BackupCopyDestID, job.BackupCopyDelay, job.BackupCopyEncrypt,
+		string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service),
+		string(vmNames), job.HyperVHost, job.ID)
 
 	return err
 }
@@ -404,6 +551,131 @@ func (d *Database) DeleteUserSession(token string) error {
 	return err
 }
 
+// User methods
+func (d *Database) CreateUser(user *User) error {
+	var lastLogin interface{}
+	var passwordExpires interface{}
+	if user.LastLogin != nil {
+		lastLogin = *user.LastLogin
+	}
+	if user.PasswordExpires != nil {
+		passwordExpires = *user.PasswordExpires
+	}
+
+	_, err := d.db.Exec(`
+		INSERT INTO users (id, username, password_hash, email, full_name, role, enabled, created_at, last_login, password_expires)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Username, user.PasswordHash, user.Email, user.FullName, user.Role, user.Enabled, user.CreatedAt, lastLogin, passwordExpires)
+	return err
+}
+
+func (d *Database) UpdateUser(user *User) error {
+	_, err := d.db.Exec(`
+		UPDATE users SET email=?, full_name=?, role=?, enabled=?
+		WHERE id=?
+	`, user.Email, user.FullName, user.Role, user.Enabled, user.ID)
+	return err
+}
+
+func (d *Database) UpdateUserPassword(id, passwordHash string, expires *time.Time) error {
+	var expiresValue interface{}
+	if expires != nil {
+		expiresValue = *expires
+	}
+	_, err := d.db.Exec(`
+		UPDATE users SET password_hash=?, password_expires=?
+		WHERE id=?
+	`, passwordHash, expiresValue, id)
+	return err
+}
+
+func (d *Database) UpdateUserLastLogin(id string, lastLogin time.Time) error {
+	_, err := d.db.Exec(`UPDATE users SET last_login=? WHERE id=?`, lastLogin, id)
+	return err
+}
+
+func (d *Database) DeleteUser(id string) error {
+	_, _ = d.db.Exec("DELETE FROM user_sessions WHERE user_id=?", id)
+	_, err := d.db.Exec("DELETE FROM users WHERE id=?", id)
+	return err
+}
+
+func (d *Database) GetUserByID(id string) (*User, error) {
+	var user User
+	var lastLogin, passwordExpires sql.NullTime
+	err := d.db.QueryRow(`
+		SELECT id, username, password_hash, email, full_name, role, enabled, created_at, last_login, password_expires
+		FROM users WHERE id=?
+	`, id).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.FullName, &user.Role, &user.Enabled, &user.CreatedAt, &lastLogin, &passwordExpires)
+	if err != nil {
+		return nil, err
+	}
+	if lastLogin.Valid {
+		user.LastLogin = &lastLogin.Time
+	}
+	if passwordExpires.Valid {
+		user.PasswordExpires = &passwordExpires.Time
+	}
+	return &user, nil
+}
+
+func (d *Database) GetUserByUsername(username string) (*User, error) {
+	var user User
+	var lastLogin, passwordExpires sql.NullTime
+	err := d.db.QueryRow(`
+		SELECT id, username, password_hash, email, full_name, role, enabled, created_at, last_login, password_expires
+		FROM users WHERE username=?
+	`, username).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.FullName, &user.Role, &user.Enabled, &user.CreatedAt, &lastLogin, &passwordExpires)
+	if err != nil {
+		return nil, err
+	}
+	if lastLogin.Valid {
+		user.LastLogin = &lastLogin.Time
+	}
+	if passwordExpires.Valid {
+		user.PasswordExpires = &passwordExpires.Time
+	}
+	return &user, nil
+}
+
+func (d *Database) ListUsers() ([]User, error) {
+	rows, err := d.db.Query(`
+		SELECT id, username, password_hash, email, full_name, role, enabled, created_at, last_login, password_expires
+		FROM users ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		var lastLogin, passwordExpires sql.NullTime
+		if err := rows.Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.FullName, &user.Role, &user.Enabled, &user.CreatedAt, &lastLogin, &passwordExpires); err != nil {
+			return nil, err
+		}
+		if lastLogin.Valid {
+			user.LastLogin = &lastLogin.Time
+		}
+		if passwordExpires.Valid {
+			user.PasswordExpires = &passwordExpires.Time
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (d *Database) CountUsers() (int, error) {
+	var count int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // MigrateCleanPaths removes Unicode characters from all existing job paths
 func (d *Database) MigrateCleanPaths() error {
 	// Add new columns if they don't exist (for existing databases)
@@ -473,6 +745,7 @@ func (d *Database) addMissingColumns() error {
 		{"retention_days", "30"},
 		{"retention_copies", "10"},
 		{"compression_level", "5"},
+		{"encryption_key", "''"},
 		{"block_size", "1048576"},
 		{"max_threads", "4"},
 		{"full_backup_every", "7"},
@@ -481,6 +754,8 @@ func (d *Database) addMissingColumns() error {
 		{"pre_backup_script", "''"},
 		{"post_backup_script", "''"},
 		{"cron_expression", "''"},
+		{"schedule_time", "''"},
+		{"schedule_days", "''"},
 		{"gfs_daily", "7"},
 		{"gfs_weekly", "4"},
 		{"gfs_monthly", "12"},

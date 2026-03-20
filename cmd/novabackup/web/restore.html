@@ -504,6 +504,20 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <label class="form-label"
+                                >🔐 Ключ шифрування (за потреби)</label
+                            >
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="restore-encryption-key"
+                                placeholder="Введіть ключ для розшифрування архіву"
+                            />
+                            <div class="form-hint">
+                                Потрібен тільки якщо бекап зашифрований
+                            </div>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">📝 Обрані файли</label>
                             <div
                                 id="selected-files"
@@ -608,6 +622,17 @@
                                     для підключення, а не базу яку відновлюєте!
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"
+                                >🔐 Ключ шифрування (за потреби)</label
+                            >
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="db-encryption-key"
+                                placeholder="Введіть ключ для розшифрування дампу"
+                            />
                         </div>
                         <div class="form-group">
                             <label class="form-label"
@@ -1204,6 +1229,9 @@
                             document.getElementById("restore-dest").value;
                         const overwriteFiles =
                             document.getElementById("overwrite-files").checked;
+                        const encryptionKey =
+                            document.getElementById("restore-encryption-key")
+                                ?.value || "";
 
                         requestData = {
                             session_id: bp.id,
@@ -1212,6 +1240,7 @@
                             restore_original: !restoreDest,
                             overwrite: overwriteFiles,
                             files: [], // Empty = all files
+                            encryption_key: encryptionKey,
                         };
 
                         response = await fetch("/api/restore/files", {
@@ -1224,6 +1253,9 @@
                         const dbConn = document.getElementById("db-conn").value;
                         const dbTarget =
                             document.getElementById("db-target").value;
+                        const dbEncryptionKey =
+                            document.getElementById("db-encryption-key")?.value ||
+                            "";
 
                         requestData = {
                             session_id: bp.id,
@@ -1231,6 +1263,7 @@
                             db_type: dbType,
                             conn_str: dbConn,
                             target_database: dbTarget,
+                            encryption_key: dbEncryptionKey,
                         };
 
                         response = await fetch("/api/restore/database", {

@@ -90,6 +90,7 @@ type BackupFileInfo struct {
 type RestoreEngine struct {
 	DataDir string
 	LogFile string
+	AllowScripts bool
 }
 
 // NewRestoreEngine creates a new restore engine
@@ -117,10 +118,15 @@ func (e *RestoreEngine) ExecuteRestore(req *RestoreRequest) (*RestoreSession, er
 
 	// Run pre-restore script
 	if req.PreRestoreScript != "" {
-		e.log(session, fmt.Sprintf("📜 Виконання скрипта перед відновленням: %s", req.PreRestoreScript))
-		if err := e.runScript(req.PreRestoreScript); err != nil {
-			e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("Pre-restore script failed: %v", err))
+		if !e.AllowScripts {
+			e.log(session, "⚠️ Виконання скриптів вимкнено політикою безпеки")
+			session.Warnings = append(session.Warnings, "Pre-restore script skipped: scripts are disabled by security policy")
+		} else {
+			e.log(session, fmt.Sprintf("📜 Виконання скрипта перед відновленням: %s", req.PreRestoreScript))
+			if err := e.runScript(req.PreRestoreScript); err != nil {
+				e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
+				session.Warnings = append(session.Warnings, fmt.Sprintf("Pre-restore script failed: %v", err))
+			}
 		}
 	}
 
@@ -140,10 +146,15 @@ func (e *RestoreEngine) ExecuteRestore(req *RestoreRequest) (*RestoreSession, er
 
 	// Run post-restore script
 	if req.PostRestoreScript != "" {
-		e.log(session, fmt.Sprintf("📜 Виконання скрипта після відновлення: %s", req.PostRestoreScript))
-		if err := e.runScript(req.PostRestoreScript); err != nil {
-			e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("Post-restore script failed: %v", err))
+		if !e.AllowScripts {
+			e.log(session, "⚠️ Виконання скриптів вимкнено політикою безпеки")
+			session.Warnings = append(session.Warnings, "Post-restore script skipped: scripts are disabled by security policy")
+		} else {
+			e.log(session, fmt.Sprintf("📜 Виконання скрипта після відновлення: %s", req.PostRestoreScript))
+			if err := e.runScript(req.PostRestoreScript); err != nil {
+				e.log(session, fmt.Sprintf("⚠️ Помилка скрипта: %v", err))
+				session.Warnings = append(session.Warnings, fmt.Sprintf("Post-restore script failed: %v", err))
+			}
 		}
 	}
 
@@ -174,11 +185,30 @@ func (e *RestoreEngine) restoreFiles(req *RestoreRequest, session *RestoreSessio
 
 	// Open archive
 	archivePath := filepath.Join(req.BackupPath, "backup.zip")
+	encryptedArchivePath := archivePath + ".enc"
+	tempArchive := ""
+
+	if _, err := os.Stat(archivePath); err != nil {
+		if _, encErr := os.Stat(encryptedArchivePath); encErr == nil {
+			if req.EncryptionKey == "" {
+				return fmt.Errorf("потрібен ключ для розшифрування архіву")
+			}
+			tempArchive = filepath.Join(req.BackupPath, fmt.Sprintf("backup_%d.zip", time.Now().UnixNano()))
+			if err := e.decryptFile(encryptedArchivePath, tempArchive, req.EncryptionKey); err != nil {
+				return fmt.Errorf("помилка розшифрування архіву: %v", err)
+			}
+			archivePath = tempArchive
+		}
+	}
+
 	r, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("помилка відкриття архіву: %v", err)
 	}
 	defer r.Close()
+	if tempArchive != "" {
+		defer os.Remove(tempArchive)
+	}
 
 	// Count files
 	session.FilesTotal = len(r.File)
@@ -303,15 +333,17 @@ func (e *RestoreEngine) restoreDatabase(req *RestoreRequest, session *RestoreSes
 	}
 
 	// Decrypt if needed
-	if strings.HasSuffix(dumpFile, ".enc") && req.EncryptionKey != "" {
+	if strings.HasSuffix(dumpFile, ".enc") {
+		if req.EncryptionKey == "" {
+			return fmt.Errorf("потрібен ключ для розшифрування дампу")
+		}
 		e.log(session, "🔐 Розшифрування дампу...")
 		decrypted := strings.TrimSuffix(dumpFile, ".enc")
 		if err := e.decryptFile(dumpFile, decrypted, req.EncryptionKey); err != nil {
-			e.log(session, fmt.Sprintf("⚠️ Помилка розшифрування: %v", err))
-			session.Warnings = append(session.Warnings, fmt.Sprintf("Decryption failed: %v", err))
-		} else {
-			dumpFile = decrypted
+			return fmt.Errorf("помилка розшифрування: %v", err)
 		}
+		defer os.Remove(decrypted)
+		dumpFile = decrypted
 	}
 
 	// Restore based on DB type

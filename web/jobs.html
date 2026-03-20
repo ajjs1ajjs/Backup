@@ -300,6 +300,21 @@
                 <input type="checkbox" id="job-encryption" />
                 <label for="job-encryption">🔒 Шифрування (AES-256)</label>
             </div>
+            <div class="form-group" style="margin: 0.5rem 0 1rem 2rem">
+                <label class="form-label" style="font-size: 0.875rem"
+                    >🔐 Ключ шифрування</label
+                >
+                <input
+                    type="password"
+                    id="job-encryption-key"
+                    class="form-input"
+                    placeholder="Залиште пустим, щоб не змінювати"
+                    style="font-size: 0.875rem"
+                />
+                <div class="form-hint">
+                    Зберігається тільки на сервері. Для зміни введіть новий ключ
+                </div>
+            </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="job-deduplication" />
                 <label for="job-deduplication">💾 Дедуплікація</label>
@@ -487,6 +502,7 @@
                         job.compression || false;
                     document.getElementById("job-encryption").checked =
                         job.encryption || false;
+                    document.getElementById("job-encryption-key").value = "";
                     document.getElementById("job-deduplication").checked =
                         job.deduplication || false;
                     document.getElementById("job-incremental").checked =
@@ -523,6 +539,11 @@
                     .map((s) => s.trim())
                     .filter(Boolean);
 
+                const encryptionEnabled =
+                    document.getElementById("job-encryption").checked;
+                const encryptionKey =
+                    document.getElementById("job-encryption-key").value.trim();
+
                 const jobData = {
                     name: name,
                     type: document.getElementById("job-type").value,
@@ -532,8 +553,7 @@
                         .value.trim(),
                     compression:
                         document.getElementById("job-compression").checked,
-                    encryption:
-                        document.getElementById("job-encryption").checked,
+                    encryption: encryptionEnabled,
                     deduplication:
                         document.getElementById("job-deduplication").checked,
                     incremental:
@@ -550,6 +570,13 @@
                     schedule: document.getElementById("job-schedule").value,
                     enabled: document.getElementById("job-enabled").checked,
                 };
+
+                if (encryptionEnabled && encryptionKey) {
+                    jobData.encryption_key = encryptionKey;
+                }
+                if (!encryptionEnabled) {
+                    jobData.encryption_key = "";
+                }
 
                 const token = localStorage.getItem("authToken");
                 if (!token) {

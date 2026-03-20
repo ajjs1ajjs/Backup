@@ -112,6 +112,15 @@ type RBACEngine struct {
 		GetUserSessionByToken(string) (*database.UserSession, error)
 		UpdateUserSessionLastUsed(string, time.Time) error
 		DeleteUserSession(string) error
+		CreateUser(*database.User) error
+		UpdateUser(*database.User) error
+		UpdateUserPassword(string, string, *time.Time) error
+		UpdateUserLastLogin(string, time.Time) error
+		DeleteUser(string) error
+		GetUserByID(string) (*database.User, error)
+		GetUserByUsername(string) (*database.User, error)
+		ListUsers() ([]database.User, error)
+		CountUsers() (int, error)
 	}
 }
 
@@ -126,6 +135,75 @@ func NewRBACEngine() *RBACEngine {
 	engine.CreateDefaultAdmin()
 
 	return engine
+}
+
+// LoadUsersFromDB replaces in-memory users with database users (if DB is available).
+// If no users exist, it seeds the default admin and persists it.
+func (e *RBACEngine) LoadUsersFromDB() error {
+	if e.DB == nil {
+		return nil
+	}
+
+	count, err := e.DB.CountUsers()
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		// Seed default admin in DB and memory
+		admin := &User{
+			ID:           "admin",
+			Username:     "admin",
+			PasswordHash: HashPassword("admin123"),
+			Email:        "admin@novabackup.local",
+			FullName:     "Administrator",
+			Role:         RoleAdmin,
+			Enabled:      true,
+			CreatedAt:    time.Now(),
+		}
+
+		e.mu.Lock()
+		e.users = map[string]*User{admin.ID: admin}
+		e.mu.Unlock()
+
+		_ = e.DB.CreateUser(&database.User{
+			ID:           admin.ID,
+			Username:     admin.Username,
+			PasswordHash: admin.PasswordHash,
+			Email:        admin.Email,
+			FullName:     admin.FullName,
+			Role:         admin.Role,
+			Enabled:      admin.Enabled,
+			CreatedAt:    admin.CreatedAt,
+		})
+		return nil
+	}
+
+	users, err := e.DB.ListUsers()
+	if err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	e.users = make(map[string]*User, len(users))
+	for _, u := range users {
+		user := u
+		e.users[user.ID] = &User{
+			ID:              user.ID,
+			Username:        user.Username,
+			PasswordHash:    user.PasswordHash,
+			Email:           user.Email,
+			FullName:        user.FullName,
+			Role:            user.Role,
+			Enabled:         user.Enabled,
+			CreatedAt:       user.CreatedAt,
+			LastLogin:       user.LastLogin,
+			PasswordExpires: user.PasswordExpires,
+		}
+	}
+	e.mu.Unlock()
+
+	return nil
 }
 
 // CreateDefaultAdmin creates the default admin user
@@ -146,26 +224,39 @@ func (e *RBACEngine) CreateDefaultAdmin() {
 // Authenticate authenticates a user
 func (e *RBACEngine) Authenticate(username, password string) (*User, error) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	for _, user := range e.users {
-		if user.Username == username {
-			if !user.Enabled {
-				return nil, errors.New("користувача вимкнено")
-			}
-
-			if !CheckPassword(password, user.PasswordHash) {
-				return nil, errors.New("невірний пароль")
-			}
-
-			now := time.Now()
-			user.LastLogin = &now
-
-			return user, nil
+	var user *User
+	for _, u := range e.users {
+		if u.Username == username {
+			user = u
+			break
 		}
 	}
+	e.mu.RUnlock()
 
-	return nil, errors.New("користувача не знайдено")
+	if user == nil {
+		return nil, errors.New("користувача не знайдено")
+	}
+
+	if !user.Enabled {
+		return nil, errors.New("користувача вимкнено")
+	}
+
+	if !CheckPassword(password, user.PasswordHash) {
+		return nil, errors.New("невірний пароль")
+	}
+
+	now := time.Now()
+	e.mu.Lock()
+	if stored, ok := e.users[user.ID]; ok {
+		stored.LastLogin = &now
+	}
+	e.mu.Unlock()
+
+	if e.DB != nil {
+		_ = e.DB.UpdateUserLastLogin(user.ID, now)
+	}
+
+	return user, nil
 }
 
 // CreateSession creates a new session for a user
@@ -356,6 +447,22 @@ func (e *RBACEngine) CreateUser(username, password, email, fullName, role string
 
 	e.users[user.ID] = user
 
+	if e.DB != nil {
+		if err := e.DB.CreateUser(&database.User{
+			ID:           user.ID,
+			Username:     user.Username,
+			PasswordHash: user.PasswordHash,
+			Email:        user.Email,
+			FullName:     user.FullName,
+			Role:         user.Role,
+			Enabled:      user.Enabled,
+			CreatedAt:    user.CreatedAt,
+		}); err != nil {
+			delete(e.users, user.ID)
+			return nil, err
+		}
+	}
+
 	return user, nil
 }
 
@@ -372,6 +479,16 @@ func (e *RBACEngine) UpdateUser(userID, email, fullName, role string) error {
 	user.Email = email
 	user.FullName = fullName
 	user.Role = role
+
+	if e.DB != nil {
+		return e.DB.UpdateUser(&database.User{
+			ID:       user.ID,
+			Email:    user.Email,
+			FullName: user.FullName,
+			Role:     user.Role,
+			Enabled:  user.Enabled,
+		})
+	}
 
 	return nil
 }
@@ -397,6 +514,10 @@ func (e *RBACEngine) DeleteUser(userID string) error {
 		if session.UserID == userID {
 			delete(e.sessions, id)
 		}
+	}
+
+	if e.DB != nil {
+		return e.DB.DeleteUser(userID)
 	}
 
 	return nil
@@ -453,6 +574,10 @@ func (e *RBACEngine) ChangePassword(userID, oldPassword, newPassword string) err
 	expires := time.Now().Add(90 * 24 * time.Hour)
 	user.PasswordExpires = &expires
 
+	if e.DB != nil {
+		return e.DB.UpdateUserPassword(user.ID, user.PasswordHash, &expires)
+	}
+
 	return nil
 }
 
@@ -467,6 +592,17 @@ func (e *RBACEngine) EnableUser(userID string) error {
 	}
 
 	user.Enabled = true
+
+	if e.DB != nil {
+		return e.DB.UpdateUser(&database.User{
+			ID:       user.ID,
+			Email:    user.Email,
+			FullName: user.FullName,
+			Role:     user.Role,
+			Enabled:  user.Enabled,
+		})
+	}
+
 	return nil
 }
 
@@ -487,6 +623,16 @@ func (e *RBACEngine) DisableUser(userID string) error {
 		if session.UserID == userID {
 			delete(e.sessions, id)
 		}
+	}
+
+	if e.DB != nil {
+		return e.DB.UpdateUser(&database.User{
+			ID:       user.ID,
+			Email:    user.Email,
+			FullName: user.FullName,
+			Role:     user.Role,
+			Enabled:  user.Enabled,
+		})
 	}
 
 	return nil
