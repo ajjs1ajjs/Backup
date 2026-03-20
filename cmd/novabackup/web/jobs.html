@@ -435,9 +435,31 @@
 
                 showLoading("Завантаження завдання...");
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
                 try {
-                    const res = await fetch(`${API_BASE}/jobs`);
+                    const res = await fetch(`${API_BASE}/jobs`, {
+                        headers: {
+                            Authorization: "Bearer " + token,
+                        },
+                    });
                     if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
                         throw new Error(
                             "Не вдалося завантажити список завдань",
                         );
