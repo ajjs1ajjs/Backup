@@ -1147,10 +1147,16 @@
             // Run job
             async function runJob(jobId) {
                 if (!confirm("Запустити резервне копіювання зараз?")) return;
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
                 try {
                     const response = await fetch(`/api/jobs/${jobId}/run`, {
                         method: "POST",
-                        headers: { Authorization: authToken },
+                        headers: { Authorization: "Bearer " + token },
                     });
                     const data = await response.json();
                     if (response.ok) {
@@ -1167,10 +1173,16 @@
             // Delete job
             async function deleteJob(jobId) {
                 if (!confirm("Ви впевнені?")) return;
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
                 try {
                     const response = await fetch(`/api/jobs/${jobId}`, {
                         method: "DELETE",
-                        headers: { Authorization: authToken },
+                        headers: { Authorization: "Bearer " + token },
                     });
                     if (response.ok) loadDashboard();
                 } catch (error) {
