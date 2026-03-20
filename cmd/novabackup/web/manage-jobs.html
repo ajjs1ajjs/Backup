@@ -623,13 +623,20 @@
             async function runAllJobs() {
                 if (!confirm("Запустити всі активні завдання?")) return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 let count = 0;
                 for (const job of allJobs) {
                     if (job.enabled) {
                         try {
                             await fetch(`/api/jobs/${job.id}/run`, {
                                 method: "POST",
-                                headers: { Authorization: authToken },
+                                headers: { Authorization: "Bearer " + token },
                             });
                             count++;
                         } catch (error) {
@@ -651,6 +658,13 @@
             async function pauseAllJobs() {
                 if (!confirm("Зупинити всі активні завдання?")) return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 let count = 0;
                 for (const job of allJobs) {
                     if (job.enabled) {
@@ -659,7 +673,7 @@
                                 method: "PUT",
                                 headers: {
                                     "Content-Type": "application/json",
-                                    Authorization: authToken,
+                                    Authorization: "Bearer " + token,
                                 },
                                 body: JSON.stringify({
                                     ...job,
@@ -906,11 +920,18 @@
             async function runJob(jobId) {
                 if (!confirm("Запустити резервне копіювання зараз?")) return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 try {
                     const response = await fetch(`/api/jobs/${jobId}/run`, {
                         method: "POST",
                         headers: {
-                            Authorization: authToken,
+                            Authorization: "Bearer " + token,
                         },
                     });
 
@@ -932,6 +953,13 @@
 
             // Toggle job enabled/disabled
             async function toggleJob(jobId, enabled) {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 try {
                     const job = allJobs.find((j) => j.id === jobId);
                     if (!job) return;
@@ -940,7 +968,7 @@
                         method: "PUT",
                         headers: {
                             "Content-Type": "application/json",
-                            Authorization: authToken,
+                            Authorization: "Bearer " + token,
                         },
                         body: JSON.stringify({
                             ...job,
@@ -968,11 +996,18 @@
                 )
                     return;
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 try {
                     const response = await fetch(`/api/jobs/${jobId}`, {
                         method: "DELETE",
                         headers: {
-                            Authorization: authToken,
+                            Authorization: "Bearer " + token,
                         },
                     });
 
