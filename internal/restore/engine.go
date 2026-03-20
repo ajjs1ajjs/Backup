@@ -474,18 +474,88 @@ func (e *RestoreEngine) restoreMSSQL(bakFile, connStr, targetDB string, session 
 		return fmt.Errorf("відновлення MSSQL підтримується тільки на Windows")
 	}
 
-	// Build PowerShell script for SQL Server restore
+	serverInstance := getServerInstance(connStr)
+
+	// Build PowerShell script for SQL Server restore with enhanced error handling
 	psScript := fmt.Sprintf(`$ErrorActionPreference = "Stop"
 $backupFile = "%s"
 $targetDatabase = "%s"
 $connectionString = "%s"
+$serverInstance = "%s"
+
+Write-Host "=== MSSQL Restore Script ===" -ForegroundColor Cyan
+Write-Host "Target database: $targetDatabase"
+Write-Host "Backup file: $backupFile"
+Write-Host ""
 
 try {
+    # 1. Перевірка backup-файлу
+    Write-Host "[1/5] Перевірка backup-файлу..."
+    if (-not (Test-Path $backupFile)) {
+        throw "Backup file not found: $backupFile"
+    }
+    $file = Get-Item $backupFile
+    if ($file.Length -eq 0) {
+        throw "Backup file is empty: $backupFile"
+    }
+    Write-Host "✓ Backup file exists: $($file.FullName) ($([math]::Round($file.Length/1MB, 2)) MB)"
+
+    # 2. Підключення до SQL Server
+    Write-Host "[2/5] Підключення до SQL Server ($serverInstance)..."
     $connection = New-Object System.Data.SqlClient.SqlConnection
     $connection.ConnectionString = $connectionString
     $connection.Open()
+    Write-Host "✓ Підключено до SQL Server"
 
-    # Get logical file names from backup
+    # 3. Перевірка прав sysadmin
+    Write-Host "[3/5] Перевірка прав доступу..."
+    $sysadminQuery = "SELECT IS_SRVROLEMEMBER('sysadmin')"
+    $sysadminCmd = New-Object System.Data.SqlClient.SqlCommand
+    $sysadminCmd.CommandText = $sysadminQuery
+    $sysadminCmd.Connection = $connection
+    $sysadminResult = $sysadminCmd.ExecuteScalar()
+
+    if ([int]$sysadminResult -ne 1) {
+        # Спроба автоматично надати права поточному користувачу
+        Write-Host "⚠ Відсутні права sysadmin. Спроба автоматичного надання прав..." -ForegroundColor Yellow
+
+        $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+        Write-Host "  Поточний користувач: $currentUser"
+
+        try {
+            # Спроба створити login і додати до sysadmin
+            $grantQuery = @"
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = '$currentUser')
+BEGIN
+    CREATE LOGIN [$currentUser] FROM WINDOWS;
+END
+ALTER SERVER ROLE [sysadmin] ADD MEMBER [$currentUser];
+"@
+            $grantCmd = New-Object System.Data.SqlClient.SqlCommand
+            $grantCmd.CommandText = $grantQuery
+            $grantCmd.Connection = $connection
+            $grantCmd.ExecuteNonQuery() | Out-Null
+            Write-Host "✓ Права sysadmin надано користувачу '$currentUser'" -ForegroundColor Green
+
+            # Перевірка ще раз
+            $sysadminCmd2 = New-Object System.Data.SqlClient.SqlCommand
+            $sysadminCmd2.CommandText = $sysadminQuery
+            $sysadminCmd2.Connection = $connection
+            $sysadminResult2 = $sysadminCmd2.ExecuteScalar()
+            if ([int]$sysadminResult2 -ne 1) {
+                throw "Не вдалося надати права sysadmin. Потрібен доступ адміністратора SQL Server."
+            }
+        } catch {
+            Write-Host ""
+            Write-Host "Відсутні права sysadmin. Потрібні права CREATE DATABASE та RESTORE." -ForegroundColor Red
+            Write-Host "Деталі: $($_.Exception.Message)" -ForegroundColor Red
+            throw "Відсутні права sysadmin. Потрібен доступ адміністратора SQL Server."
+        }
+    }
+    Write-Host "✓ Права підтверджено (sysadmin)"
+
+    # 4. Отримання логічних імен з backup
+    Write-Host "[4/5] Читання структури backup-файлу..."
     $query = "RESTORE FILELISTONLY FROM DISK = '$backupFile'"
     $command = New-Object System.Data.SqlClient.SqlCommand
     $command.CommandText = $query
@@ -495,21 +565,35 @@ try {
     $dataset = New-Object System.Data.DataSet
     $adapter.Fill($dataset) | Out-Null
 
+    if ($dataset.Tables[0].Rows.Count -lt 2) {
+        throw "Некоректна структура backup-файлу: очікується мінімум 2 файли (data + log)"
+    }
+
     $logicalDataName = $dataset.Tables[0].Rows[0].LogicalName
     $logicalLogName = $dataset.Tables[0].Rows[1].LogicalName
+    Write-Host "  Logical Data: $logicalDataName"
+    Write-Host "  Logical Log:  $logicalLogName"
 
-    # Get physical file paths
-    $dataPath = (New-Object System.IO.FileInfo($connection.Database)).DirectoryName
+    # 5. Отримання шляхів до даних через SERVERPROPERTY
+    $dataPathQuery = "SELECT SERVERPROPERTY('InstanceDefaultDataPath') AS DataPath"
+    $dataPathCmd = New-Object System.Data.SqlClient.SqlCommand
+    $dataPathCmd.CommandText = $dataPathQuery
+    $dataPathCmd.Connection = $connection
+    $dataPathResult = $dataPathCmd.ExecuteScalar()
+    $dataPath = $dataPathResult
     if ([string]::IsNullOrEmpty($dataPath)) {
         $dataPath = "C:\ProgramData\Microsoft\SQL Server\Data"
     }
-
     $newDataFile = Join-Path $dataPath "${targetDatabase}.mdf"
     $newLogFile = Join-Path $dataPath "${targetDatabase}_log.ldf"
+    Write-Host "  Data path: $dataPath"
+    Write-Host "  New data file: $newDataFile"
+    Write-Host "  New log file: $newLogFile"
 
     $connection.Close()
 
-    # Restore database
+    # 6. Відновлення бази даних
+    Write-Host "[5/5] Відновлення бази даних..."
     $connection2 = New-Object System.Data.SqlClient.SqlConnection
     $connection2.ConnectionString = $connectionString
     $connection2.Open()
@@ -524,19 +608,34 @@ WITH
     STATS = 10
 "@
 
+    Write-Host "Executing restore..." -ForegroundColor Gray
     $command2 = New-Object System.Data.SqlClient.SqlCommand
     $command2.CommandText = $restoreQuery
     $command2.Connection = $connection2
+    $command2.CommandTimeout = 0  # Без тайм-ауту для великих баз
     $command2.ExecuteNonQuery() | Out-Null
-
     $connection2.Close()
 
-    Write-Host "Database '$targetDatabase' restored successfully"
+    Write-Host ""
+    Write-Host "✓ Database '$targetDatabase' restored successfully!" -ForegroundColor Green
+    exit 0
+
 } catch {
-    Write-Error $_.Exception.Message
+    Write-Host ""
+    Write-Host "=== RESTORE ERROR ===" -ForegroundColor Red
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Possible causes:" -ForegroundColor Yellow
+    Write-Host "  • Відсутні права sysadmin / CREATE DATABASE"
+    Write-Host "  • Backup-файл пошкоджений або недоступний"
+    Write-Host "  • Недостатньо місця на диску"
+    Write-Host "  • SQL Server service не запущений"
+    Write-Host ""
+    Write-Host "Stack trace:" -ForegroundColor Gray
+    Write-Host $_.ScriptStackTrace -ForegroundColor Gray
     exit 1
 }
-`, bakFile, targetDB, connStr)
+`, bakFile, targetDB, connStr, serverInstance)
 
 	cmd := exec.Command("powershell", "-Command", psScript)
 	output, err := cmd.CombinedOutput()
@@ -549,6 +648,19 @@ WITH
 
 	e.log(session, "✅ MSSQL базу даних успішно відновлено")
 	return nil
+}
+
+// getServerInstance extracts server instance from connection string
+func getServerInstance(connStr string) string {
+	// Parse "server=sb191\\MSSQL2022SELF;database=master;..." → "sb191\\MSSQL2022SELF"
+	parts := strings.Split(connStr, ";")
+	for _, part := range parts {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) == 2 && strings.ToLower(strings.TrimSpace(kv[0])) == "server" {
+			return strings.TrimSpace(kv[1])
+		}
+	}
+	return "unknown"
 }
 
 // restoreOracle restores Oracle database from dump file
