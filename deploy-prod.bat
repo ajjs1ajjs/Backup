@@ -1,43 +1,96 @@
 @echo off
 chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+REM ========================================
+REM   NovaBackup - Deploy to Production
+REM   Deploy local build to production server
+REM ========================================
+
 echo ========================================
-echo NovaBackup - Deploy to Production
+echo   NovaBackup - Production Deploy
 echo ========================================
 echo.
 
-echo [1/4] Stopping NovaBackup service...
-taskkill /F /IM novabackup.exe 2>nul
-taskkill /F /IM nova-service.exe 2>nul
-timeout /t 2 /nobreak >nul
+REM Check admin rights
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo [OK] Restarting with administrator privileges...
+    powershell -Command "Start-Process cmd -ArgumentList '/c', '%~f0' -Verb RunAs"
+    exit /b 0
+)
 
-echo [2/4] Building new version...
-cd /d "%~dp0"
-go build -o novabackup.exe .\cmd\novabackup
-if %ERRORLEVEL% neq 0 (
-    echo ERROR: Build failed!
+echo [OK] Administrator rights confirmed
+echo.
+
+REM Set paths
+set "SOURCE=D:\PROJECT\Backup\novabackup.exe"
+set "DEST=C:\Program Files\NovaBackup\NovaBackup.exe"
+set "BACKUP_DIR=C:\Program Files\NovaBackup\backup_%date:~-4,4%%date:~-7,2%%date:~-10,2%"
+
+REM Check if source exists
+if not exist "%SOURCE%" (
+    echo [ERROR] Source file not found: %SOURCE%
+    echo Please build first: go build -o novabackup.exe ./cmd/novabackup
     pause
     exit /b 1
 )
 
-echo [3/4] Copying to installation directory...
-copy /Y novabackup.exe "C:\Program Files\NovaBackup\NovaBackup.exe" 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo WARNING: Could not copy to Program Files (may require admin rights)
-    echo Please run this script as Administrator
+echo [*] Stopping NovaBackup service...
+sc stop NovaBackup >nul 2>&1
+timeout /t 3 /nobreak >nul
+
+REM Kill any running process
+taskkill /F /IM NovaBackup.exe >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+REM Backup current version
+echo [*] Creating backup of current version...
+mkdir "%BACKUP_DIR%" 2>nul
+copy /Y "%DEST%" "%BACKUP_DIR%\" 2>nul
+echo     Backup saved to: %BACKUP_DIR%
+
+REM Deploy new version
+echo [*] Deploying new version...
+copy /Y "%SOURCE%" "%DEST%"
+if %errorLevel% neq 0 (
+    echo [ERROR] Copy failed!
+    echo Restoring backup...
+    copy /Y "%BACKUP_DIR%\NovaBackup.exe" "%DEST%"
+    pause
+    exit /b 1
 )
 
-echo [4/4] Starting NovaBackup service...
-start "" "C:\Program Files\NovaBackup\NovaBackup.exe" server 2>nul
-if %ERRORLEVEL% neq 0 (
-    start "" novabackup.exe server
+REM Start service
+echo [*] Starting NovaBackup service...
+sc start NovaBackup >nul
+if %errorLevel% neq 0 (
+    echo [WARNING] Service start failed, starting in background...
+    start "" "%DEST%" server
+    timeout /t 2 /nobreak >nul
+)
+
+REM Wait for service
+timeout /t 3 /nobreak >nul
+
+REM Verify
+sc query NovaBackup | find "RUNNING" >nul
+if %errorLevel% equ 0 (
+    echo [OK] Service: RUNNING
+) else (
+    echo [!] Service: Background mode
 )
 
 echo.
 echo ========================================
-echo Deployment complete!
+echo   Deploy Complete!
 echo ========================================
+echo.
+echo Source: %SOURCE%
+echo Destination: %DEST%
+echo Backup: %BACKUP_DIR%
 echo.
 echo Web UI: http://localhost:8050
-echo Login: admin / admin123
 echo.
-pause
+timeout /t 2 /nobreak >nul
+exit /b 0
