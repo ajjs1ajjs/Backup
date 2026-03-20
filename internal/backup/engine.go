@@ -895,8 +895,13 @@ func (e *BackupEngine) backupMSSQL(job *BackupJob, session *BackupSession) (stri
 		return "", fmt.Errorf("не вказано бази даних для резервного копіювання")
 	}
 
+	e.log(session, fmt.Sprintf("📡 Сервер: %s (порт: %d, Auth: %s)", server, port, job.AuthType))
+	e.log(session, fmt.Sprintf("📋 Бази даних: %v", databases))
+
 	backupDir := filepath.Join(session.BackupPath, "mssql")
-	os.MkdirAll(backupDir, 0755)
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return "", fmt.Errorf("помилка створення директорії: %v", err)
+	}
 
 	timestamp := time.Now().Format("20060102_150405")
 
@@ -955,11 +960,28 @@ try {
 }
 `, strings.Join(databases, `","`), backupDir, timestamp, connectionString)
 
-	cmd := exec.Command("powershell", "-Command", psScript)
+	e.log(session, "📝 Виконання PowerShell скрипта...")
+	cmd := exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-Command", psScript)
 	output, err := cmd.CombinedOutput()
+
+	e.log(session, fmt.Sprintf("Результат виконання: %s", string(output)))
+
 	if err != nil {
-		e.log(session, fmt.Sprintf("⚠️ Помилка бекапу MSSQL: %v - %s", err, string(output)))
-		return "", fmt.Errorf("помилка резервного копіювання MSSQL: %v", err)
+		e.log(session, fmt.Sprintf("⚠️ Помилка бекапу MSSQL: %v", err))
+		e.log(session, fmt.Sprintf("📄 Вивід PowerShell: %s", string(output)))
+
+		// Provide more specific error messages
+		outputStr := string(output)
+		if strings.Contains(outputStr, "login failed") {
+			return "", fmt.Errorf("помилка автентифікації SQL Server. Перевірте логін/пароль")
+		}
+		if strings.Contains(outputStr, "network-related") || strings.Contains(outputStr, "connection") {
+			return "", fmt.Errorf("не вдалося підключитися до SQL Server. Перевірте сервер/порт")
+		}
+		if strings.Contains(outputStr, "database") {
+			return "", fmt.Errorf("помилка доступу до бази даних. Перевірте назву БД")
+		}
+		return "", fmt.Errorf("помилка резервного копіювання MSSQL: %v. Деталі: %s", err, outputStr)
 	}
 
 	e.log(session, fmt.Sprintf("✅ MSSQL бекап виконано: %s", string(output)))
