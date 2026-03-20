@@ -550,8 +550,21 @@
 
             // Load users
             async function loadUsers() {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert(
+                        "Відсутній токен авторизації. Будь ласка, увійдіть знову.",
+                    );
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 try {
-                    const res = await fetch(`${API_BASE}/users`);
+                    const res = await fetch(`${API_BASE}/users`, {
+                        headers: {
+                            Authorization: "Bearer " + token,
+                        },
+                    });
                     const data = await res.json();
                     users = data.users || [];
                     renderUsers();
@@ -696,9 +709,21 @@
                 }
 
                 try {
+                    const token = localStorage.getItem("authToken");
+                    if (!token) {
+                        alert(
+                            "Відсутній токен авторизації. Будь ласка, увійдіть знову.",
+                        );
+                        window.location.href = "login.html";
+                        return;
+                    }
+
                     const res = await fetch(`${API_BASE}/users`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: "Bearer " + token,
+                        },
                         body: JSON.stringify(user),
                     });
 
@@ -775,9 +800,21 @@
                     return;
                 }
 
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert(
+                        "Відсутній токен авторизації. Будь ласка, увійдіть знову.",
+                    );
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 try {
                     const res = await fetch(`${API_BASE}/users/${id}`, {
                         method: "DELETE",
+                        headers: {
+                            Authorization: "Bearer " + token,
+                        },
                     });
 
                     if (res.ok) {
