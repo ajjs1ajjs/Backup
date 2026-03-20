@@ -218,14 +218,16 @@ func buildServer() (*http.Server, error) {
 		// Health (no auth required)
 		apiGroup.GET("/health", api.GetHealth)
 
-		// Auth (no auth required)
+		// Auth (no auth required for login, but change-password requires auth)
 		auth := apiGroup.Group("/auth")
 		auth.Use(api.AuditMiddleware()) // Log auth attempts
 		{
 			auth.POST("/login", api.Login)
 			auth.POST("/logout", api.Logout)
-			auth.POST("/change-password", api.ChangePassword)
 		}
+
+		// Change password requires authentication
+		auth.POST("/change-password", api.AuthMiddleware(), api.ChangePassword)
 
 		// Protected routes (require authentication)
 		protected := apiGroup.Group("")
