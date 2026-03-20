@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"novabackup/internal/database"
+	"novabackup/internal/rbac"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,10 +30,22 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *database.Database) {
 	}
 
 	DB = db
+	RBACEngine = rbac.NewRBACEngine()
+	RBACEngine.DB = db
+	_ = RBACEngine.LoadUsersFromDB()
+
 	router := gin.Default()
 
 	// Setup routes
+	router.GET("/api/health", GetHealth)
 	router.POST("/api/auth/login", Login)
+
+	protected := router.Group("/api")
+	protected.Use(AuthMiddleware())
+	{
+		protected.GET("/jobs", RequirePermission(rbac.PermJobsRead), ListJobs)
+		protected.POST("/jobs", RequirePermission(rbac.PermJobsCreate), CreateJob)
+	}
 
 	return router, db
 }
@@ -53,8 +66,8 @@ func TestHealthEndpoint(t *testing.T) {
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 
-	if response["status"] != "ok" {
-		t.Errorf("Expected status 'ok', got '%v'", response["status"])
+	if response["status"] != "healthy" {
+		t.Errorf("Expected status 'healthy', got '%v'", response["status"])
 	}
 }
 
@@ -64,19 +77,14 @@ func TestLoginSuccess(t *testing.T) {
 	defer os.Remove("test_api.db")
 
 	// Create test user
-	_, err := db.CreateUser(&database.User{
-		Username: "testuser",
-		Password: "testpass123", // Note: will be hashed
-		Email:    "test@example.com",
-		Role:     "admin",
-	})
+	_, err := RBACEngine.CreateUser("testuser", "Testpass123", "test@example.com", "", "admin")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
 	loginReq := map[string]string{
 		"username": "testuser",
-		"password": "testpass123",
+		"password": "Testpass123",
 	}
 	jsonData, _ := json.Marshal(loginReq)
 
@@ -134,8 +142,8 @@ func TestLoginMissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %d", w.Code)
 	}
 }
 
@@ -143,17 +151,6 @@ func TestCreateJobEndpoint(t *testing.T) {
 	router, db := setupTestRouter(t)
 	defer db.Close()
 	defer os.Remove("test_api.db")
-
-	// Create admin user first
-	_, err := db.CreateUser(&database.User{
-		Username: "admin",
-		Password: "admin123",
-		Email:    "admin@example.com",
-		Role:     "admin",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create admin user: %v", err)
-	}
 
 	// Login to get token
 	loginReq := map[string]string{
@@ -174,7 +171,7 @@ func TestCreateJobEndpoint(t *testing.T) {
 	// Create job
 	jobReq := map[string]interface{}{
 		"name":        "Test Job",
-		"type":        "files",
+		"type":        "file",
 		"sources":     []string{"C:\\test"},
 		"destination": "D:\\backup",
 		"schedule":    "0 2 * * *",
@@ -197,17 +194,6 @@ func TestListJobsEndpoint(t *testing.T) {
 	router, db := setupTestRouter(t)
 	defer db.Close()
 	defer os.Remove("test_api.db")
-
-	// Create admin user
-	_, err := db.CreateUser(&database.User{
-		Username: "admin",
-		Password: "admin123",
-		Email:    "admin@example.com",
-		Role:     "admin",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create admin user: %v", err)
-	}
 
 	// Login
 	loginReq := map[string]string{

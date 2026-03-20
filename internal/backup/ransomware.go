@@ -78,7 +78,7 @@ func (d *RansomwareDetector) Analyze() *RansomwareAlert {
 	if encryptedCount > d.Thresholds.EncryptedExtensionCount {
 		alert.Score += 40
 		alert.Indicators = append(alert.Indicators,
-			"Виявлено файлів з розширеннями шифрувальників: "+string(encryptedCount))
+			fmt.Sprintf("Виявлено файлів з розширеннями шифрувальників: %d", encryptedCount))
 	}
 
 	// Check 2: High percentage of changed files

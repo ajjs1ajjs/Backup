@@ -28,6 +28,12 @@ set "INSTALL_DIR=C:\Program Files\NovaBackup"
 set "DATA_DIR=C:\ProgramData\NovaBackup"
 set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
+REM Optional: persist master key for encryption (service will read on start)
+if not "%NOVABACKUP_MASTER_KEY%"=="" (
+    echo [*] Setting NOVABACKUP_MASTER_KEY for service...
+    setx /M NOVABACKUP_MASTER_KEY "%NOVABACKUP_MASTER_KEY%" >nul
+)
+
 echo [*] Downloading from GitHub...
 echo.
 

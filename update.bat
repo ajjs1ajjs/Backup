@@ -23,6 +23,12 @@ if %errorLevel% neq 0 (
 echo [OK] Administrator rights confirmed
 echo.
 
+REM Optional: persist master key for encryption (service will read on start)
+if not "%NOVABACKUP_MASTER_KEY%"=="" (
+    echo [*] Setting NOVABACKUP_MASTER_KEY for service...
+    setx /M NOVABACKUP_MASTER_KEY "%NOVABACKUP_MASTER_KEY%" >nul
+)
+
 REM Stop service
 echo [*] Stopping NovaBackup service...
 sc stop NovaBackup >nul 2>&1

@@ -302,6 +302,22 @@ C:\ProgramData\NovaBackup\            # Дані
 3. Введіть новий пароль (мінімум 8 символів)
 4. Збережіть
 
+### Master Key для шифрування
+Для використання шифрованих бекапів потрібен `NOVABACKUP_MASTER_KEY` на сервері.
+
+**Windows (служба):**
+```powershell
+setx /M NOVABACKUP_MASTER_KEY "your-strong-master-key"
+Restart-Service NovaBackup
+```
+
+**Linux (systemd):**
+```bash
+echo 'NOVABACKUP_MASTER_KEY=your-strong-master-key' | sudo tee /etc/novabackup.env
+sudo chmod 600 /etc/novabackup.env
+sudo systemctl restart novabackup
+```
+
 ### Firewall Rules
 
 **Windows:**

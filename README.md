@@ -66,6 +66,8 @@ Password: admin123
 
 ⚠️ **Important:** Change the default password after first login. The system will force you to change it.
 
+🔐 **Encryption note:** To use encrypted backups, set `NOVABACKUP_MASTER_KEY` on the server (see **Encryption & Master Key** below).
+
 ---
 
 ## What Does the Installer Do?
@@ -150,10 +152,28 @@ Note: The Web UI is served from the `web/` folder next to `novabackup.exe`.
   backup.zip
   metadata.json
 ```
+If encryption is enabled, the archive is stored as `backup.zip.enc`.
 
 ### Sessions & Metadata
 - Backup sessions are written to `data/sessions/<session_id>.json`
 - Summary is also stored in SQLite (`novabackup.db`) for quick listing
+
+### Encryption & Master Key
+- Encrypted archives use streaming AES-GCM with `scrypt` key derivation.
+- The encryption key for a job is stored **encrypted** in the database.  
+  This requires `NOVABACKUP_MASTER_KEY` to be set on the server.
+- **Windows (service):**
+  ```powershell
+  setx /M NOVABACKUP_MASTER_KEY "your-strong-master-key"
+  Restart-Service NovaBackup
+  ```
+- **Linux (systemd):**
+  ```bash
+  echo 'NOVABACKUP_MASTER_KEY=your-strong-master-key' | sudo tee /etc/novabackup.env
+  sudo chmod 600 /etc/novabackup.env
+  sudo systemctl restart novabackup
+  ```
+- Legacy encrypted backups (old format) are still supported for restore.
 
 ### API Quick Reference
 ```bash

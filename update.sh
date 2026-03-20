@@ -18,6 +18,8 @@ echo ""
 
 INSTALL_DIR="/opt/novabackup"
 GITHUB_URL="https://github.com/ajjs1ajjs/Backup/releases/latest/download"
+ENV_FILE="/etc/novabackup.env"
+SYSTEMD_FILE="/etc/systemd/system/novabackup.service"
 
 # Check if installed
 if [ ! -f "$INSTALL_DIR/NovaBackup" ]; then
@@ -36,6 +38,19 @@ echo ""
 # Stop service
 echo "[*] Stopping NovaBackup service..."
 systemctl stop novabackup
+
+if [ -n "$NOVABACKUP_MASTER_KEY" ]; then
+    echo "[*] Updating NOVABACKUP_MASTER_KEY..."
+    echo "NOVABACKUP_MASTER_KEY=$NOVABACKUP_MASTER_KEY" > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+fi
+
+if [ -f "$SYSTEMD_FILE" ]; then
+    if ! grep -q "EnvironmentFile=-$ENV_FILE" "$SYSTEMD_FILE"; then
+        sed -i "/\\[Service\\]/a EnvironmentFile=-$ENV_FILE" "$SYSTEMD_FILE"
+        systemctl daemon-reload
+    fi
+fi
 
 # Backup current version
 echo "[*] Backing up current version..."

@@ -22,6 +22,7 @@ echo ""
 INSTALL_DIR="/opt/novabackup"
 DATA_DIR="/var/lib/novabackup"
 SYSTEMD_DIR="/etc/systemd/system"
+ENV_FILE="/etc/novabackup.env"
 RAW_URL="https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
 echo "[*] Downloading from GitHub..."
@@ -44,6 +45,12 @@ echo "[*] Installing..."
 chmod +x novabackup
 cp novabackup "$INSTALL_DIR/NovaBackup"
 
+if [ -n "$NOVABACKUP_MASTER_KEY" ]; then
+    echo "[*] Configuring NOVABACKUP_MASTER_KEY..."
+    echo "NOVABACKUP_MASTER_KEY=$NOVABACKUP_MASTER_KEY" > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+fi
+
 echo "[*] Creating systemd service..."
 cat > "$SYSTEMD_DIR/novabackup.service" << EOF
 [Unit]
@@ -54,6 +61,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$INSTALL_DIR
+EnvironmentFile=-$ENV_FILE
 ExecStart=$INSTALL_DIR/NovaBackup server
 Restart=always
 RestartSec=3

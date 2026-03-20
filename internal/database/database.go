@@ -321,7 +321,7 @@ func (d *Database) CreateJob(job *Job) error {
 		return err
 	}
 
-	_, err := d.db.Exec(`
+	_, err = d.db.Exec(`
 		INSERT INTO jobs (
 			id, name, type, sources, destination,
 			compression, compression_level, encryption, encryption_key, deduplication, block_size, max_threads,
