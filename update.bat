@@ -39,11 +39,11 @@ if exist "%BACKUP_DIR%" rmdir /s /q "%BACKUP_DIR%"
 mkdir "%BACKUP_DIR%" 2>nul
 copy /Y "C:\Program Files\NovaBackup\NovaBackup.exe" "%BACKUP_DIR%\" 2>nul
 
-REM Download latest version from GitHub Releases
+REM Download latest version from GitHub raw
 echo [*] Downloading latest version from GitHub...
-set "RELEASE_URL=https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup.exe"
+set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%RELEASE_URL%' -OutFile 'C:\Program Files\NovaBackup\NovaBackup.exe' -UseBasicParsing"
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%RAW_URL%/novabackup.exe' -OutFile 'C:\Program Files\NovaBackup\NovaBackup.exe' -UseBasicParsing"
 if %errorLevel% neq 0 (
     echo [ERROR] Download failed!
     echo Restoring backup...
