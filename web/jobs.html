@@ -426,7 +426,10 @@
             async function loadJob() {
                 currentJobId = getJobIdFromUrl();
                 if (!currentJobId) {
-                    showError("ID завдання не вказано в URL");
+                    showLoading("Перенаправлення...");
+                    setTimeout(() => {
+                        window.location.href = "manage-jobs.html";
+                    }, 500);
                     return;
                 }
 
