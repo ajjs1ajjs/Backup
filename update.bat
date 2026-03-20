@@ -39,11 +39,11 @@ if exist "%BACKUP_DIR%" rmdir /s /q "%BACKUP_DIR%"
 mkdir "%BACKUP_DIR%" 2>nul
 copy /Y "C:\Program Files\NovaBackup\NovaBackup.exe" "%BACKUP_DIR%\" 2>nul
 
-REM Download latest version
+REM Download latest version from GitHub Releases
 echo [*] Downloading latest version from GitHub...
-set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
+set "RELEASE_URL=https://github.com/ajjs1ajjs/Backup/releases/latest/download/novabackup.exe"
 
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%RAW_URL%/novabackup.exe' -OutFile 'C:\Program Files\NovaBackup\NovaBackup.exe' -UseBasicParsing"
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%RELEASE_URL%' -OutFile 'C:\Program Files\NovaBackup\NovaBackup.exe' -UseBasicParsing"
 if %errorLevel% neq 0 (
     echo [ERROR] Download failed!
     echo Restoring backup...
@@ -57,7 +57,8 @@ echo [*] Updating web interface...
 set "WEB_DIR=C:\Program Files\NovaBackup\web"
 if not exist "%WEB_DIR%" mkdir "%WEB_DIR%"
 
-REM Download web files
+REM Download web files from raw GitHub
+set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 powershell -Command "Invoke-WebRequest -Uri '%RAW_URL%/web/index.html' -OutFile '%WEB_DIR%\index.html' -UseBasicParsing"
 powershell -Command "Invoke-WebRequest -Uri '%RAW_URL%/web/quick-backup.html' -OutFile '%WEB_DIR%\quick-backup.html' -UseBasicParsing"
 powershell -Command "Invoke-WebRequest -Uri '%RAW_URL%/web/database-backup.html' -OutFile '%WEB_DIR%\database-backup.html' -UseBasicParsing"
