@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -478,6 +479,10 @@ func CreateJob(c *gin.Context) {
 
 	if err := DB.CreateJob(&job); err != nil {
 		log.Printf("Failed to create job: %v", err)
+		if errors.Is(err, database.ErrMasterKeyMissing) {
+			c.JSON(400, gin.H{"error": "Потрібен NOVABACKUP_MASTER_KEY для збереження ключа шифрування"})
+			return
+		}
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -516,6 +521,7 @@ func UpdateJob(c *gin.Context) {
 	job.Sources = update.Sources
 	job.Destination = update.Destination
 	job.Compression = update.Compression
+	job.CompressionLevel = update.CompressionLevel
 	job.Encryption = update.Encryption
 	if !update.Encryption {
 		job.EncryptionKey = ""
@@ -526,10 +532,55 @@ func UpdateJob(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Потрібен ключ шифрування"})
 		return
 	}
+	job.Deduplication = update.Deduplication
+	job.BlockSize = update.BlockSize
+	job.MaxThreads = update.MaxThreads
+	job.Incremental = update.Incremental
+	job.FullBackupEvery = update.FullBackupEvery
+	job.ExcludePatterns = update.ExcludePatterns
+	job.IncludePatterns = update.IncludePatterns
+	job.PreBackupScript = update.PreBackupScript
+	job.PostBackupScript = update.PostBackupScript
 	job.Schedule = update.Schedule
+	job.ScheduleTime = update.ScheduleTime
+	job.ScheduleDays = update.ScheduleDays
+	job.CronExpression = update.CronExpression
 	job.Enabled = update.Enabled
+	job.RetentionDays = update.RetentionDays
+	job.RetentionCopies = update.RetentionCopies
+	job.GFSDaily = update.GFSDaily
+	job.GFSWeekly = update.GFSWeekly
+	job.GFSMonthly = update.GFSMonthly
+	job.GFSQuarterly = update.GFSQuarterly
+	job.GFSYearly = update.GFSYearly
+	job.BackupCopyEnabled = update.BackupCopyEnabled
+	job.BackupCopyDestID = update.BackupCopyDestID
+	job.BackupCopyDelay = update.BackupCopyDelay
+	job.BackupCopyEncrypt = update.BackupCopyEncrypt
+	job.DatabaseType = update.DatabaseType
+	job.Server = update.Server
+	job.Port = update.Port
+	job.AuthType = update.AuthType
+	if update.AuthType != "" && update.AuthType != "sql" {
+		job.Login = ""
+		job.Password = ""
+	} else {
+		if update.Login != "" {
+			job.Login = update.Login
+		}
+		if update.Password != "" {
+			job.Password = update.Password
+		}
+	}
+	job.Service = update.Service
+	job.VMNames = update.VMNames
+	job.HyperVHost = update.HyperVHost
 
 	if err := DB.UpdateJob(job); err != nil {
+		if errors.Is(err, database.ErrMasterKeyMissing) {
+			c.JSON(400, gin.H{"error": "Потрібен NOVABACKUP_MASTER_KEY для збереження ключа шифрування"})
+			return
+		}
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -583,13 +634,13 @@ func RunJob(c *gin.Context) {
 	NotificationEngine.SendBackupStarted(job.Name, job.Type)
 
 	backupJob := &backup.BackupJob{
-		ID:          job.ID,
-		Name:        job.Name,
-		Type:        job.Type,
-		Sources:     job.Sources,
-		Destination: job.Destination,
-		Compression: job.Compression,
-		Encryption:  job.Encryption,
+		ID:            job.ID,
+		Name:          job.Name,
+		Type:          job.Type,
+		Sources:       job.Sources,
+		Destination:   job.Destination,
+		Compression:   job.Compression,
+		Encryption:    job.Encryption,
 		EncryptionKey: job.EncryptionKey,
 		// Database specific fields
 		DatabaseType: job.DatabaseType,
@@ -669,12 +720,12 @@ func StopJob(c *gin.Context) {
 // Backup
 func RunBackup(c *gin.Context) {
 	var req struct {
-		Name        string   `json:"name"`
-		Type        string   `json:"type"`
-		Sources     []string `json:"sources"`
-		Destination string   `json:"destination"`
-		Compression bool     `json:"compression"`
-		EncryptionKey string `json:"encryption_key"`
+		Name          string   `json:"name"`
+		Type          string   `json:"type"`
+		Sources       []string `json:"sources"`
+		Destination   string   `json:"destination"`
+		Compression   bool     `json:"compression"`
+		EncryptionKey string   `json:"encryption_key"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -683,13 +734,13 @@ func RunBackup(c *gin.Context) {
 	}
 
 	backupJob := &backup.BackupJob{
-		ID:          uuid.New().String(),
-		Name:        req.Name,
-		Type:        req.Type,
-		Sources:     req.Sources,
-		Destination: req.Destination,
-		Compression: req.Compression,
-		Encryption:  req.EncryptionKey != "",
+		ID:            uuid.New().String(),
+		Name:          req.Name,
+		Type:          req.Type,
+		Sources:       req.Sources,
+		Destination:   req.Destination,
+		Compression:   req.Compression,
+		Encryption:    req.EncryptionKey != "",
 		EncryptionKey: req.EncryptionKey,
 	}
 
@@ -1453,10 +1504,14 @@ try {
 		}
 	} else if req.Type == "postgresql" {
 		// Use psql to list databases
-		sshCmd := fmt.Sprintf(`PGPASSWORD=%s psql -h %s -p %d -U %s -d %s -c "\l" -t`,
-			req.Password, req.Server, req.Port, req.Login, req.Database)
-
-		cmd := exec.Command("bash", "-c", sshCmd)
+		dbName := req.Database
+		if dbName == "" {
+			dbName = "postgres"
+		}
+		cmd := exec.Command("psql", "-h", req.Server, "-p", fmt.Sprintf("%d", req.Port), "-U", req.Login, "-d", dbName, "-c", "\\l", "-t")
+		if req.Password != "" {
+			cmd.Env = append(os.Environ(), "PGPASSWORD="+req.Password)
+		}
 		output, err := cmd.Output()
 		if err != nil {
 			log.Printf("Failed to list PostgreSQL databases: %v", err)
@@ -1488,10 +1543,11 @@ try {
 		}
 	} else if req.Type == "mysql" {
 		// Use mysql to list databases
-		sshCmd := fmt.Sprintf(`mysql -h %s -P %d -u %s -p%s -e "SHOW DATABASES"`,
-			req.Server, req.Port, req.Login, req.Password)
-
-		cmd := exec.Command("bash", "-c", sshCmd)
+		args := []string{"-h", req.Server, "-P", fmt.Sprintf("%d", req.Port), "-u", req.Login, "-e", "SHOW DATABASES"}
+		cmd := exec.Command("mysql", args...)
+		if req.Password != "" {
+			cmd.Env = append(os.Environ(), "MYSQL_PWD="+req.Password)
+		}
 		output, err := cmd.Output()
 		if err != nil {
 			log.Printf("Failed to list MySQL databases: %v", err)
@@ -1549,15 +1605,38 @@ func BackupDatabase(c *gin.Context) {
 
 	log.Printf("Starting %s database backup for %v on server %s", req.DatabaseType, req.Databases, req.Server)
 
-	// TODO: Implement actual backup logic for each database type
-	// - SQL Server: BACKUP DATABASE ... TO DISK = ...
-	// - PostgreSQL: pg_dump -U user -d dbname -f backup.sql
-	// - Oracle: RMAN or expdp utility
+	if BackupEngine == nil {
+		c.JSON(500, gin.H{"error": "Backup engine not initialized"})
+		return
+	}
+
+	job := &backup.BackupJob{
+		ID:           sessionID,
+		Name:         fmt.Sprintf("DB-%s-%s", strings.ToUpper(req.DatabaseType), time.Now().Format("20060102-150405")),
+		Type:         backup.TypeDatabase,
+		Sources:      req.Databases,
+		Destination:  normalizePath(req.Destination),
+		DatabaseType: req.DatabaseType,
+		Server:       req.Server,
+		Port:         req.Port,
+		AuthType:     req.AuthType,
+		Login:        req.Login,
+		Password:     req.Password,
+		Service:      req.Service,
+		DatabaseConn: req.ConnectionString,
+	}
+
+	session, err := BackupEngine.ExecuteBackup(job)
+	persistBackupSession(session)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Помилка виконання резервного копіювання: " + err.Error()})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"success":    true,
-		"session_id": sessionID,
-		"message":    "Бекап розпочато",
+		"session_id": session.ID,
+		"message":    "Бекап завершено",
 		"db_type":    req.DatabaseType,
 	})
 }

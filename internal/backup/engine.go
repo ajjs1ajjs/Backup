@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/scrypt"
 	_ "modernc.org/sqlite"
 )
 
@@ -775,6 +777,9 @@ func (e *BackupEngine) backupMySQL(ctx context.Context, job *BackupJob, session 
 	}
 
 	cmd := exec.CommandContext(ctx, mysqldumpPath, args...)
+	if job.Password != "" {
+		cmd.Env = append(os.Environ(), "MYSQL_PWD="+job.Password)
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		e.log(session, fmt.Sprintf("mysqldump: %s", string(output)))
@@ -1334,14 +1339,41 @@ func (e *BackupEngine) compressFile(src, dst string) error {
 	return err
 }
 
+const (
+	encMagic     = "NBENC1"
+	encVersion   = byte(1)
+	encSaltSize  = 16
+	encChunkSize = 1024 * 1024
+)
+
+func deriveKey(password string, salt []byte) ([]byte, error) {
+	return scrypt.Key([]byte(password), salt, 1<<15, 8, 1, 32)
+}
+
 func (e *BackupEngine) encryptFile(src, dst, password string) error {
-	data, err := os.ReadFile(src)
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	salt := make([]byte, encSaltSize)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return err
+	}
+
+	key, err := deriveKey(password, salt)
 	if err != nil {
 		return err
 	}
 
-	key := sha256.Sum256([]byte(password))
-	block, err := aes.NewCipher(key[:])
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
@@ -1351,15 +1383,48 @@ func (e *BackupEngine) encryptFile(src, dst, password string) error {
 		return err
 	}
 
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err := dstFile.Write([]byte(encMagic)); err != nil {
+		return err
+	}
+	if _, err := dstFile.Write([]byte{encVersion}); err != nil {
+		return err
+	}
+	if _, err := dstFile.Write(salt); err != nil {
 		return err
 	}
 
-	// Seal prepends the nonce to the ciphertext
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
+	buffer := make([]byte, encChunkSize)
+	for {
+		n, readErr := srcFile.Read(buffer)
+		if n > 0 {
+			nonce := make([]byte, gcm.NonceSize())
+			if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+				return err
+			}
+			ciphertext := gcm.Seal(nil, nonce, buffer[:n], nil)
 
-	return os.WriteFile(dst, ciphertext, 0644)
+			if _, err := dstFile.Write(nonce); err != nil {
+				return err
+			}
+			var lenBuf [4]byte
+			binary.BigEndian.PutUint32(lenBuf[:], uint32(len(ciphertext)))
+			if _, err := dstFile.Write(lenBuf[:]); err != nil {
+				return err
+			}
+			if _, err := dstFile.Write(ciphertext); err != nil {
+				return err
+			}
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+
+	return nil
 }
 func (e *BackupEngine) formatBytes(bytes int64) string {
 	const unit = 1024
@@ -1474,9 +1539,6 @@ func buildMySQLDumpArgs(job *BackupJob, dumpFile string) ([]string, error) {
 	}
 	if job.Login != "" {
 		args = append(args, "-u", job.Login)
-	}
-	if job.Password != "" {
-		args = append(args, "-p"+job.Password)
 	}
 	if len(dbs) > 0 {
 		args = append(args, "--databases")

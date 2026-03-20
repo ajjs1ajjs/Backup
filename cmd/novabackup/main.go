@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -125,6 +126,7 @@ func buildServer() (*http.Server, error) {
 
 	// Load configuration
 	config := loadConfig()
+	_ = syncWebAssets()
 	fmt.Println("✓ Configuration loaded")
 
 	// Initialize RBAC engine
@@ -234,67 +236,71 @@ func buildServer() (*http.Server, error) {
 		// Change password requires authentication
 		auth.POST("/change-password", api.AuthMiddleware(), api.ChangePassword)
 
-	// Protected routes (require authentication)
-	protected := apiGroup.Group("")
-	protected.Use(api.AuthMiddleware(), api.AuditMiddleware())
-	{
-		// Jobs
-		protected.GET("/jobs", api.RequirePermission(rbac.PermJobsRead), api.ListJobs)
-		protected.POST("/jobs", api.RequirePermission(rbac.PermJobsCreate), api.CreateJob)
-		protected.PUT("/jobs/:id", api.RequirePermission(rbac.PermJobsUpdate), api.UpdateJob)
-		protected.DELETE("/jobs/:id", api.RequirePermission(rbac.PermJobsDelete), api.DeleteJob)
-		protected.POST("/jobs/:id/run", api.RequirePermission(rbac.PermBackupRun), api.RunJob)
-		protected.POST("/jobs/:id/stop", api.RequirePermission(rbac.PermBackupRun), api.StopJob)
+		// Protected routes (require authentication)
+		protected := apiGroup.Group("")
+		protected.Use(api.AuthMiddleware(), api.AuditMiddleware())
+		{
+			// Jobs
+			protected.GET("/jobs", api.RequirePermission(rbac.PermJobsRead), api.ListJobs)
+			protected.POST("/jobs", api.RequirePermission(rbac.PermJobsCreate), api.CreateJob)
+			protected.PUT("/jobs/:id", api.RequirePermission(rbac.PermJobsUpdate), api.UpdateJob)
+			protected.DELETE("/jobs/:id", api.RequirePermission(rbac.PermJobsDelete), api.DeleteJob)
+			protected.POST("/jobs/:id/run", api.RequirePermission(rbac.PermBackupRun), api.RunJob)
+			protected.POST("/jobs/:id/stop", api.RequirePermission(rbac.PermBackupRun), api.StopJob)
 
-		// Backup
-		protected.POST("/backup/run", api.RequirePermission(rbac.PermBackupRun), api.RunBackup)
-		protected.GET("/backup/sessions", api.RequirePermission(rbac.PermBackupRead), api.ListSessions)
-		protected.GET("/backup/sessions/:id", api.RequirePermission(rbac.PermBackupRead), api.GetSession)
-		protected.GET("/backup/sessions/:id/files", api.RequirePermission(rbac.PermBackupRead), api.BrowseBackupFiles)
-		protected.POST("/backup/verify", api.RequirePermission(rbac.PermBackupRun), api.VerifyBackup)
-		protected.GET("/backup/verifications", api.RequirePermission(rbac.PermBackupRead), api.GetVerificationHistory)
-		protected.GET("/backup/cbt-stats", api.RequirePermission(rbac.PermBackupRead), api.GetCBTStatistics)
+			// Backup
+			protected.POST("/backup/run", api.RequirePermission(rbac.PermBackupRun), api.RunBackup)
+			protected.GET("/backup/sessions", api.RequirePermission(rbac.PermBackupRead), api.ListSessions)
+			protected.GET("/backup/sessions/:id", api.RequirePermission(rbac.PermBackupRead), api.GetSession)
+			protected.GET("/backup/sessions/:id/files", api.RequirePermission(rbac.PermBackupRead), api.BrowseBackupFiles)
+			protected.POST("/backup/verify", api.RequirePermission(rbac.PermBackupRun), api.VerifyBackup)
+			protected.GET("/backup/verifications", api.RequirePermission(rbac.PermBackupRead), api.GetVerificationHistory)
+			protected.GET("/backup/cbt-stats", api.RequirePermission(rbac.PermBackupRead), api.GetCBTStatistics)
 
-		// Restore
-		protected.GET("/restore/points", api.RequirePermission(rbac.PermRestoreRead), api.ListRestorePoints)
-		protected.POST("/restore/files", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreFiles)
-		protected.POST("/restore/database", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreDatabase)
-		protected.POST("/restore/instant", api.RequirePermission(rbac.PermRestoreCreate), api.InstantRestore)
+			// Restore
+			protected.GET("/restore/points", api.RequirePermission(rbac.PermRestoreRead), api.ListRestorePoints)
+			protected.POST("/restore/files", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreFiles)
+			protected.POST("/restore/database", api.RequirePermission(rbac.PermRestoreCreate), api.RestoreDatabase)
+			protected.POST("/restore/instant", api.RequirePermission(rbac.PermRestoreCreate), api.InstantRestore)
 
-		// Storage
-		protected.GET("/storage/repos", api.RequirePermission(rbac.PermSettingsRead), api.ListRepos)
-		protected.POST("/storage/repos", api.RequirePermission(rbac.PermSettingsUpdate), api.CreateRepo)
-		protected.PUT("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateRepo)
-		protected.DELETE("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.DeleteRepo)
+			// Storage
+			protected.GET("/storage/repos", api.RequirePermission(rbac.PermSettingsRead), api.ListRepos)
+			protected.POST("/storage/repos", api.RequirePermission(rbac.PermSettingsUpdate), api.CreateRepo)
+			protected.PUT("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateRepo)
+			protected.DELETE("/storage/repos/:id", api.RequirePermission(rbac.PermSettingsUpdate), api.DeleteRepo)
 
-		// Settings
-		protected.GET("/settings", api.RequirePermission(rbac.PermSettingsRead), api.GetSettings)
-		protected.PUT("/settings", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateSettings)
+			// Settings
+			protected.GET("/settings", api.RequirePermission(rbac.PermSettingsRead), api.GetSettings)
+			protected.PUT("/settings", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateSettings)
+			protected.PUT("/settings/server", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateServerSettings)
+			protected.PUT("/settings/directories", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateDirectorySettings)
+			protected.PUT("/settings/retention", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateRetentionSettings)
+			protected.PUT("/settings/notifications", api.RequirePermission(rbac.PermSettingsUpdate), api.UpdateNotificationSettings)
 
-		// Users
-		protected.GET("/users", api.RequirePermission(rbac.PermUsersRead), api.ListUsers)
-		protected.GET("/users/:id", api.RequirePermission(rbac.PermUsersRead), api.GetUser)
-		protected.POST("/users", api.RequirePermission(rbac.PermUsersCreate), api.CreateUser)
-		protected.PUT("/users/:id", api.RequirePermission(rbac.PermUsersUpdate), api.UpdateUser)
-		protected.DELETE("/users/:id", api.RequirePermission(rbac.PermUsersDelete), api.DeleteUser)
-		protected.POST("/users/:id/enable", api.RequirePermission(rbac.PermUsersUpdate), api.EnableUser)
-		protected.POST("/users/:id/disable", api.RequirePermission(rbac.PermUsersUpdate), api.DisableUser)
+			// Users
+			protected.GET("/users", api.RequirePermission(rbac.PermUsersRead), api.ListUsers)
+			protected.GET("/users/:id", api.RequirePermission(rbac.PermUsersRead), api.GetUser)
+			protected.POST("/users", api.RequirePermission(rbac.PermUsersCreate), api.CreateUser)
+			protected.PUT("/users/:id", api.RequirePermission(rbac.PermUsersUpdate), api.UpdateUser)
+			protected.DELETE("/users/:id", api.RequirePermission(rbac.PermUsersDelete), api.DeleteUser)
+			protected.POST("/users/:id/enable", api.RequirePermission(rbac.PermUsersUpdate), api.EnableUser)
+			protected.POST("/users/:id/disable", api.RequirePermission(rbac.PermUsersUpdate), api.DisableUser)
 
-		// Reports & Statistics
-		protected.GET("/reports/statistics", api.RequirePermission(rbac.PermBackupRead), api.GetStatistics)
-		protected.GET("/reports/daily", api.RequirePermission(rbac.PermBackupRead), api.GetDailyReport)
+			// Reports & Statistics
+			protected.GET("/reports/statistics", api.RequirePermission(rbac.PermBackupRead), api.GetStatistics)
+			protected.GET("/reports/daily", api.RequirePermission(rbac.PermBackupRead), api.GetDailyReport)
 
-		// Database Management
-		protected.POST("/database/list", api.RequirePermission(rbac.PermBackupRead), api.ListDatabases)
-		protected.POST("/database/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupDatabase)
+			// Database Management
+			protected.POST("/database/list", api.RequirePermission(rbac.PermBackupRead), api.ListDatabases)
+			protected.POST("/database/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupDatabase)
 
-		// VM Management
-		protected.POST("/vm/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupVM)
-		protected.POST("/vm/list", api.RequirePermission(rbac.PermBackupRead), api.ListVMs)
+			// VM Management
+			protected.POST("/vm/backup", api.RequirePermission(rbac.PermBackupRun), api.BackupVM)
+			protected.POST("/vm/list", api.RequirePermission(rbac.PermBackupRead), api.ListVMs)
 
-		// Audit Logs
-		protected.GET("/audit/logs", api.RequirePermission(rbac.PermLogsRead), api.GetAuditLogs)
-	}
+			// Audit Logs
+			protected.GET("/audit/logs", api.RequirePermission(rbac.PermLogsRead), api.GetAuditLogs)
+		}
 	}
 
 	// Get server IP
@@ -411,6 +417,65 @@ func loadConfig() map[string]interface{} {
 	var config map[string]interface{}
 	json.Unmarshal(data, &config)
 	return config
+}
+
+func syncWebAssets() error {
+	srcDir := "web"
+	dstDir := filepath.Join("cmd", "novabackup", "web")
+
+	if _, err := os.Stat(srcDir); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(dstDir); err != nil {
+		return nil
+	}
+
+	return filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return nil
+		}
+		destPath := filepath.Join(dstDir, rel)
+
+		srcInfo, err := os.Stat(path)
+		if err != nil {
+			return nil
+		}
+		if dstInfo, err := os.Stat(destPath); err == nil {
+			if !srcInfo.ModTime().After(dstInfo.ModTime()) {
+				return nil
+			}
+		}
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return nil
+		}
+		return copyFile(path, destPath)
+	})
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }
 
 func getAllowScripts(config map[string]interface{}) bool {

@@ -1,10 +1,18 @@
 package database
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,8 +21,11 @@ import (
 )
 
 type Database struct {
-	db *sql.DB
+	db        *sql.DB
+	masterKey []byte
 }
+
+var ErrMasterKeyMissing = errors.New("master key not configured")
 
 type Job struct {
 	ID                string     `json:"id"`
@@ -111,12 +122,87 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	d := &Database{db: db}
+	d := &Database{db: db, masterKey: loadMasterKey()}
 	if err := d.init(); err != nil {
 		return nil, err
 	}
 
 	return d, nil
+}
+
+func loadMasterKey() []byte {
+	raw := strings.TrimSpace(os.Getenv("NOVABACKUP_MASTER_KEY"))
+	if raw == "" {
+		return nil
+	}
+	sum := sha256.Sum256([]byte(raw))
+	return sum[:]
+}
+
+func (d *Database) encryptSecret(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	if len(d.masterKey) == 0 {
+		return "", ErrMasterKeyMissing
+	}
+
+	block, err := aes.NewCipher(d.masterKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, []byte(value), nil)
+	return "enc:v1:" + base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func (d *Database) decryptSecret(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(value, "enc:v1:") {
+		return value, nil
+	}
+	if len(d.masterKey) == 0 {
+		return "", ErrMasterKeyMissing
+	}
+
+	payload, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(value, "enc:v1:"))
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(d.masterKey)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(payload) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, ciphertext := payload[:nonceSize], payload[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 func (d *Database) init() error {
@@ -230,6 +316,10 @@ func (d *Database) CreateJob(job *Job) error {
 	password, _ := json.Marshal(job.Password)
 	service, _ := json.Marshal(job.Service)
 	vmNames, _ := json.Marshal(job.VMNames)
+	encryptedKey, err := d.encryptSecret(job.EncryptionKey)
+	if err != nil {
+		return err
+	}
 
 	_, err := d.db.Exec(`
 		INSERT INTO jobs (
@@ -246,7 +336,7 @@ func (d *Database) CreateJob(job *Job) error {
 		)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, job.ID, job.Name, job.Type, string(sources), job.Destination,
-		job.Compression, job.CompressionLevel, job.Encryption, job.EncryptionKey, job.Deduplication, job.BlockSize, job.MaxThreads,
+		job.Compression, job.CompressionLevel, job.Encryption, encryptedKey, job.Deduplication, job.BlockSize, job.MaxThreads,
 		job.Incremental, job.FullBackupEvery, string(excludePatterns), string(includePatterns),
 		job.PreBackupScript, job.PostBackupScript,
 		job.Schedule, job.ScheduleTime, string(scheduleDays), job.CronExpression,
@@ -343,6 +433,16 @@ func (d *Database) ListJobs() ([]Job, error) {
 			job.NextRun = &nextRun.Time
 		}
 
+		if job.EncryptionKey != "" {
+			key, err := d.decryptSecret(job.EncryptionKey)
+			if err != nil {
+				log.Printf("Warning: failed to decrypt encryption key for job %s: %v", job.ID, err)
+				job.EncryptionKey = ""
+			} else {
+				job.EncryptionKey = key
+			}
+		}
+
 		jobs = append(jobs, job)
 	}
 
@@ -424,6 +524,16 @@ func (d *Database) GetJob(id string) (*Job, error) {
 		job.NextRun = &nextRun.Time
 	}
 
+	if job.EncryptionKey != "" {
+		key, err := d.decryptSecret(job.EncryptionKey)
+		if err != nil {
+			log.Printf("Warning: failed to decrypt encryption key for job %s: %v", job.ID, err)
+			job.EncryptionKey = ""
+		} else {
+			job.EncryptionKey = key
+		}
+	}
+
 	return &job, nil
 }
 
@@ -439,8 +549,12 @@ func (d *Database) UpdateJob(job *Job) error {
 	password, _ := json.Marshal(job.Password)
 	service, _ := json.Marshal(job.Service)
 	vmNames, _ := json.Marshal(job.VMNames)
+	encryptedKey, err := d.encryptSecret(job.EncryptionKey)
+	if err != nil {
+		return err
+	}
 
-	_, err := d.db.Exec(`
+	_, err = d.db.Exec(`
 		UPDATE jobs SET
 			name=?, type=?, sources=?, destination=?,
 			compression=?, compression_level=?, encryption=?, encryption_key=?, deduplication=?, block_size=?, max_threads=?,
@@ -454,7 +568,7 @@ func (d *Database) UpdateJob(job *Job) error {
 			vm_names=?, hyperv_host=?
 		WHERE id=?
 	`, job.Name, job.Type, string(sources), job.Destination,
-		job.Compression, job.CompressionLevel, job.Encryption, job.EncryptionKey, job.Deduplication, job.BlockSize, job.MaxThreads,
+		job.Compression, job.CompressionLevel, job.Encryption, encryptedKey, job.Deduplication, job.BlockSize, job.MaxThreads,
 		job.Incremental, job.FullBackupEvery,
 		string(excludePatterns), string(includePatterns), job.PreBackupScript, job.PostBackupScript,
 		job.Schedule, job.ScheduleTime, string(scheduleDays), job.CronExpression,

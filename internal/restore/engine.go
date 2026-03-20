@@ -8,6 +8,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Restore Types
@@ -88,8 +91,8 @@ type BackupFileInfo struct {
 
 // RestoreEngine handles all restore operations
 type RestoreEngine struct {
-	DataDir string
-	LogFile string
+	DataDir      string
+	LogFile      string
 	AllowScripts bool
 }
 
@@ -246,13 +249,12 @@ func (e *RestoreEngine) restoreFiles(req *RestoreRequest, session *RestoreSessio
 		}
 
 		// Determine destination path
-		var destPath string
-		if req.RestoreOriginal {
-			destPath = f.Name // Original location
-		} else {
-			// Get only filename to avoid path issues
-			fileName := filepath.Base(f.Name)
-			destPath = filepath.Join(destDir, fileName)
+		relPath := filepath.Clean(filepath.FromSlash(f.Name))
+		destPath, err := safeJoin(destDir, relPath)
+		if err != nil {
+			session.FilesSkipped++
+			session.Warnings = append(session.Warnings, fmt.Sprintf("Небезпечний шлях: %s", f.Name))
+			continue
 		}
 
 		// Skip if exists and not overwriting
@@ -306,6 +308,39 @@ func (e *RestoreEngine) extractFile(f *zip.File, destPath string, encryptionKey 
 	// Copy content
 	_, err = io.Copy(destFile, reader)
 	return err
+}
+
+func safeJoin(baseDir, relPath string) (string, error) {
+	if relPath == "" {
+		return "", fmt.Errorf("empty path")
+	}
+
+	cleanRel := filepath.Clean(relPath)
+	if cleanRel == "." || cleanRel == string(os.PathSeparator) {
+		return "", fmt.Errorf("invalid path")
+	}
+	if filepath.IsAbs(cleanRel) || filepath.VolumeName(cleanRel) != "" {
+		return "", fmt.Errorf("absolute path is not allowed")
+	}
+	if strings.HasPrefix(cleanRel, ".."+string(os.PathSeparator)) || cleanRel == ".." {
+		return "", fmt.Errorf("path traversal detected")
+	}
+
+	if baseDir == "" {
+		return cleanRel, nil
+	}
+
+	baseClean := filepath.Clean(baseDir)
+	fullPath := filepath.Join(baseClean, cleanRel)
+	relCheck, err := filepath.Rel(baseClean, fullPath)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(relCheck, ".."+string(os.PathSeparator)) || relCheck == ".." {
+		return "", fmt.Errorf("path escapes destination")
+	}
+
+	return fullPath, nil
 }
 
 // restoreDatabase restores a database from backup
@@ -855,7 +890,104 @@ func (e *RestoreEngine) decompressFile(src, dst string) error {
 	return err
 }
 
+const (
+	encMagic    = "NBENC1"
+	encVersion  = byte(1)
+	encSaltSize = 16
+)
+
+func deriveKey(password string, salt []byte) ([]byte, error) {
+	return scrypt.Key([]byte(password), salt, 1<<15, 8, 1, 32)
+}
+
 func (e *RestoreEngine) decryptFile(src, dst, password string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	magic := make([]byte, len(encMagic))
+	if _, err := io.ReadFull(srcFile, magic); err != nil {
+		return err
+	}
+
+	if string(magic) != encMagic {
+		_ = srcFile.Close()
+		return e.decryptFileLegacy(src, dst, password)
+	}
+
+	version := make([]byte, 1)
+	if _, err := io.ReadFull(srcFile, version); err != nil {
+		return err
+	}
+	if version[0] != encVersion {
+		return fmt.Errorf("unsupported encryption version: %d", version[0])
+	}
+
+	salt := make([]byte, encSaltSize)
+	if _, err := io.ReadFull(srcFile, salt); err != nil {
+		return err
+	}
+
+	key, err := deriveKey(password, salt)
+	if err != nil {
+		return err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	for {
+		nonce := make([]byte, gcm.NonceSize())
+		_, err := io.ReadFull(srcFile, nonce)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		var lenBuf [4]byte
+		if _, err := io.ReadFull(srcFile, lenBuf[:]); err != nil {
+			return err
+		}
+		clen := binary.BigEndian.Uint32(lenBuf[:])
+		if clen == 0 {
+			continue
+		}
+
+		cipherBuf := make([]byte, clen)
+		if _, err := io.ReadFull(srcFile, cipherBuf); err != nil {
+			return err
+		}
+
+		plaintext, err := gcm.Open(nil, nonce, cipherBuf, nil)
+		if err != nil {
+			return err
+		}
+		if _, err := dstFile.Write(plaintext); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *RestoreEngine) decryptFileLegacy(src, dst, password string) error {
 	ciphertext, err := os.ReadFile(src)
 	if err != nil {
 		return err
