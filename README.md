@@ -1,20 +1,23 @@
-# NovaBackup Enterprise v7.0
+# NovaBackup Enterprise v8.0
 
-Production-ready backup & recovery platform for Windows Server.
+Production-ready backup & recovery platform for Windows & Linux.
 
 [![License: Enterprise](https://img.shields.io/badge/License-Enterprise-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.25-blue)](https://golang.org)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20Server%202019%2B-lightgrey)](https://microsoft.com)
+[![Go Version](https://img.shields.io/badge/Go-1.23-blue)](https://golang.org)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey)](https://microsoft.com)
 [![Ukraine](https://img.shields.io/badge/Made%20in-%F0%9F%87%BA%F0%9F%87%A6-blue)](https://ukraine.ua)
 
 ---
 
 ## Highlights
-- File/Folder, DB, Hyper-V VM backups
-- Incremental + deduplication + compression
-- Fast restore: files, DB, VM
-- Web UI + RBAC + audit logs
-- **One-command automated installation**
+- 📁 File/Folder, Database (MSSQL/PostgreSQL/MySQL/Oracle), Hyper-V & KVM VM backups
+- 🔄 Incremental backups + **Block-level Deduplication (CAS)** — up to 90% storage savings
+- 🛡️ **Ransomware detection** — entropy analysis & anomaly monitoring
+- 🔐 **AES-GCM encryption** with random IV per block + secure key storage
+- ⚡ **Synthetic full backups** — merge backup chains without re-reading source data
+- 🌐 Web UI + RBAC + audit logs + real-time dashboard
+- ☁️ Cloud-ready architecture (S3 / Azure Blob Storage)
+- 🚀 **One-command automated installation** for Windows & Linux
 
 ---
 
