@@ -4,6 +4,7 @@ package backup
 import (
 	"archive/zip"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -55,10 +56,12 @@ func (e *BackupEngine) CreateSyntheticFull(config *SyntheticFullConfig) (*Synthe
 	}
 	defer outputFile.Close()
 
-	// For production: merge existing backups
-	// For now: create placeholder
-	filesProcessed := 1
-	blocksMerged := 1
+	// Merge logic using manifests
+	filesProcessed, blocksMerged, err := e.mergeBackups(outputFile, config)
+	if err != nil {
+		result.Error = fmt.Sprintf("Merge failed: %v", err)
+		return result, err
+	}
 
 	// Verify integrity if requested
 	if config.VerifyIntegrity {
@@ -86,22 +89,58 @@ func (e *BackupEngine) CreateSyntheticFull(config *SyntheticFullConfig) (*Synthe
 }
 
 // mergeBackups merges base and incremental backups into single archive
-func (e *BackupEngine) mergeBackups(output *os.File, base *BackupSession, incrementals []*BackupSession, compress bool) (int, int, error) {
-	// Create zip writer
+func (e *BackupEngine) mergeBackups(output *os.File, config *SyntheticFullConfig) (int, int, error) {
 	zipWriter := zip.NewWriter(output)
+	defer zipWriter.Close()
 
-	// For synthetic full, we merge from existing backup archives
-	// In production, this would open actual backup files and merge blocks
+	// We need to keep track of the latest version of every file
+	latestFiles := make(map[string]*zip.File)
 
-	filesProcessed := 1
-	blocksMerged := 1
+	// Chain order: Base (Full) -> Inc1 -> Inc2 -> ...
+	// Later files in the chain override earlier ones
+	allPaths := append([]string{config.BaseBackupPath}, config.IncrementalPaths...)
 
-	// Close zip writer to flush central directory
-	if err := zipWriter.Close(); err != nil {
-		return filesProcessed, blocksMerged, err
+	for _, path := range allPaths {
+		archivePath := filepath.Join(path, "backup.zip")
+		r, err := zip.OpenReader(archivePath)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to open archive %s: %v", archivePath, err)
+		}
+		// Note: We can't close r yet because we'll need to read file contents later
+		// In a production app, we'd close it and re-open or read everything into memory if small
+		for _, f := range r.File {
+			latestFiles[f.Name] = f
+		}
+		// For simplicity in this demo, we'll copy immediately to avoid keeping many zip.Readers open
+		for _, f := range r.File {
+			if latestFiles[f.Name] == f {
+				if err := e.copyZipEntry(zipWriter, f); err != nil {
+					r.Close()
+					return 0, 0, err
+				}
+			}
+		}
+		r.Close()
 	}
 
-	return filesProcessed, blocksMerged, nil
+	return len(latestFiles), 0, nil
+}
+
+// copyZipEntry copies a zip entry from one archive to another
+func (e *BackupEngine) copyZipEntry(zw *zip.Writer, f *zip.File) error {
+	src, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := zw.CreateHeader(&f.FileHeader)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dst, src)
+	return err
 }
 
 // copyFileToArchive copies a file (placeholder for production)

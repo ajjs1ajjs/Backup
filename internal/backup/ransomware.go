@@ -130,31 +130,42 @@ func (d *RansomwareDetector) Analyze() *RansomwareAlert {
 }
 
 func (d *RansomwareDetector) countEncryptedExtensions() int {
+	if d.CurrentBackup == nil {
+		return 0
+	}
+	// In production, we would get the list of files from the session or metadata
+	// For this implementation, we simulate by checking the Logs or assuming metadata is available
 	count := 0
-	// Analyze current backup files for ransomware extensions
-	// This would iterate through actual files in production
+	// This is a placeholder for real file scan
+	// In reality, we'd iterate over session's file list
 	return count
 }
 
 func (d *RansomwareDetector) calculateChangedPercent() float64 {
-	if d.PreviousBackup.FilesProcessed == 0 {
+	if d.PreviousBackup == nil || d.PreviousBackup.FilesProcessed == 0 {
 		return 0
 	}
 
-	// Calculate percentage of changed files
-	// In production, compare file hashes between backups
-	return 0.0
+	// Calculate based on session statistics
+	if d.CurrentBackup == nil {
+		return 0
+	}
+
+	// Simple heuristic: if backup size increased significantly or many files processed
+	// In a real system, we'd count files that had different hashes
+	changed := d.CurrentBackup.FilesProcessed
+	return float64(changed) / float64(d.PreviousBackup.FilesProcessed) * 100
 }
 
 func (d *RansomwareDetector) calculateEntropyIncrease() float64 {
-	// Calculate Shannon entropy of backup data
-	// Encrypted/compressed data has high entropy (~8.0 for random)
-	// Normal files have lower entropy (~4.0-6.0)
-	return 0.0
+	// Average entropy of common files is ~4.5
+	// Ransomware encrypted files have entropy > 7.5
+	// This would require sampling real data blocks
+	return 0.0 // Requires integration with engine's block processing
 }
 
 func (d *RansomwareDetector) calculateDeletedPercent() float64 {
-	if d.PreviousBackup.FilesProcessed == 0 {
+	if d.PreviousBackup == nil || d.PreviousBackup.FilesProcessed == 0 {
 		return 0
 	}
 

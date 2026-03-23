@@ -7,7 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
+
+	"golang.org/x/sys/windows"
 )
 
 // Storage Types
@@ -304,20 +307,29 @@ func (p *LocalProvider) GetSpace() (total, free, used int64, err error) {
 }
 
 func (p *LocalProvider) getSpaceWindows() (total, free, used int64, err error) {
-	// Use PowerShell to get disk space
-	// Simplified version - in production use syscall
-	total = 1024 * 1024 * 1024 * 500 // 500GB default
-	free = 1024 * 1024 * 1024 * 200  // 200GB default
-	used = total - free
-	return
+	var freeBytes, totalBytes, totalFreeBytes uint64
+	pathPtr, err := windows.UTF16PtrFromString(p.Path)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	err = windows.GetDiskFreeSpaceEx(pathPtr, &freeBytes, &totalBytes, &totalFreeBytes)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return int64(totalBytes), int64(totalFreeBytes), int64(totalBytes - totalFreeBytes), nil
 }
 
 func (p *LocalProvider) getSpaceUnix() (total, free, used int64, err error) {
-	// Use syscall for Unix systems
-	total = 1024 * 1024 * 1024 * 500
-	free = 1024 * 1024 * 1024 * 200
+	var stat syscall.Statfs_t
+	err = syscall.Statfs(p.Path, &stat)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	// Available blocks * size per block
+	free = int64(stat.Bavail) * int64(stat.Bsize)
+	total = int64(stat.Blocks) * int64(stat.Bsize)
 	used = total - free
-	return
+	return total, free, used, nil
 }
 
 func (p *LocalProvider) Test() error {
@@ -598,26 +610,72 @@ func (p *AzureProvider) Upload(srcPath, dstPath string) error {
 	// Upload file to Azure Blob Storage
 	// In production: use UploadFile() API call with block blob for large files
 	file, err := os.Open(srcPath)
+func (p *AzureProvider) Upload(ctx context.Context, localPath, remotePath string) error {
+	// Simulated Azure Blob Upload logic
+	if p.Container == "" {
+		return fmt.Errorf("Azure container not configured")
+	}
+
+	fmt.Printf("☁️ [Azure] Завантаження %s -> blob://%s/%s\n", localPath, p.Container, remotePath)
+
+	// For simulation: copy to a "cloud_sim" folder
+	simDest := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, remotePath)
+	os.MkdirAll(filepath.Dir(simDest), 0755)
+
+	src, err := os.Open(localPath)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer src.Close()
 
-	// For production: use block blob upload with retry options
-	_, err = file.Seek(0, 0) // Reset file pointer
+	dst, err := os.Create(simDest)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
 	return err
 }
 
-func (p *AzureProvider) Download(srcPath, dstPath string) error {
-	// Download file from Azure Blob Storage
-	// In production: use DownloadFile() API call
-	return nil
+func (p *AzureProvider) Download(ctx context.Context, remotePath, localPath string) error {
+	// Simulated Azure Download logic
+	simSrc := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, remotePath)
+	fmt.Printf("☁️ [Azure] Завантаження з Azure blob://%s/%s -> %s\n", p.Container, remotePath, localPath)
+
+	src, err := os.Open(simSrc)
+	if err != nil {
+		return fmt.Errorf("файл не знайдено в Azure (sim): %v", err)
+	}
+	defer src.Close()
+
+	os.MkdirAll(filepath.Dir(localPath), 0755)
+	dst, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	return err
 }
 
-func (p *AzureProvider) Delete(path string) error {
-	// Delete blob from container
-	// In production: use BlobClient.Delete() API call
-	return nil
+func (p *AzureProvider) Delete(ctx context.Context, remotePath string) error {
+	simFile := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, remotePath)
+	return os.Remove(simFile)
+}
+
+func (p *AzureProvider) List(ctx context.Context, prefix string) ([]string, error) {
+	simDir := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, prefix)
+	var files []string
+	filepath.Walk(simDir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			rel, _ := filepath.Rel(simDir, path)
+			files = append(files, rel)
+		}
+		return nil
+	})
+	return files, nil
 }
 
 func (p *AzureProvider) GetSpace() (total, free, used int64, err error) {

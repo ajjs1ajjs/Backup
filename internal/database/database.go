@@ -206,102 +206,137 @@ func (d *Database) decryptSecret(value string) (string, error) {
 }
 
 func (d *Database) init() error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS users (
-		id TEXT PRIMARY KEY,
-		username TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		email TEXT,
-		full_name TEXT,
-		role TEXT NOT NULL,
-		enabled BOOLEAN DEFAULT true,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		last_login DATETIME,
-		password_expires DATETIME
-	);
+	// Create migrations table if not exists
+	_, err := d.db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`)
+	if err != nil {
+		return err
+	}
 
-	CREATE TABLE IF NOT EXISTS jobs (
-		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL,
-		type TEXT DEFAULT 'file',
-		sources TEXT,
-		destination TEXT,
-		compression BOOLEAN DEFAULT false,
-		compression_level INTEGER DEFAULT 5,
-		encryption BOOLEAN DEFAULT false,
-		encryption_key TEXT,
-		deduplication BOOLEAN DEFAULT false,
-		block_size INTEGER DEFAULT 1048576,
-		max_threads INTEGER DEFAULT 4,
-		incremental BOOLEAN DEFAULT false,
-		full_backup_every INTEGER DEFAULT 7,
-		exclude_patterns TEXT,
-		include_patterns TEXT,
-		pre_backup_script TEXT,
-		post_backup_script TEXT,
-		schedule TEXT DEFAULT 'manual',
-		schedule_time TEXT,
-		schedule_days TEXT,
-		cron_expression TEXT,
-		enabled BOOLEAN DEFAULT true,
-		retention_days INTEGER DEFAULT 30,
-		retention_copies INTEGER DEFAULT 10,
-		gfs_daily INTEGER DEFAULT 7,
-		gfs_weekly INTEGER DEFAULT 4,
-		gfs_monthly INTEGER DEFAULT 12,
-		gfs_quarterly INTEGER DEFAULT 40,
-		gfs_yearly INTEGER DEFAULT 7,
-		backup_copy_enabled BOOLEAN DEFAULT false,
-		backup_copy_dest_id TEXT,
-		backup_copy_delay INTEGER DEFAULT 0,
-		backup_copy_encrypt BOOLEAN DEFAULT false,
-		database_type TEXT,
-		server TEXT,
-		port INTEGER DEFAULT 0,
-		auth_type TEXT,
-		login TEXT,
-		password TEXT,
-		service TEXT,
-		vm_names TEXT,
-		hyperv_host TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		last_run DATETIME,
-		next_run DATETIME
-	);
+	var currentVersion int
+	err = d.db.QueryRow("SELECT version FROM schema_version").Scan(&currentVersion)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
 
-	CREATE TABLE IF NOT EXISTS sessions (
-		id TEXT PRIMARY KEY,
-		job_id TEXT,
-		job_name TEXT,
-		start_time DATETIME,
-		end_time DATETIME,
-		status TEXT,
-		files_processed INTEGER DEFAULT 0,
-		bytes_written INTEGER DEFAULT 0,
-		error TEXT,
-		FOREIGN KEY (job_id) REFERENCES jobs(id)
-	);
+	migrations := []struct {
+		version int
+		sql     string
+	}{
+		{
+			version: 1,
+			sql: `
+			CREATE TABLE IF NOT EXISTS users (
+				id TEXT PRIMARY KEY,
+				username TEXT UNIQUE NOT NULL,
+				password_hash TEXT NOT NULL,
+				email TEXT,
+				full_name TEXT,
+				role TEXT NOT NULL,
+				enabled BOOLEAN DEFAULT true,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				last_login DATETIME,
+				password_expires DATETIME
+			);
+			CREATE TABLE IF NOT EXISTS jobs (
+				id TEXT PRIMARY KEY,
+				name TEXT NOT NULL,
+				type TEXT DEFAULT 'file',
+				sources TEXT,
+				destination TEXT,
+				compression BOOLEAN DEFAULT false,
+				compression_level INTEGER DEFAULT 5,
+				encryption BOOLEAN DEFAULT false,
+				encryption_key TEXT,
+				deduplication BOOLEAN DEFAULT false,
+				block_size INTEGER DEFAULT 1048576,
+				max_threads INTEGER DEFAULT 4,
+				incremental BOOLEAN DEFAULT false,
+				full_backup_every INTEGER DEFAULT 7,
+				exclude_patterns TEXT,
+				include_patterns TEXT,
+				pre_backup_script TEXT,
+				post_backup_script TEXT,
+				schedule TEXT DEFAULT 'manual',
+				schedule_time TEXT,
+				schedule_days TEXT,
+				cron_expression TEXT,
+				enabled BOOLEAN DEFAULT true,
+				retention_days INTEGER DEFAULT 30,
+				retention_copies INTEGER DEFAULT 10,
+				gfs_daily INTEGER DEFAULT 7,
+				gfs_weekly INTEGER DEFAULT 4,
+				gfs_monthly INTEGER DEFAULT 12,
+				gfs_quarterly INTEGER DEFAULT 40,
+				gfs_yearly INTEGER DEFAULT 7,
+				backup_copy_enabled BOOLEAN DEFAULT false,
+				backup_copy_dest_id TEXT,
+				backup_copy_delay INTEGER DEFAULT 0,
+				backup_copy_encrypt BOOLEAN DEFAULT false,
+				database_type TEXT,
+				server TEXT,
+				port INTEGER DEFAULT 0,
+				auth_type TEXT,
+				login TEXT,
+				password TEXT,
+				service TEXT,
+				vm_names TEXT,
+				hyperv_host TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				last_run DATETIME,
+				next_run DATETIME
+			);
+			CREATE TABLE IF NOT EXISTS sessions (
+				id TEXT PRIMARY KEY,
+				job_id TEXT,
+				job_name TEXT,
+				start_time DATETIME,
+				end_time DATETIME,
+				status TEXT,
+				files_processed INTEGER DEFAULT 0,
+				bytes_written INTEGER DEFAULT 0,
+				error TEXT,
+				FOREIGN KEY (job_id) REFERENCES jobs(id)
+			);
+			CREATE TABLE IF NOT EXISTS user_sessions (
+				id TEXT PRIMARY KEY,
+				user_id TEXT NOT NULL,
+				token TEXT UNIQUE NOT NULL,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				expires_at DATETIME NOT NULL,
+				last_used DATETIME DEFAULT CURRENT_TIMESTAMP,
+				ip_address TEXT,
+				user_agent TEXT,
+				FOREIGN KEY (user_id) REFERENCES users(id)
+			);
+			CREATE TABLE IF NOT EXISTS settings (
+				key TEXT PRIMARY KEY,
+				value TEXT
+			);
+			`,
+		},
+		// Future migrations go here:
+		// { version: 2, sql: "ALTER TABLE jobs ADD COLUMN cloud_provider TEXT" },
+	}
 
-	CREATE TABLE IF NOT EXISTS user_sessions (
-		id TEXT PRIMARY KEY,
-		user_id TEXT NOT NULL,
-		token TEXT UNIQUE NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		expires_at DATETIME NOT NULL,
-		last_used DATETIME DEFAULT CURRENT_TIMESTAMP,
-		ip_address TEXT,
-		user_agent TEXT,
-		FOREIGN KEY (user_id) REFERENCES users(id)
-	);
+	for _, m := range migrations {
+		if m.version > currentVersion {
+			_, err := d.db.Exec(m.sql)
+			if err != nil {
+				return fmt.Errorf("migration to v%d failed: %v", m.version, err)
+			}
+			if currentVersion == 0 {
+				_, err = d.db.Exec("INSERT INTO schema_version (version) VALUES (?)", m.version)
+			} else {
+				_, err = d.db.Exec("UPDATE schema_version SET version = ?", m.version)
+			}
+			if err != nil {
+				return err
+			}
+			currentVersion = m.version
+		}
+	}
 
-	CREATE TABLE IF NOT EXISTS settings (
-		key TEXT PRIMARY KEY,
-		value TEXT
-	);
-	`
-
-	_, err := d.db.Exec(schema)
-	return err
+	return nil
 }
 
 func (d *Database) CreateJob(job *Job) error {
@@ -313,10 +348,12 @@ func (d *Database) CreateJob(job *Job) error {
 	server, _ := json.Marshal(job.Server)
 	authType, _ := json.Marshal(job.AuthType)
 	login, _ := json.Marshal(job.Login)
-	password, _ := json.Marshal(job.Password)
-	service, _ := json.Marshal(job.Service)
 	vmNames, _ := json.Marshal(job.VMNames)
 	encryptedKey, err := d.encryptSecret(job.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	encryptedPassword, err := d.encryptSecret(job.Password)
 	if err != nil {
 		return err
 	}
@@ -343,7 +380,7 @@ func (d *Database) CreateJob(job *Job) error {
 		job.Enabled, job.RetentionDays, job.RetentionCopies,
 		job.GFSDaily, job.GFSWeekly, job.GFSMonthly, job.GFSQuarterly, job.GFSYearly,
 		job.BackupCopyEnabled, job.BackupCopyDestID, job.BackupCopyDelay, job.BackupCopyEncrypt,
-		string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service),
+		string(databaseType), string(server), job.Port, string(authType), string(login), encryptedPassword, string(service),
 		string(vmNames), job.HyperVHost)
 
 	return err
@@ -443,6 +480,13 @@ func (d *Database) ListJobs() ([]Job, error) {
 			}
 		}
 
+		if password.Valid && password.String != "" {
+			decryptedPassword, err := d.decryptSecret(password.String)
+			if err == nil {
+				job.Password = decryptedPassword
+			}
+		}
+
 		jobs = append(jobs, job)
 	}
 
@@ -534,6 +578,13 @@ func (d *Database) GetJob(id string) (*Job, error) {
 		}
 	}
 
+	if password.Valid && password.String != "" {
+		decryptedPassword, err := d.decryptSecret(password.String)
+		if err == nil {
+			job.Password = decryptedPassword
+		}
+	}
+
 	return &job, nil
 }
 
@@ -546,10 +597,14 @@ func (d *Database) UpdateJob(job *Job) error {
 	server, _ := json.Marshal(job.Server)
 	authType, _ := json.Marshal(job.AuthType)
 	login, _ := json.Marshal(job.Login)
-	password, _ := json.Marshal(job.Password)
+	// password, _ := json.Marshal(job.Password) // This line is removed as per the instruction
 	service, _ := json.Marshal(job.Service)
 	vmNames, _ := json.Marshal(job.VMNames)
 	encryptedKey, err := d.encryptSecret(job.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	encryptedPassword, err := d.encryptSecret(job.Password)
 	if err != nil {
 		return err
 	}
@@ -575,7 +630,7 @@ func (d *Database) UpdateJob(job *Job) error {
 		job.Enabled, job.RetentionDays, job.RetentionCopies,
 		job.GFSDaily, job.GFSWeekly, job.GFSMonthly, job.GFSQuarterly, job.GFSYearly,
 		job.BackupCopyEnabled, job.BackupCopyDestID, job.BackupCopyDelay, job.BackupCopyEncrypt,
-		string(databaseType), string(server), job.Port, string(authType), string(login), string(password), string(service),
+		string(databaseType), string(server), job.Port, string(authType), string(login), encryptedPassword, string(service),
 		string(vmNames), job.HyperVHost, job.ID)
 
 	return err

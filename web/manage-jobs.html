@@ -60,6 +60,7 @@
                     var(--accent-purple)
                 );
                 -webkit-background-clip: text;
+                background-clip: text;
                 -webkit-text-fill-color: transparent;
             }
             .logo-text p {
@@ -846,7 +847,10 @@
                             <div class="job-header">
                                 <div>
                                     <div class="job-title">${escapeHtml(job.name)}</div>
-                                    <span class="job-type ${typeClass}">${typeLabel}</span>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span class="job-type ${typeClass}">${typeLabel}</span>
+                                        ${job.deduplication ? `<span class="job-type" style="background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3);">DEDUP</span>` : ""}
+                                    </div>
                                 </div>
                                 <span class="status-badge ${statusClass}">
                                     <span class="status-dot"></span>

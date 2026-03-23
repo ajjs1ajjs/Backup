@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/scrypt"
+	"novabackup/internal/backup"
 )
 
 // Restore Types
@@ -94,13 +95,15 @@ type RestoreEngine struct {
 	DataDir      string
 	LogFile      string
 	AllowScripts bool
+	chunkStore   *backup.ChunkStore
 }
 
 // NewRestoreEngine creates a new restore engine
 func NewRestoreEngine(dataDir string) *RestoreEngine {
 	return &RestoreEngine{
-		DataDir: dataDir,
-		LogFile: filepath.Join(dataDir, "logs", "restore.log"),
+		DataDir:    dataDir,
+		LogFile:    filepath.Join(dataDir, "logs", "restore.log"),
+		chunkStore: backup.NewChunkStore(filepath.Join(dataDir, "chunks")),
 	}
 }
 
@@ -291,6 +294,52 @@ func (e *RestoreEngine) extractFile(f *zip.File, destPath string, encryptionKey 
 	}
 	defer srcFile.Close()
 
+	// Check if it's a deduplicated file manifest
+	const (
+		dedupMagic = "NBDEDUP1"
+		hashLen    = 64
+	)
+	magicBuf := make([]byte, len(dedupMagic))
+	n, _ := io.ReadFull(srcFile, magicBuf)
+	if n == len(dedupMagic) && string(magicBuf) == dedupMagic {
+		// Real Deduplication Restore
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		hashBuf := make([]byte, hashLen)
+		for {
+			_, err := io.ReadFull(srcFile, hashBuf)
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+
+			hashHex := string(hashBuf)
+			if e.chunkStore != nil {
+				if err := e.chunkStore.CopyToWriter(hashHex, destFile); err != nil {
+					return fmt.Errorf("помилка копіювання блоку %s: %v", hashHex, err)
+				}
+			} else {
+				return fmt.Errorf("сховище блоків (ChunkStore) не ініціалізовано")
+			}
+		}
+		return nil
+	}
+
+	// Classic restore (not deduplicated)
+	// Seek back to start if we read magic
+	srcFile.Close()
+	srcFile, err = f.Open()
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
 	// Create destination file
 	destFile, err := os.Create(destPath)
 	if err != nil {
@@ -301,7 +350,8 @@ func (e *RestoreEngine) extractFile(f *zip.File, destPath string, encryptionKey 
 	// Decrypt if needed
 	var reader io.Reader = srcFile
 	if encryptionKey != "" && strings.HasSuffix(f.Name, ".enc") {
-		// TODO: Implement decryption
+		// Decryption is handled at archive level in restoreFiles, but if individual
+		// files were encrypted, logic would go here.
 		reader = srcFile
 	}
 
