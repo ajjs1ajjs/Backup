@@ -1697,68 +1697,32 @@ func ListVMs(c *gin.Context) {
 		psScript := `
 $ErrorActionPreference = "Continue"
 try {
-    # Check if Hyper-V module is available
-    $module = Get-Module -ListAvailable -Name Hyper-V
-    if ($module -eq $null) {
-        Write-Host "Hyper-V module not found"
-        echo "[]"
-        exit 0
-    }
-
     # Try to get VMs
     $vms = Get-VM -ErrorAction SilentlyContinue
-    if ($vms -eq $null) {
-        Write-Host "No VMs found or not connected to Hyper-V host"
+    if ($vms -eq $null -or $vms.Count -eq 0) {
+        Write-Host "No VMs found"
         echo "[]"
         exit 0
-    }
-
-    if ($vms.Count -eq 0) {
-        Write-Host "VM list is empty"
-        echo "[]"
-        exit 0
-    }
-
-    # Convert State enum to string
-    $stateMap = @{
-        0 = "Other"
-        1 = "Running"
-        2 = "Paused"
-        3 = "Off"
-        4 = "Saved"
-        5 = "Stopping"
-        6 = "ShuttingDown"
-        7 = "Starting"
-        8 = "Reset"
-        9 = "Suspending"
-        10 = "FastSaved"
-        11 = "FastSavedPausing"
-        12 = "Pausing"
-        13 = "Resuming"
-        14 = "Saving"
-        15 = "Critical"
     }
 
     $result = $vms | ForEach-Object {
-        $stateText = if ($stateMap.ContainsKey($_.State)) { $stateMap[$_.State] } else { "Unknown" }
+        $stateText = $_.State.ToString().ToLower()
         [PSCustomObject]@{
             Name = $_.Name
-            State = $stateText.ToLower()
+            State = $stateText
             Memory = [math]::Round($_.MemoryAssigned/1MB, 0)
             Uptime = $_.Uptime.ToString()
             OS = if ($_.GuestOSInDetail) { $_.GuestOSInDetail } else { "Unknown" }
         }
     } | ConvertTo-Json -Depth 3
 
-    if ($result -eq $null -or $result -eq "") {
-        Write-Host "ConvertTo-Json returned null"
+    if ($null -eq $result -or "" -eq $result) {
         echo "[]"
     } else {
         echo $result
     }
 } catch {
     Write-Host "Error: $($_.Exception.Message)"
-    Write-Host "StackTrace: $($_.ScriptStackTrace)"
     echo "[]"
 }
 `
