@@ -1697,29 +1697,11 @@ func ListVMs(c *gin.Context) {
 		psScript := `
 $ErrorActionPreference = "Continue"
 try {
-    # Try to get VMs
-    $vms = Get-VM -ErrorAction SilentlyContinue
-    if ($vms -eq $null -or $vms.Count -eq 0) {
-        Write-Host "No VMs found"
-        echo "[]"
-        exit 0
-    }
-
-    $result = $vms | ForEach-Object {
-        $stateText = $_.State.ToString().ToLower()
-        [PSCustomObject]@{
-            Name = $_.Name
-            State = $stateText
-            Memory = [math]::Round($_.MemoryAssigned/1MB, 0)
-            Uptime = $_.Uptime.ToString()
-            OS = if ($_.GuestOSInDetail) { $_.GuestOSInDetail } else { "Unknown" }
-        }
-    } | ConvertTo-Json -Depth 3
-
-    if ($null -eq $result -or "" -eq $result) {
+    $vms = Get-VM -ErrorAction SilentlyContinue | Select-Object Name, State, Generation, @{N='Memory';E={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{N='CPU';E={$_.ProcessorCount}}, @{N='Status';E={$_.State.ToString()}} | ConvertTo-Json -Depth 2
+    if ($null -eq $vms -or "" -eq $vms) {
         echo "[]"
     } else {
-        echo $result
+        echo $vms
     }
 } catch {
     Write-Host "Error: $($_.Exception.Message)"
