@@ -504,6 +504,13 @@
 
             async function connectToHost() {
                 const config = getConnectionConfig();
+                // Fix: Use vm_type instead of type for API compatibility
+                const apiConfig = {
+                    vm_type: config.type === "hyperv" ? "hyper-v" : config.type,
+                    host: config.host,
+                    login: config.login,
+                    password: config.password,
+                };
                 const btn = event.target;
                 btn.disabled = true;
                 const originalText = btn.innerHTML;
@@ -517,7 +524,7 @@
                             Authorization:
                                 "Bearer " + localStorage.getItem("authToken"),
                         },
-                        body: JSON.stringify(config),
+                        body: JSON.stringify(apiConfig),
                     });
 
                     const data = await res.json();
