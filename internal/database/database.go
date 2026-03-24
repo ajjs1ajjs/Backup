@@ -348,6 +348,7 @@ func (d *Database) CreateJob(job *Job) error {
 	server, _ := json.Marshal(job.Server)
 	authType, _ := json.Marshal(job.AuthType)
 	login, _ := json.Marshal(job.Login)
+	service, _ := json.Marshal(job.Service)
 	vmNames, _ := json.Marshal(job.VMNames)
 	encryptedKey, err := d.encryptSecret(job.EncryptionKey)
 	if err != nil {

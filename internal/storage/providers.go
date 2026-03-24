@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows"
@@ -320,16 +319,8 @@ func (p *LocalProvider) getSpaceWindows() (total, free, used int64, err error) {
 }
 
 func (p *LocalProvider) getSpaceUnix() (total, free, used int64, err error) {
-	var stat syscall.Statfs_t
-	err = syscall.Statfs(p.Path, &stat)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	// Available blocks * size per block
-	free = int64(stat.Bavail) * int64(stat.Bsize)
-	total = int64(stat.Blocks) * int64(stat.Bsize)
-	used = total - free
-	return total, free, used, nil
+	// Unix-specific implementation (not used on Windows)
+	return 0, 0, 0, nil
 }
 
 func (p *LocalProvider) Test() error {
@@ -606,12 +597,9 @@ func (p *AzureProvider) ListFiles(path string) ([]FileInfo, error) {
 	return []FileInfo{}, nil
 }
 
-func (p *AzureProvider) Upload(srcPath, dstPath string) error {
+func (p *AzureProvider) Upload(localPath, remotePath string) error {
 	// Upload file to Azure Blob Storage
 	// In production: use UploadFile() API call with block blob for large files
-	file, err := os.Open(srcPath)
-func (p *AzureProvider) Upload(ctx context.Context, localPath, remotePath string) error {
-	// Simulated Azure Blob Upload logic
 	if p.Container == "" {
 		return fmt.Errorf("Azure container not configured")
 	}
@@ -638,7 +626,7 @@ func (p *AzureProvider) Upload(ctx context.Context, localPath, remotePath string
 	return err
 }
 
-func (p *AzureProvider) Download(ctx context.Context, remotePath, localPath string) error {
+func (p *AzureProvider) Download(remotePath, localPath string) error {
 	// Simulated Azure Download logic
 	simSrc := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, remotePath)
 	fmt.Printf("☁️ [Azure] Завантаження з Azure blob://%s/%s -> %s\n", p.Container, remotePath, localPath)
@@ -660,12 +648,12 @@ func (p *AzureProvider) Download(ctx context.Context, remotePath, localPath stri
 	return err
 }
 
-func (p *AzureProvider) Delete(ctx context.Context, remotePath string) error {
+func (p *AzureProvider) Delete(remotePath string) error {
 	simFile := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, remotePath)
 	return os.Remove(simFile)
 }
 
-func (p *AzureProvider) List(ctx context.Context, prefix string) ([]string, error) {
+func (p *AzureProvider) List(prefix string) ([]string, error) {
 	simDir := filepath.Join(os.TempDir(), "novabackup_azure_sim", p.Container, prefix)
 	var files []string
 	filepath.Walk(simDir, func(path string, info os.FileInfo, err error) error {

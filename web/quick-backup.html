@@ -515,7 +515,6 @@
                         <option value="mssql">Microsoft SQL Server</option>
                         <option value="postgresql">PostgreSQL</option>
                         <option value="oracle">Oracle Database</option>
-                        <option value="mysql">MySQL</option>
                     </select>
                 </div>
 
@@ -701,60 +700,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- MySQL Settings -->
-                <div id="db-mysql-settings" style="display: none">
-                    <div class="inline-form">
-                        <div class="form-group">
-                            <label class="form-label">Сервер</label>
-                            <input
-                                type="text"
-                                class="form-input"
-                                id="mysql-server"
-                                placeholder="localhost"
-                                value="localhost"
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Порт</label>
-                            <input
-                                type="number"
-                                class="form-input"
-                                id="mysql-port"
-                                value="3306"
-                            />
-                        </div>
-                    </div>
-                    <div class="inline-form">
-                        <div class="form-group">
-                            <label class="form-label">Логін</label>
-                            <input
-                                type="text"
-                                class="form-input"
-                                id="mysql-login"
-                                placeholder="root"
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Пароль</label>
-                            <input
-                                type="password"
-                                class="form-input"
-                                id="mysql-password"
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Бази даних</label>
-                        <input
-                            type="text"
-                            class="form-input"
-                            id="mysql-databases"
-                            placeholder="mydb, testdb"
-                        />
-                    </div>
-                </div>
             </div>
 
             <!-- VM Source -->
@@ -908,19 +853,19 @@
                     </button>
                 </div>
 
-                    <!-- Advanced Options Panel -->
-                    <div
-                        id="advanced-panel"
-                        style="
-                            display: none;
-                            margin-top: 1rem;
-                            padding: 1rem;
-                            background: var(--bg-primary);
-                            border-radius: 0.5rem;
-                        "
-                    >
-                        <!-- Compression Level -->
-                        <div class="form-group" style="margin-bottom: 1rem">
+                <!-- Advanced Options Panel -->
+                <div
+                    id="advanced-panel"
+                    style="
+                        display: none;
+                        margin-top: 1rem;
+                        padding: 1rem;
+                        background: var(--bg-primary);
+                        border-radius: 0.5rem;
+                    "
+                >
+                    <!-- Compression Level -->
+                    <div class="form-group" style="margin-bottom: 1rem">
                         <label class="form-label" style="font-size: 0.875rem"
                             >🗜️ Рівень стиснення</label
                         >
@@ -935,25 +880,25 @@
                                 Нормальне (Normal)
                             </option>
                             <option value="9">Максимальне (Maximum)</option>
-                            </select>
-                        </div>
+                        </select>
+                    </div>
 
-                        <!-- Encryption Key -->
-                        <div class="form-group" style="margin-bottom: 1rem">
-                            <label class="form-label" style="font-size: 0.875rem"
-                                >🔐 Ключ шифрування</label
-                            >
-                            <input
-                                type="password"
-                                id="encryption-key"
-                                class="form-input"
-                                placeholder="Введіть ключ для шифрування"
-                                style="font-size: 0.875rem"
-                            />
-                            <div class="form-hint">
-                                Потрібен для відновлення зашифрованого архіву
-                            </div>
+                    <!-- Encryption Key -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🔐 Ключ шифрування</label
+                        >
+                        <input
+                            type="password"
+                            id="encryption-key"
+                            class="form-input"
+                            placeholder="Введіть ключ для шифрування"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            Потрібен для відновлення зашифрованого архіву
                         </div>
+                    </div>
 
                     <!-- Block Size -->
                     <div class="form-group" style="margin-bottom: 1rem">
@@ -1301,11 +1246,6 @@
                         } else if (dbType === "oracle") {
                             databases =
                                 document.getElementById("ora-service").value;
-                        } else if (dbType === "mysql") {
-                            databases =
-                                document.getElementById(
-                                    "mysql-databases",
-                                ).value;
                         }
 
                         return databases
@@ -1384,7 +1324,7 @@
                 return `QuickBackup_${stamp}`;
             }
 
-                async function startBackup() {
+            async function startBackup() {
                 // Check for unsupported sources
                 if (
                     selectedSourceType === "server" ||
@@ -1422,37 +1362,37 @@
 
                 if (!confirm("Запустити резервне копіювання?")) return;
 
-                    const jobName =
-                        document.getElementById("job-name").value.trim() ||
-                        defaultJobName();
+                const jobName =
+                    document.getElementById("job-name").value.trim() ||
+                    defaultJobName();
 
-                    const encryptionEnabled =
-                        document.getElementById("encryption").checked;
-                    const encryptionKey =
-                        document.getElementById("encryption-key")?.value || "";
-                    if (encryptionEnabled && !encryptionKey) {
-                        alert("Вкажіть ключ шифрування або вимкніть шифрування.");
-                        return;
-                    }
+                const encryptionEnabled =
+                    document.getElementById("encryption").checked;
+                const encryptionKey =
+                    document.getElementById("encryption-key")?.value || "";
+                if (encryptionEnabled && !encryptionKey) {
+                    alert("Вкажіть ключ шифрування або вимкніть шифрування.");
+                    return;
+                }
 
-                    // Build job configuration
-                    const job = {
-                        name: jobName,
-                        type:
-                            selectedSourceType === "vm"
-                                ? "vm"
-                                : selectedSourceType === "database"
-                                  ? "database"
-                                  : "file",
-                        sources: sources,
-                        destination: destination,
-                        compression: document.getElementById("compression").checked,
-                        compression_level: parseInt(
-                            document.getElementById("compression-level")?.value ||
-                                "5",
-                        ),
-                        encryption: encryptionEnabled,
-                        encryption_key: encryptionEnabled ? encryptionKey : "",
+                // Build job configuration
+                const job = {
+                    name: jobName,
+                    type:
+                        selectedSourceType === "vm"
+                            ? "vm"
+                            : selectedSourceType === "database"
+                              ? "database"
+                              : "file",
+                    sources: sources,
+                    destination: destination,
+                    compression: document.getElementById("compression").checked,
+                    compression_level: parseInt(
+                        document.getElementById("compression-level")?.value ||
+                            "5",
+                    ),
+                    encryption: encryptionEnabled,
+                    encryption_key: encryptionEnabled ? encryptionKey : "",
                     deduplication: document.getElementById("dedup").checked,
                     block_size: parseInt(
                         document.getElementById("block-size")?.value ||
@@ -1563,16 +1503,6 @@
                         job.sources = [
                             document.getElementById("ora-service").value,
                         ];
-                    } else if (dbType === "mysql") {
-                        job.server =
-                            document.getElementById("mysql-server").value;
-                        job.port = parseInt(
-                            document.getElementById("mysql-port").value,
-                        );
-                        job.login =
-                            document.getElementById("mysql-login").value;
-                        job.password =
-                            document.getElementById("mysql-password").value;
                     }
                 }
 
@@ -1684,8 +1614,6 @@
                     document.getElementById(
                         "db-oracle-settings",
                     ).style.display = "none";
-                    document.getElementById("db-mysql-settings").style.display =
-                        "none";
 
                     // Show selected
                     document.getElementById(

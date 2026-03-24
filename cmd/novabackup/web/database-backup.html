@@ -769,7 +769,13 @@
                             database_type: config.type,
                             sources: selectedDatabases,
                             destination: `C:\\ProgramData\\NovaBackup\\Backups\\${config.type.toUpperCase()}`,
-                            ...config,
+                            server: config.server,
+                            port: config.port,
+                            auth_type: config.auth_type,
+                            login: config.login || "",
+                            password: config.password || "",
+                            service: config.service,
+                            connection_string: config.connection_string,
                         }),
                     });
 
@@ -818,7 +824,13 @@
                         body: JSON.stringify({
                             databases: selectedDatabases,
                             database_type: config.type,
-                            ...config,
+                            server: config.server,
+                            port: config.port,
+                            auth_type: config.auth_type,
+                            login: config.login || "",
+                            password: config.password || "",
+                            service: config.service,
+                            connection_string: config.connection_string,
                             destination: `C:\\ProgramData\\NovaBackup\\Backups\\${config.type.toUpperCase()}`,
                         }),
                     });
