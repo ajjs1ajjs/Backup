@@ -474,22 +474,25 @@
 
                 /* Help Icons */
                 .help-icon-btn {
-                    background: rgba(59, 130, 246, 0.2);
-                    border: 1px solid var(--accent-blue);
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.3);
                     border-radius: 50%;
-                    width: 24px;
-                    height: 24px;
+                    width: 20px;
+                    height: 20px;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: 12px;
                     margin-left: 0.5rem;
                     transition: all 0.2s;
                     position: relative;
+                    color: var(--text-secondary);
                 }
                 .help-icon-btn:hover {
-                    background: var(--accent-blue);
+                    background: rgba(59, 130, 246, 0.2);
+                    border-color: var(--accent-blue);
+                    color: var(--accent-blue);
                     transform: scale(1.1);
                 }
                 .help-tooltip {
@@ -655,9 +658,9 @@
                             <span class="nav-icon">⚙️</span>
                             <span>Загальні</span>
                         </a>
-                        <a href="notifications.html" class="nav-item">
-                            <span class="nav-icon">🔔</span>
-                            <span>Сповіщення</span>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
                         </a>
                     </nav>
                 </div>
@@ -684,7 +687,7 @@
                             class="help-icon-btn"
                             onclick="toggleHelp('help-stat-jobs')"
                             style="position: absolute; top: 10px; right: 10px"
-                            >❓</span
+                            >ℹ️</span
                         >
                         <div
                             id="help-stat-jobs"
@@ -719,7 +722,7 @@
                             class="help-icon-btn"
                             onclick="toggleHelp('help-stat-storage')"
                             style="position: absolute; top: 10px; right: 10px"
-                            >❓</span
+                            >ℹ️</span
                         >
                         <div
                             id="help-stat-storage"
@@ -751,7 +754,7 @@
                             class="help-icon-btn"
                             onclick="toggleHelp('help-stat-success')"
                             style="position: absolute; top: 10px; right: 10px"
-                            >❓</span
+                            >ℹ️</span
                         >
                         <div
                             id="help-stat-success"
@@ -783,12 +786,29 @@
                         <div class="stat-value" id="stat-sessions">0</div>
                         <div class="stat-label">Сесій (24г)</div>
                     </div>
-                    <div class="stat-card" style="border-color: var(--accent-green); background: rgba(16, 185, 129, 0.05);">
+                    <div
+                        class="stat-card"
+                        style="
+                            border-color: var(--accent-green);
+                            background: rgba(16, 185, 129, 0.05);
+                        "
+                    >
                         <div class="stat-header">
                             <span class="stat-icon">🛡️</span>
-                            <span class="status-badge-sm status-success">ACTIVE</span>
+                            <span class="status-badge-sm status-success"
+                                >ACTIVE</span
+                            >
                         </div>
-                        <div class="stat-value" id="stat-security" style="color: var(--accent-green); -webkit-text-fill-color: var(--accent-green);">100%</div>
+                        <div
+                            class="stat-value"
+                            id="stat-security"
+                            style="
+                                color: var(--accent-green);
+                                -webkit-text-fill-color: var(--accent-green);
+                            "
+                        >
+                            100%
+                        </div>
                         <div class="stat-label">Захист від Ransomware</div>
                     </div>
                 </div>
@@ -1055,7 +1075,8 @@
                         jobs.jobs?.length || 0;
                     document.getElementById("stat-sessions").textContent =
                         sessions.sessions?.length || 0;
-                    document.getElementById("stat-security").textContent = "100%"; // Mock for now
+                    document.getElementById("stat-security").textContent =
+                        "100%"; // Mock for now
 
                     // Update gauge indicators
                     const allJobs = jobs.jobs || [];
