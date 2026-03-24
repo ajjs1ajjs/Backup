@@ -1697,11 +1697,11 @@ func ListVMs(c *gin.Context) {
 		psScript := `
 $ErrorActionPreference = "Continue"
 try {
-    $vms = Get-VM -ErrorAction SilentlyContinue | Select-Object Name, State, Generation, @{N='Memory';E={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{N='CPU';E={$_.ProcessorCount}}, @{N='Status';E={$_.State.ToString()}} | ConvertTo-Json -Depth 2
-    if ($null -eq $vms -or "" -eq $vms) {
+    $vms = @(Get-VM -ErrorAction SilentlyContinue | Select-Object Name, State, Generation, @{N='Memory';E={[math]::Round($_.MemoryAssigned/1MB,0)}}, @{N='CPU';E={$_.ProcessorCount}}, @{N='Status';E={$_.State.ToString()}})
+    if ($null -eq $vms -or $vms.Count -eq 0) {
         echo "[]"
     } else {
-        echo $vms
+        $vms | ConvertTo-Json -Depth 2
     }
 } catch {
     Write-Host "Error: $($_.Exception.Message)"
