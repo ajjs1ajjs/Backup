@@ -504,9 +504,9 @@
 
             async function connectToHost() {
                 const config = getConnectionConfig();
-                // Fix: Use vm_type instead of type for API compatibility
+                // Fix: config.type already returns "hyper-v" or "kvm"
                 const apiConfig = {
-                    vm_type: config.type === "hyperv" ? "hyper-v" : config.type,
+                    vm_type: config.type,
                     host: config.host,
                     login: config.login,
                     password: config.password,
