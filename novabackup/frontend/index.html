@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Novabackup Dashboard</title>
+  </head>
+  <body>
+    <h1>Novabackup Dashboard</h1>
+    <div id="vm-list"></div>
+    <div id="backup-list"></div>
+    <script>
+      async function load() {
+        const vmRes = await fetch('/vms');
+        const vms = await vmRes.json();
+        document.getElementById('vm-list').innerText = 'VMs: ' + (Array.isArray(vms) ? vms.length : 0);
+        const bRes = await fetch('/backups');
+        const backs = await bRes.json();
+        document.getElementById('backup-list').innerText = 'Backups: ' + (backs.backups ? backs.backups.length : 0);
+      }
+      load();
+    </script>
+  </body>
+  </html>

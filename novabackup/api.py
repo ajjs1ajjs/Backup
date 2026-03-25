@@ -96,3 +96,7 @@ def get_app():
         )
 
     return app
+
+
+# Expose a module-level app for easy Docker/WSGI compatibility
+app = get_app()

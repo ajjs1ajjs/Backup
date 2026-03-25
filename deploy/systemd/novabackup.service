@@ -1,0 +1,19 @@
+[Unit]
+Description=Novabackup API Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=novabackup
+Group=novabackup
+WorkingDirectory=/opt/novabackup
+Environment=NOVABACKUP_API_KEY=changeme
+ExecStart=/opt/novabackup/venv/bin/uvicorn novabackup.api:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  api:
+    build: .
+    container_name: novabackup_api
+    ports:
+      - "8000:8000"
+    environment:
+      - NOVABACKUP_API_KEY=secret-key
+      - NOVABACKUP_CLOUD_PROVIDERS=MOCK
+      - NOVABACKUP_DATABASE_URL=/dev/null
+    command: ["uvicorn", "novabackup.api:app", "--host", "0.0.0.0", "--port", "8000"]
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=novabackup
+    ports:
+      - "5432:5432"
+  dashboard:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./novabackup/static:/usr/share/nginx/html:ro
+    depends_on:
+      - api

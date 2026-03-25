@@ -1,77 +1,82 @@
-# Novabackup
+Novabackup - Modern Python MVP for VM backup/restore
 
-A Python MVP for VM backup and restore across Windows Hyper-V and Linux Libvirt, with a DB backend, CLI, REST API, and a lightweight dashboard.
+Overview
+- Cross-platform CLI + API for VM backup/restore
+- Local DB backend (SQLite by default) with optional SQLAlchemy backends (PostgreSQL, MSSQL, Oracle)
+- Cloud provider scaffolding (AWS, Azure, GCP) with Mock for CI; real SDKs pluggable
+- Web API (FastAPI) with OpenAPI docs
+- Lightweight dashboard at /static/dashboard.html
+- CI with GitHub Actions; tests cover core, CLI, API, DB, and cloud scaffolding
 
-Key features
-- Windows Hyper-V provider for VM enumeration and restore workflows
-- Linux Libvirt provider for VM enumeration
-- SQLite DB backend for backups and restores (with optional SQLAlchemy DB backends for PostgreSQL, MySQL/MariaDB, MSSQL, Oracle)
-- CLI (backup create/list/restore) and REST API (FastAPI with Swagger docs)
-- Lightweight dashboard served from the API at /static/dashboard.html
-- Installers for Linux/macOS and Windows; CI with tests
+Why this exists
+- Provide a consistent flow for listing VMs, normalizing VM types, backing up, and restoring across local/cloud environments
+- Enable migration from a JSON store to a DB-based store with minimal friction
+- Provide a path to real cloud backups/restores using AWS/Azure/GCP SDKs
 
-Getting started (one-click style)
-- Prerequisites: Git, Python 3.9+, and optionally OS-specific DB drivers if you plan to use a real DB backend
+Key components (high level)
+- core.py: VM discovery and normalization; cloud providers support via env var NOVABACKUP_CLOUD_PROVIDERS
+- backup.py: BackupManager with local DB and cloud path support
+- db_sa.py: SQLAlchemy backed store for backups/restores (Postgres/MSSQL/Oracle)
+- db.py: small SQLite store used as default
+- novabackup/providers/cloud: AWS/Azure/GCP cloud providers + Mock
+- novabackup/api.py: FastAPI with /vms, /normalize, /backups, /backups/{backup_id}/restore
+- novabackup/cli.py: CLI for backup create/list/restore
+- novabackup/static/dashboard.html: minimal dashboard for data visibility
+- migrate.py/migrate_cli.py: JSON -> DB migration tooling
+- tests/: unit and integration tests including E2E
+- docker-compose.yml: quick local multi-service setup (DB/API/UI)
+- ROADMAP.md / TODO-PLAN.md: plans and roadmap (in repo)
 
-- Linux/macOS setup
-  1) git clone https://github.com/ajjs1ajjs/Backup.git
-  2) cd Backup
-  3) python3 -m venv venv
-  4) source venv/bin/activate
-  5) pip install -e ".[dev,api]"
-  6) pytest -q
-  7) python -m novabackup list-vms
-  8) python -m novabackup backup create --vm-id vm1 --dest ./backups --type full --name my-backup
-  9) python -m novabackup.run_api  # optional: start API
- 10) Open http://localhost:8000/docs for API docs
+Getting started (local dev)
+- Prerequisites: Git, Python 3.9+, pip
+- Linux/macOS:
+  - git clone https://github.com/ajjs1ajjs/Backup.git
+  - cd Backup
+  - python3 -m venv venv
+  - source venv/bin/activate
+  - pip install -e ".[dev,api]"  # for tests and API
+  - pytest -q
+  - python -m novabackup list-vms
+  - python -m novabackup backup create --vm-id vm1 --dest ./backups --type full --name my-backup
+  - python -m novabackup.run_api  # optional: start API
+  - http://localhost:8000/docs
+- Windows:
+  - git clone https://github.com/ajjs1ajjs/Backup.git
+  - cd Backup
+  - py -m venv venv
+  - venv\Scripts\activate
+  - pip install -e ".[dev,api]"
+  - pytest -q
+  - py -m novabackup list-vms
+  - py -m novabackup backup create --vm-id vm1 --dest .\backups --type full --name my-backup
+  - py -m novabackup.run_api
+  - http://localhost:8000/docs
 
-- Windows setup
-  1) git clone https://github.com/ajjs1ajjs/Backup.git
-  2) cd Backup
-  3) py -m venv venv
-  4) .\venv\Scripts\activate
-  5) pip install -e ".[dev,api]"
-  6) pytest -q
-  7) py -m novabackup list-vms
-  8) py -m novabackup backup create --vm-id vm1 --dest .\backups --type full --name my-backup
-  9) py -m novabackup.run_api
-  10) Open http://localhost:8000/docs for API docs
+API usage (optional)
+- Install API extras: pip install -e ".[api]"
+- Start API: python -m novabackup.run_api
+- Docs: http://localhost:8000/docs
+- Security: You can enable API keys by setting NOVABACKUP_API_KEY; provide header X-API-Key in calls
 
-API usage
-- The API is built with FastAPI. After starting the API server, you can access:
-  - GET /vms
-  - GET /normalize/{vm_type}
-  - POST /backups
-  - GET /backups
-  - POST /backups/{backup_id}/restore
-  - Docs: http://localhost:8000/docs
-  - Optional API Key: set NOVABACKUP_API_KEY and pass header X-API-Key
+Cloud providers (prototype)
+- AWS, Azure, and GCP are scaffolded with SDK calls ready to be wired up.
+- To enable, set NOVABACKUP_CLOUD_PROVIDERS=AWS,AZURE,GCP and provide credentials in environment or profile files
+- Cloud endpoints: POST /backups (destination_type=cloud) and POST /backups/{backup_id}/restore (cloud)
 
-Database notes
-- By default, backups are stored in backups.json (local JSON store).
-- You can switch to a real database by setting NOVABACKUP_DATABASE_URL to a SQLAlchemy URL, for example:
-  - sqlite:///./novabackup.db
-  - postgresql+psycopg2://user:pass@host:5432/novabackup
-  - mysql+mysqlconnector://user:pass@host:3306/novabackup
-  - mssql+pyodbc://user:pass@host:1433/novabackup?driver=ODBC+Driver+17+for+SQL+Server
-  - oracle+cx_oracle://user:pass@host:1521/?service_name=ORCLCDB
-Note: You need to install the respective drivers (psycopg2-binary, pyodbc, cx_Oracle).
+Database backends
+- Default: SQLite (backups.json)
+- SA DB backends: Postgres/MSSQL/Oracle via SA_DBManager
+- Environment controls: NOVABACKUP_DATABASE_URL for single database; NOVABACKUP_DATABASE_URL_POSTGRES, NOVABACKUP_DATABASE_URL_MSSQL, NOVABACKUP_DATABASE_URL_ORACLE for CI tests
 
-Migration (JSON → DB)
-- A small migration utility moves backups.json into a DB; see novabackup/migrate.py and novabackup/migrate_cli.py for usage.
+Migration
+- Migrate backups.json to DB via python -m novabackup.migrate_cli or python -m novabackup.migrate
 
-Tests
-- Run: pytest -q
+Testing and CI
+- Pytest, Mypy, Flake8 in CI
+- Cloud tests via moto (AWS) and cloud mocks for Azure/GCP until real credentials are provided
 
-Roadmap and future work
-- See ROADMAP.md for the current plan and milestones.
+Contribute
+- See CONTRIBUTING.md (to be added) and ROADMAP for roadmap
 
-If you need help or want me to tailor the DW (Docs/Wiki) for your team, just say the word.
-## Database backends (PostgreSQL, MSSQL, Oracle)
-- To use a real database backend, set NOVABACKUP_DATABASE_URL to a dialect URL and install the required driver libraries.
-- Supported dialect URLs:
-- PostgreSQL: postgresql+psycopg2://user:pass@host:5432/novabackup
-- MSSQL: mssql+pyodbc://user:pass@host:1433/novabackup?driver=ODBC+Driver+17+for+SQL+Server
-- Oracle: oracle+cx_oracle://user:pass@host:1521/?service_name=ORCLCDB
-- Drivers to install: psycopg2-binary, pyodbc, cx_Oracle
-- Environment variables to test in CI: NOVABACKUP_DATABASE_URL_POSTGRES, NOVABACKUP_DATABASE_URL_MSSQL, NOVABACKUP_DATABASE_URL_ORACLE
+License
+- MIT (see LICENSE)

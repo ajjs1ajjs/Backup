@@ -1,0 +1,29 @@
+version: '3.9'
+services:
+  api:
+    image: ghcr.io/your-org/novabackup-api:latest
+    container_name: nb_api_prod
+    environment:
+      - NOVABACKUP_API_KEY=prod-secret
+      - NOVABACKUP_CLOUD_PROVIDERS=MOCK AWS,AZURE,GCP
+      - NOVABACKUP_DATABASE_URL=sqlite:///./prod_novabackup.db
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=novabackup_prod
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+  ui:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./novabackup/static:/usr/share/nginx/html:ro
+    depends_on:
+      - api
