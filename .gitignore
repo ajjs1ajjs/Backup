@@ -12,3 +12,10 @@ publish/
 *.test
 *.out
 vendor/
+__pycache__/
+*.pyc
+venv/
+env/
+.venv/
+dist/
+build/

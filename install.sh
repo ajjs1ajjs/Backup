@@ -1,135 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Novabackup installer (Linux/macOS)"
 
-# ========================================
-#   NovaBackup v7.0 - Auto Installation
-#   One-command fully automated install
-# ========================================
-
-echo "========================================"
-echo "  NovaBackup v7.0 - Auto Installation"
-echo "========================================"
-echo ""
-
-# Check root
-if [ "$EUID" -ne 0 ]; then
-    echo "[OK] Restarting with sudo..."
-    exec sudo bash "$0" "$@"
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Python3 is required. Please install Python 3.9+." >&2
+  exit 1
+fi
+if ! command -v pip3 >/dev/null 2>&1; then
+  echo "pip3 is required. Please install pip." >&2
+  exit 1
 fi
 
-echo "[OK] Root privileges confirmed"
-echo ""
+INSTALL_ROOT="$HOME/.novabackup"
+VENV_DIR="$INSTALL_ROOT/venv"
 
-INSTALL_DIR="/opt/novabackup"
-DATA_DIR="/var/lib/novabackup"
-SYSTEMD_DIR="/etc/systemd/system"
-ENV_FILE="/etc/novabackup.env"
-RAW_URL="https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
+mkdir -p "$INSTALL_ROOT"
 
-echo "[*] Downloading novabackup from GitHub..."
-cd /tmp
-
-# Download pre-built release
-curl -sL -o novabackup "$RAW_URL/novabackup-linux-amd64"
-if [ ! -f novabackup ] || [ ! -s novabackup ]; then
-    echo "[ERROR] Download failed!"
-    exit 1
+if [ ! -d "$VENV_DIR" ]; then
+  python3 -m venv "$VENV_DIR"
 fi
 
-echo "[*] Creating directories..."
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$DATA_DIR/logs"
-mkdir -p "$DATA_DIR/backups"
-mkdir -p "$DATA_DIR/config"
+source "$VENV_DIR/bin/activate"
 
-echo "[*] Installing..."
-chmod +x novabackup
-cp novabackup "$INSTALL_DIR/NovaBackup"
+pip install -e ".[dev,api]"
 
-if [ -n "$NOVABACKUP_MASTER_KEY" ]; then
-    echo "[*] Configuring NOVABACKUP_MASTER_KEY..."
-    echo "NOVABACKUP_MASTER_KEY=$NOVABACKUP_MASTER_KEY" > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
-fi
+echo "Novabackup installed in virtual environment: $VENV_DIR"
+echo "To use: source $VENV_DIR/bin/activate"
+echo "Then run: novabackup list-vms"
 
-echo "[*] Creating systemd service..."
-cat > "$SYSTEMD_DIR/novabackup.service" << EOF
-[Unit]
-Description=NovaBackup Enterprise v7.0
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR
-EnvironmentFile=-$ENV_FILE
-ExecStart=$INSTALL_DIR/NovaBackup server
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-echo "[*] Reloading systemd..."
-systemctl daemon-reload
-
-echo "[*] Enabling service..."
-systemctl enable novabackup
-
-echo "[*] Starting service..."
-systemctl start novabackup
-
-# Wait for service to start
-sleep 3
-
-# Verify and fallback
-if ! systemctl is-active --quiet novabackup; then
-    echo "[WARNING] Service failed, starting manually..."
-    nohup "$INSTALL_DIR/NovaBackup" server > /dev/null 2>&1 &
-    sleep 2
-fi
-
-# Cleanup
-rm -f /tmp/novabackup
-
-echo ""
-echo "========================================"
-echo "  Installation Complete!"
-echo "========================================"
-echo ""
-echo "Installation: $INSTALL_DIR"
-echo "Data: $DATA_DIR"
-echo ""
-
-if systemctl is-active --quiet novabackup; then
-    echo "[OK] Service: RUNNING"
-else
-    echo "[!] Service: Background mode"
-fi
-
-echo ""
-echo "Web UI: http://localhost:8050"
-echo "Login: admin"
-echo "Password: admin123"
-echo ""
-
-# Check if web server is responding
-echo "[*] Checking Web UI..."
-for i in 1 2 3 4 5; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8050 2>/dev/null | grep -qE "200|302"; then
-        echo "[OK] Web UI is responding"
-        break
+# Try to fetch repo if not present (git required)
+if command -v git >/dev/null 2>&1; then
+  REPO_URL_DEFAULT=${NOVABACKUP_REPO_URL:-https://github.com/ajjs1ajjs/Backup}
+  TMPDIR=$(mktemp -d)
+  git clone --depth 1 "$REPO_URL_DEFAULT" "$TMPDIR/novabackup" || true
+  if [ -d "$TMPDIR/novabackup" ]; then
+    echo "Found repo at $REPO_URL_DEFAULT, attempting to install from source."
+    cd "$TMPDIR/novabackup"
+    if [ -f pyproject.toml ] || [ -f setup.py ]; then
+      pip install -e .
     fi
-    sleep 1
-done
-
-echo ""
-echo "Done!"
-sleep 2
-
-# Open browser if available
-if command -v xdg-open &> /dev/null; then
-    xdg-open http://localhost:8050 2>/dev/null &
+  fi
+else
+  echo "Git is not installed. To install from source, clone the repository manually and run 'pip install -e .[dev,api]'."
 fi
-
-exit 0

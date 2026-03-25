@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "novabackup"
+version = "0.1.0"
+description = "Python MVP: VM listing and normalization CLI with optional API."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [ { name = "OpenCode" } ]
+dependencies = [
+  "typer>=0.3.2",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110.0", "uvicorn>=0.18.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]

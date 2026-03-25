@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novabackup Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>Novabackup Dashboard</h1>
+  <section id="vms-section">
+    <h2>VMs</h2>
+    <table id="vms-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  <section id="backups-section">
+    <h2>Backups</h2>
+    <table id="backups-table">
+      <thead>
+        <tr><th>Backup ID</th><th>VM ID</th><th>Dest</th><th>Type</th><th>Status</th><th>Created</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  <script>
+    async function loadVms(){
+      const res = await fetch('/vms');
+      const vms = await res.json();
+      const tbody = document.querySelector('#vms-table tbody');
+      vms.forEach(vm => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${vm.id}</td><td>${vm.name}</td><td>${vm.type}</td><td>${vm.status}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    async function loadBackups(){
+      const res = await fetch('/backups');
+      const data = await res.json();
+      const backups = data.backups || [];
+      const tbody = document.querySelector('#backups-table tbody');
+      backups.forEach(b => {
+        const tr = document.createElement('tr');
+        const snap = b.snapshot || {};
+        tr.innerHTML = `<td>${b.backup_id}</td><td>${b.vm_id}</td><td>${b.dest}</td><td>${b.type}</td><td>${b.status}</td><td>${b.created_at}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    window.addEventListener('load', () => {
+      loadVms();
+      loadBackups();
+    });
+  </script>
+</body>
+</html>

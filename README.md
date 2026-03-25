@@ -1,213 +1,58 @@
-# NovaBackup Enterprise v8.0
+# Novabackup
 
-Production-ready backup & recovery platform for Windows & Linux.
+This project is a Python-based MVP CLI for VM listing and type normalization with optional API.
 
-[![License: Enterprise](https://img.shields.io/badge/License-Enterprise-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.23-blue)](https://golang.org)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey)](https://microsoft.com)
-[![Ukraine](https://img.shields.io/badge/Made%20in-%F0%9F%87%BA%F0%9F%87%A6-blue)](https://ukraine.ua)
+All-in-one install and run guide (Windows and Linux).
 
----
+Prerequisites
+- Git
+- Python 3.9+
+- Optional: For API features, extras: fastapi, uvicorn
 
-## Highlights
-- 📁 File/Folder, Database (MSSQL/PostgreSQL/MySQL/Oracle), Hyper-V & KVM VM backups
-- 🔄 Incremental backups + **Block-level Deduplication (CAS)** — up to 90% storage savings
-- 🛡️ **Ransomware detection** — entropy analysis & anomaly monitoring
-- 🔐 **AES-GCM encryption** with random IV per block + secure key storage
-- ⚡ **Synthetic full backups** — merge backup chains without re-reading source data
-- 🌐 Web UI + RBAC + audit logs + real-time dashboard
-- ☁️ Cloud-ready architecture (S3 / Azure Blob Storage)
-- 🚀 **One-command automated installation** for Windows & Linux
+1) Clone the repository
+- Windows:
+  - git clone https://your-repo-url/novabackup.git
+- Linux:
+  - git clone https://your-repo-url/novabackup.git
 
----
+2) Install and run (local dev)
+- Linux/macOS
+  - cd novabackup
+  - python3 -m venv venv
+  - source venv/bin/activate
+  - pip install -e .
+  - python -m novabackup list-vms
+  - python -m novabackup normalize KVM
 
-## Quick Start
+- Windows
+  - cd novabackup
+  - py -m venv venv
+  - venv\Scripts\activate
+  - pip install -e .
+  - py -m novabackup list-vms
+  - py -m novabackup normalize KVM
 
-### Windows (PowerShell)
+3) API (optional)
+- To enable API, install extras and run the API server
+  - Linux/Windows:
+    - pip install -e .[api]
+    - python -m novabackup.run_api
+  - Access API endpoints:
+    - http://localhost:8000/vms
+    - http://localhost:8000/normalize/{vm_type}
 
-**One-Command Install** (auto-elevates to administrator):
-```powershell
-iwr -Uri https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile install.bat; .\install.bat
-```
+4) Tests
+- pip install -e .[dev]  # if extras are defined, else install pytest
+- pytest
 
-**Manual Download:**
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat" -OutFile "install.bat"; .\install.bat
-```
+-5) One-line installers (example)
+- Windows: iwr -Uri https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile install.bat; .\\install.bat
+- Linux/macOS: curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | bash
+Note: Replace the URL with your actual repository URL when published.
+- Windows: iwr -Uri https://raw.githubusercontent.com/your-repo/novabackup/main/install.bat -OutFile install.bat; .\\install.bat
+- Linux/macOS: curl -fsSL https://raw.githubusercontent.com/your-repo/novabackup/main/install.sh | bash
+Note: Replace the URL with your actual repository URL when published.
 
-**Update:**
-```powershell
-iwr -Uri https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.bat -OutFile update.bat; .\update.bat
-```
-
-### Linux (Ubuntu/Debian)
-
-**One-Command Install** (auto-elevates to root):
-```bash
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash
-```
-
-**Update:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/update.sh | sudo bash
-```
-
-**Service Management:**
-```bash
-sudo systemctl status novabackup
-sudo systemctl restart novabackup
-sudo systemctl stop novabackup
-sudo systemctl start novabackup
-```
-
-### Access Web UI
-```
-URL: http://localhost:8050
-Login: admin
-Password: admin123
-```
-
-⚠️ **Important:** Change the default password after first login. The system will force you to change it.
-
-🔐 **Encryption note:** To use encrypted backups, set `NOVABACKUP_MASTER_KEY` on the server (see **Encryption & Master Key** below).
-
----
-
-## What Does the Installer Do?
-
-### Windows (`install.bat`)
-1. ✅ Auto-elevates to administrator privileges
-2. ✅ Builds `novabackup.exe` from source (requires Go)
-3. ✅ Creates directories: `C:\Program Files\NovaBackup\`, `C:\ProgramData\NovaBackup\`
-4. ✅ Installs Windows Service (`NovaBackup`) with auto-start
-5. ✅ Starts the service automatically
-6. ✅ Creates desktop and Start menu shortcuts
-7. ✅ Opens Web UI in browser
-
-### Linux (`install.sh`)
-1. ✅ Auto-elevates to root via sudo
-2. ✅ Clones repository and builds from source (requires Go)
-3. ✅ Creates directories: `/opt/novabackup/`, `/var/lib/novabackup/`
-4. ✅ Creates systemd service (`novabackup.service`)
-5. ✅ Enables and starts the service
-6. ✅ Verifies Web UI is responding
-7. ✅ Opens browser if available
-
-## Documentation
-- [README.md](README.md)
-- [INSTALL.md](INSTALL.md)
-- [ENTERPRISE_DEPLOYMENT.md](ENTERPRISE_DEPLOYMENT.md)
-- [Releases](https://github.com/ajjs1ajjs/Backup/releases)
-- [Wiki](https://github.com/ajjs1ajjs/Backup/wiki)
-
----
-
-## Build From Source (Git)
-```powershell
-git clone https://github.com/ajjs1ajjs/Backup.git
-cd Backup
-go build -o novabackup.exe .\cmd\novabackup
-.\novabackup.exe server
-```
-
-**Update from Git**
-```powershell
-git pull
-go build -o novabackup.exe .\cmd\novabackup
-
-# If running as a service
-.\novabackup.exe stop
-.\novabackup.exe start
-```
-
-Note: The Web UI is served from the `web/` folder next to `novabackup.exe`.
-
----
-
-## Technical Details
-
-### Services & Ports
-- HTTP: `8050`
-- HTTPS: `8443` (if enabled in config)
-- Windows service: `NovaBackup`
-- Linux systemd service: `novabackup`
-
-### Paths & Data Layout
-**Windows (install.bat)**
-- EXE: `C:\Program Files\NovaBackup\NovaBackup.exe`
-- Web UI: `C:\Program Files\NovaBackup\web\`
-- Data: `C:\ProgramData\NovaBackup\`
-- Logs: `C:\ProgramData\NovaBackup\Logs\`
-
-**Linux (install.sh)**
-- EXE: `/opt/novabackup/NovaBackup`
-- Data: `/var/lib/novabackup/`
-- Logs: `/var/lib/novabackup/logs/`
-
-**Dev/Portable**
-- Data: `<exe_dir>\data\`
-- Sessions: `<data>\sessions\*.json`
-- DB: `<data>\novabackup.db`
-
-### Backup Layout (File Jobs)
-```
-<destination>\<job_name>\YYYY-MM-DD_HHMMSS\
-  backup.zip
-  metadata.json
-```
-If encryption is enabled, the archive is stored as `backup.zip.enc`.
-
-### Sessions & Metadata
-- Backup sessions are written to `data/sessions/<session_id>.json`
-- Summary is also stored in SQLite (`novabackup.db`) for quick listing
-
-### Encryption & Master Key
-- Encrypted archives use streaming AES-GCM with `scrypt` key derivation.
-- The encryption key for a job is stored **encrypted** in the database.  
-  This requires `NOVABACKUP_MASTER_KEY` to be set on the server.
-- **Windows (service):**
-  ```powershell
-  setx /M NOVABACKUP_MASTER_KEY "your-strong-master-key"
-  Restart-Service NovaBackup
-  ```
-- **Linux (systemd):**
-  ```bash
-  echo 'NOVABACKUP_MASTER_KEY=your-strong-master-key' | sudo tee /etc/novabackup.env
-  sudo chmod 600 /etc/novabackup.env
-  sudo systemctl restart novabackup
-  ```
-- Legacy encrypted backups (old format) are still supported for restore.
-
-### API Quick Reference
-```bash
-GET  /api/health
-POST /api/auth/login
-GET  /api/jobs
-POST /api/jobs
-POST /api/jobs/:id/run
-GET  /api/backup/sessions
-GET  /api/backup/sessions/:id/files
-POST /api/restore/files
-POST /api/restore/database
-```
-
----
-
-## System Requirements
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| OS | Windows Server 2019 | Windows Server 2022 |
-| CPU | 2 cores | 4+ cores |
-| RAM | 4 GB | 8+ GB |
-| Disk | 1 GB + backup storage | SSD for database |
-| Network | 1 Gbps | 10 Gbps |
-
----
-
-## Support
-Support portal: https://support.novabackup.local
-
----
-
-## License
-Enterprise License - see [LICENSE](LICENSE)
+Notes
+- This is a starting MVP. Real provider integrations (Hyper-V, KVM, VMware) can be added via providers modules.
+- The roadmap and patch history live in ROADMAP.md and tests/test_core.py as unit tests.

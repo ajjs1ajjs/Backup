@@ -1,131 +1,41 @@
 @echo off
-chcp 65001 >nul
-setlocal enabledelayedexpansion
+setlocal
+echo Novabackup installer (Windows)
 
-REM ========================================
-REM   NovaBackup v7.0 - Auto Installation
-REM   One-command fully automated install
-REM ========================================
-
-echo ========================================
-echo   NovaBackup v7.0 - Auto Installation
-echo ========================================
-echo.
-
-REM Check admin rights
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo [OK] Restarting with administrator privileges...
-    powershell -Command "Start-Process cmd -ArgumentList '/c', '%~f0' -Verb RunAs"
-    exit /b 0
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+  echo Python is not found on PATH. Please install Python 3.9+ and ensure it's on PATH.
+  exit /b 1
 )
 
-echo [OK] Administrator rights confirmed
-echo.
-
-REM Set installation directory
-set "INSTALL_DIR=C:\Program Files\NovaBackup"
-set "DATA_DIR=C:\ProgramData\NovaBackup"
-set "RAW_URL=https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
-
-REM Optional: persist master key for encryption (service will read on start)
-if not "%NOVABACKUP_MASTER_KEY%"=="" (
-    echo [*] Setting NOVABACKUP_MASTER_KEY for service...
-    setx /M NOVABACKUP_MASTER_KEY "%NOVABACKUP_MASTER_KEY%" >nul
+set "INSTALL_DIR=%USERPROFILE%\.novabackup"
+set "VENV=%INSTALL_DIR%\venv"
+if not exist "%VENV%" (
+  mkdir "%INSTALL_DIR%" >nul 2>&1
 )
+python -m venv "%VENV%"
+call "%VENV%\Scripts\activate.bat"
 
-echo [*] Downloading from GitHub...
-echo.
+pip install --upgrade pip
+pip install -e ".[api,dev]"
 
-REM Create temporary directory
-set "TEMP_DIR=%TEMP%\NovaBackup_Install"
-if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
-mkdir "%TEMP_DIR%"
+echo Novabackup installed. Use: call "%VENV%\Scripts\activate.bat" and run 'novabackup'"
+novabackup list-vms || echo "Note: VM list may require Windows Hyper-V to be enabled."
 
-REM Download latest release
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%RAW_URL%/novabackup.exe' -OutFile '%TEMP_DIR%\novabackup.exe' -UseBasicParsing"
-if %errorLevel% neq 0 (
-    echo [ERROR] Download failed!
-    rmdir /s /q "%TEMP_DIR%"
-    pause
-    exit /b 1
+REM Optional: Try to fetch repo for source installation if git is available
+where git >nul 2>&1
+if %errorlevel% equ 0 (
+  echo Fetching repository for source installation...
+  set "REPO_URL_DEFAULT=https://github.com/ajjs1ajjs/Backup"
+  set "TMPDIR=%TEMP%\novabackup_install"
+  if exist "%TMPDIR%" (rmdir /s /q "%TMPDIR%")
+  mkdir "%TMPDIR%"
+  git clone --depth 1 "%REPO_URL_DEFAULT%" "%TMPDIR%\novabackup" >nul 2>&1 || (
+    echo Failed to clone repository. You can install manually after cloning.
+  )
+  if exist "%TMPDIR%\novabackup\pyproject.toml" (
+    call "%VENV%\Scripts\activate.bat"
+    cd /d "%TMPDIR%\novabackup"
+    pip install -e .
+  )
 )
-
-echo [*] Creating directories...
-mkdir "%INSTALL_DIR%" 2>nul
-mkdir "%DATA_DIR%" 2>nul
-mkdir "%DATA_DIR%\Logs" 2>nul
-mkdir "%DATA_DIR%\Backups" 2>nul
-mkdir "%DATA_DIR%\Config" 2>nul
-
-echo [*] Stopping existing service...
-sc stop NovaBackup >nul 2>&1
-timeout /t 2 /nobreak >nul
-
-REM Kill any running process
-taskkill /F /IM NovaBackup.exe >nul 2>&1
-timeout /t 1 /nobreak >nul
-
-echo [*] Copying files...
-copy /Y "%TEMP_DIR%\novabackup.exe" "%INSTALL_DIR%\NovaBackup.exe"
-
-echo [*] Installing Windows Service...
-cd /d "%INSTALL_DIR%"
-
-REM Remove existing service if exists
-sc delete NovaBackup >nul 2>&1
-timeout /t 1 /nobreak >nul
-
-REM Create new service with auto-start
-sc create NovaBackup binPath= "\"%INSTALL_DIR%\NovaBackup.exe\" server" start= auto DisplayName= "NovaBackup" >nul
-if %errorLevel% neq 0 (
-    echo [ERROR] Service creation failed!
-    pause
-    exit /b 1
-)
-
-echo [*] Starting Service...
-sc start NovaBackup >nul
-if %errorLevel% neq 0 (
-    timeout /t 2 /nobreak >nul
-    sc start NovaBackup >nul
-)
-
-REM Wait for service to start
-timeout /t 3 /nobreak >nul
-
-REM Verify and fallback
-sc query NovaBackup | find "RUNNING" >nul
-if %errorLevel% neq 0 (
-    start "" "%INSTALL_DIR%\NovaBackup.exe" server
-    timeout /t 2 /nobreak >nul
-)
-
-REM Cleanup
-rmdir /s /q "%TEMP_DIR%"
-
-REM Create shortcuts
-powershell -Command "$Desktop = [Environment]::GetFolderPath('DesktopDirectory'); $WScript = New-Object -ComObject WScript.Shell; $Shortcut = $WScript.CreateShortcut((Join-Path $Desktop 'NovaBackup.lnk')); $Shortcut.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Save()"
-powershell -Command "$StartMenu = [Environment]::GetFolderPath('StartMenu'); $WScript = New-Object -ComObject WScript.Shell; $Shortcut = $WScript.CreateShortcut((Join-Path $StartMenu 'Programs\NovaBackup.lnk')); $Shortcut.TargetPath = '%INSTALL_DIR%\NovaBackup.exe'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Save()"
-
-echo.
-echo ========================================
-echo   Installation Complete!
-echo ========================================
-echo.
-echo Installation: %INSTALL_DIR%
-echo Data: %DATA_DIR%
-echo.
-sc query NovaBackup | find "RUNNING" >nul && echo [OK] Service: RUNNING || echo [!] Service: Background mode
-echo.
-echo Web UI: http://localhost:8050
-echo Login: admin
-echo Password: admin123
-echo.
-echo Opening Web UI...
-timeout /t 2 /nobreak >nul
-start "" http://localhost:8050
-echo.
-echo Done!
-timeout /t 2 /nobreak >nul
-exit /b 0
