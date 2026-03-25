@@ -1,9 +1,11 @@
 import os
-import datetime
-from typing import List
+from datetime import timedelta
+from typing import List, Optional
 
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from pydantic import BaseModel
+
 from novabackup.core import list_vms, normalize_vm_type
 from novabackup.models import (
     VMModel,
@@ -18,9 +20,18 @@ from novabackup.backup import BackupManager
 from novabackup.security import (
     authenticate_user,
     create_access_token,
+    create_refresh_token,
+    refresh_access_token,
     get_current_user,
+    require_role,
 )
-from datetime import timedelta
+from novabackup.security import oauth2_scheme
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    refresh_token: Optional[str] = None
 
 
 def get_app():
@@ -31,14 +42,25 @@ def get_app():
         user = authenticate_user(form_data.username, form_data.password)
         if not user:
             raise HTTPException(
-                status_code=401, detail="Incorrect username or password"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
             )
-        access_token_expires = timedelta(minutes=30)
         access_token = create_access_token(
-            data={"sub": user["username"], "roles": user["roles"]},
-            expires_delta=access_token_expires,
+            {"sub": user["username"], "roles": user["roles"]},
+            expires_delta=timedelta(minutes=60),
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        refresh_token = create_refresh_token(
+            {"sub": user["username"], "roles": user["roles"]}
+        )
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "refresh_token": refresh_token,
+        }
+
+    @app.post("/token/refresh")
+    async def token_refresh(req: Token):
+        return refresh_access_token(req.refresh_token)
 
     @app.get("/vms", response_model=List[VMModel])
     async def vms(current_user: dict = Depends(get_current_user)):
@@ -52,7 +74,8 @@ def get_app():
 
     @app.post("/backups", response_model=BackupModel)
     async def backups_create(
-        req: BackupCreateRequest, current_user: dict = Depends(get_current_user)
+        req: BackupCreateRequest,
+        current_user: dict = Depends(require_role(["admin", "user"])),
     ):
         manager = BackupManager()
         if getattr(req, "destination_type", "local").lower() == "cloud":
@@ -85,7 +108,7 @@ def get_app():
     async def backups_restore(
         backup_id: str,
         req: RestoreRequest,
-        current_user: dict = Depends(get_current_user),
+        current_user: dict = Depends(require_role(["admin"])),
     ):
         manager = BackupManager()
         res = manager.restore_backup(backup_id, req.dest)
@@ -96,7 +119,3 @@ def get_app():
         )
 
     return app
-
-
-# Expose a module-level app for easy Docker/WSGI compatibility
-app = get_app()

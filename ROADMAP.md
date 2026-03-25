@@ -1,55 +1,63 @@
-Roadmap: Novabackup Python MVP — Updated Plan
+# Roadmap for Novabackup (Python MVP to Production)
 
-Status overview (as of now)
-- Windows: Hyper-V provider enhanced for robust VM enumeration and mapping.
-- Linux: Libvirt provider integrated; real data where available.
-- DB backend: SQLite with backups and restores; optional shift from JSON to DB via NOVABACKUP_DATABASE_URL.
-- API: FastAPI with endpoints /vms, /normalize, /backups, /backups/{backup_id}/restore; API keys scaffold.
-- CLI: backup create/list/restore; integrated with DB/provider layers.
-- UI: Minimal static dashboard at /static/dashboard.html; data from API.
-- CI: GitHub Actions with pytest, mypy, flake8.
-- Installers: install.sh (Linux/macOS) and install.bat (Windows).
-- Tests: unit tests and integration tests; end-to-end tests added.
+Overview
+- This document outlines the plan to evolve the current MVP into a production-ready, cloud-enabled backup/restore platform with multi-cloud support (AWS, Azure, Google Cloud), RBAC/OAuth2/JWT authentication, a modern frontend UI, Docker/Compose CI, and migration tooling.
 
-Phases (updated plan)
-- Phase 1: Real Providers and DB migrations (2–3 weeks)
-  - Stabilize Windows Hyper-V provider; finalize Libvirt integration
-  - Implement DB migrations: from JSON to DB; add migration tooling
-  - Expand tests for providers and DB
-- Phase 2: API improvements and security (2–3 weeks)
-  - Add API keys/auth, roles, and improved error handling
-  - Extend data models (Snapshot, Restore); validation in Pydantic
-  - Expand API surface: statuses, progress, more endpoints
-  - Improve Swagger docs with examples
-- Phase 3: End-to-End testing & UI (2–3 weeks)
-  - End-to-end test suite: CLI <-> API <-> DB
-  - Improve dashboard UX; optional frontend enhancements
-- Phase 4: Packaging & Release readiness (2 weeks)
-  - Packaging to wheel/PyPI; release notes and versioning
-  - CI optimization; performance/stress tests
-- Phase 5: Observability & resilience (ongoing)
-  - Metrics (Prometheus/OpenTelemetry), logging, tracing
+Status snapshot (as of now)
+- Cloud scaffolding exists with AWS/Azure/GCP provider skeletons and a cloud orchestrator. Real SDK calls are wired where possible; credentials are required for production use.
+- RBAC/OAuth2/JWT scaffolding implemented; token endpoints in API exist; token refresh flow is conceptual and partially implemented with in-memory store for MVP.
+- SA DB and migration tooling in place; tests cover migration JSON -> DB, and multiple DB dialects (Postgres, MSSQL, Oracle).
+- CLI and API exist with core endpoints: list VMs, normalize VM types, backup creation, listing, and restore (cloud path supported in MVP).
+- Frontend/UI scaffold added: dashboard and login flow skeleton.
+- Docker/CI scaffolding created: docker-compose-prod.yml, production installers for Linux/Windows, systemd service, and CI flows.
+- Documentation: README updated with deployment and migration guidance; migration guide placeholders included.
 
-Milestones (high level)
-- Milestone 0: MVP baseline ready (current state).
-- Milestone 1: Phase 1 complete — real providers + DB migrations; tests updated.
-- Milestone 2: Phase 2 complete — API hardening, docs, authentication.
-- Milestone 3: Phase 3 complete — E2E tests and UI improvements.
-- Milestone 4: Phase 4 release ready — packaging and CI.
+Phases (detailed plan)
+- Phase 1 — Core security and API tokens (RBAC/OAuth2/JWT)
+  - Implement full OAuth2 flow with refresh tokens, token rotation, scopes, and roles (admin, user)
+  - Harden /token and /token/refresh endpoints; ensure token expiry and rotation rules
+  - Integrate RBAC into all sensitive endpoints (backups create/restore restricted to admin or specific roles)
+  - Add tests for login, token refresh, and RBAC enforcement
 
-Risks & mitigations
-- Provider integration complexity: keep stable provider interfaces; use mocks in CI where needed.
-- Windows Hyper-V CI constraints: rely on local lab or mocks; provide test harness.
-- Data migration: provide safe migration scripts with dry-run mode and rollback notes.
-- Security: API key in dev; plan to implement OAuth2 or token-based in future.
+- Phase 2 — Real cloud SDK integrations (AWS/Azure/GCP)
+  - Implement AWS: list VM via EC2, backup via EBS snapshot, restore flow
+  - Implement Azure: list VMs, snapshot/restore using azure-mgmt-compute
+  - Implement GCP: list Compute Engine instances, snapshotting/disks
+  - Extend cloud orchestrator to coordinate providers; support multiple providers with a unified API
+  - Update CI to cover cloud flows with mock credentials in CI or dedicated test accounts
 
-Success criteria
-- End-to-end flow validated (CLI -> API -> DB).
-- API available with documented endpoints and authentication.
-- Packaging and CI stable across Linux/Windows.
-- MVP features stable for production-like usage (VM listing, normalize, backups, restore).
+- Phase 3 — Frontend/UI
+  - Build a modern React/Vue frontend; login screen with token handling; dashboard with filters and status
+  - UI connected to API endpoints with RBAC enforced on frontend as well
 
-Next steps
-- Prepare a comprehensive PR description and user guide.
-- Implement migration tooling from backups.json to DB with a safe fallback.
-- Add a small set of sample providers (mock) to ensure CI stability across hardware.
+- Phase 4 — CI/CD & Docker
+  - Expand docker-compose to include a full prod stack: DB, API, UI
+  - Extend GH Actions with multi-DB testing (Postgres, MSSQL, Oracle) and cloud tests (MOCK + real in staging)
+  - Implement code quality gates: lint, type checks, security checks
+
+- Phase 5 — Migration docs and release process
+  - Provide an explicit MIGRATION_GUIDE for backups.json → DB with steps for all dialects
+  - Release notes, versioning strategy, deprecation policy
+
+- Phase 6 — Observability & Audit
+  - Add logging, metrics (Prometheus/OpenTelemetry), and audit trail for critical actions
+
+Milestones
+- v0.1 MVP: current MVP with CLI + API + SA DB + cloud scaffolding (no real cloud calls yet in prod)
+- v0.2 Cloud integration (real SDK calls) + RBAC refactoring
+- v0.3 UI & advanced dashboard + Docker prod stack
+- v1.0 Production ready: RBAC, audit, observability, and full CI/CD
+
+Risks and mitigations
+- Risk: Credentials exposure in CI
+  - Mitigation: Use GitHub Secrets; never store secrets in repo
+- Risk: Cloud provider API changes
+  - Mitigation: Abstract provider interface; wrap real calls with error handling, feature flags
+- Risk: RBAC complexity
+  - Mitigation: Start with admin/user roles; gradually add more granular roles; include tests
+
+Next steps for the team
+- Validate cloud provider integration in a staging/CI environment using cloud test accounts or mocks
+- Implement RBAC in UI and API consistently
+- Add a robust migration script and comprehensive README migration guide
+- Improve dashboard UX and add metrics logging
