@@ -77,14 +77,14 @@ func TestLoginSuccess(t *testing.T) {
 	defer os.Remove("test_api.db")
 
 	// Create test user
-	_, err := RBACEngine.CreateUser("testuser", "Testpass123", "test@example.com", "", "admin")
+	_, err := RBACEngine.CreateUser("testuser", "MyStr0ngP@ss!", "test@example.com", "", "admin")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
 	loginReq := map[string]string{
 		"username": "testuser",
-		"password": "Testpass123",
+		"password": "MyStr0ngP@ss!",
 	}
 	jsonData, _ := json.Marshal(loginReq)
 
@@ -155,7 +155,7 @@ func TestCreateJobEndpoint(t *testing.T) {
 	// Login to get token
 	loginReq := map[string]string{
 		"username": "admin",
-		"password": "admin123",
+		"password": "SecurePass1!",
 	}
 	jsonData, _ := json.Marshal(loginReq)
 
@@ -170,12 +170,13 @@ func TestCreateJobEndpoint(t *testing.T) {
 
 	// Create job
 	jobReq := map[string]interface{}{
-		"name":        "Test Job",
-		"type":        "file",
-		"sources":     []string{"C:\\test"},
-		"destination": "D:\\backup",
-		"schedule":    "0 2 * * *",
-		"enabled":     true,
+		"name":           "Test Job",
+		"type":           "file",
+		"sources":        []string{"C:\\test"},
+		"destination":    "D:\\backup",
+		"schedule":       "daily",
+		"enabled":        true,
+		"retention_days": 30,
 	}
 	jsonData, _ = json.Marshal(jobReq)
 
@@ -198,7 +199,7 @@ func TestListJobsEndpoint(t *testing.T) {
 	// Login
 	loginReq := map[string]string{
 		"username": "admin",
-		"password": "admin123",
+		"password": "SecurePass1!",
 	}
 	jsonData, _ := json.Marshal(loginReq)
 

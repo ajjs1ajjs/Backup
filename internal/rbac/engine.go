@@ -157,7 +157,7 @@ func (e *RBACEngine) LoadUsersFromDB() error {
 		admin := &User{
 			ID:           "admin",
 			Username:     "admin",
-			PasswordHash: HashPassword("admin123"),
+			PasswordHash: HashPassword("SecurePass1!"),
 			Email:        "admin@novabackup.local",
 			FullName:     "Administrator",
 			Role:         RoleAdmin,
@@ -214,7 +214,7 @@ func (e *RBACEngine) CreateDefaultAdmin() {
 	admin := &User{
 		ID:           "admin",
 		Username:     "admin",
-		PasswordHash: HashPassword("admin123"),
+		PasswordHash: HashPassword("SecurePass1!"),
 		Email:        "admin@novabackup.local",
 		FullName:     "Administrator",
 		Role:         RoleAdmin,
@@ -376,9 +376,7 @@ func (e *RBACEngine) ValidateSession(token string) (*User, error) {
 				UserAgent: dbSession.UserAgent,
 			}
 
-			e.mu.Lock()
 			e.sessions[token] = newSession
-			e.mu.Unlock()
 
 			return user, nil
 		}

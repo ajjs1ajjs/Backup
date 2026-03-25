@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	Version         = "7.0.0"
+	Version         = "8.0.0"
 	DefaultPort     = 8050
 	ServiceName     = "NovaBackup"
 	ShutdownTimeout = 60 * time.Second // Maximum time to wait for graceful shutdown
@@ -122,7 +122,7 @@ func runServer() {
 
 func buildServer() (*http.Server, error) {
 	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
-	fmt.Println("║         NovaBackup Enterprise v7.0                        ║")
+	fmt.Println("║         NovaBackup Enterprise v8.0                        ║")
 	fmt.Println("║         Modern Web-Based Backup Platform                  ║")
 	fmt.Println("╚═══════════════════════════════════════════════════════════╝")
 	fmt.Println()

@@ -77,7 +77,7 @@ Password: admin123
 
 ### Windows (`install.bat`)
 1. ✅ Auto-elevates to administrator privileges
-2. ✅ Downloads latest `novabackup.exe` from GitHub
+2. ✅ Builds `novabackup.exe` from source (requires Go)
 3. ✅ Creates directories: `C:\Program Files\NovaBackup\`, `C:\ProgramData\NovaBackup\`
 4. ✅ Installs Windows Service (`NovaBackup`) with auto-start
 5. ✅ Starts the service automatically
@@ -86,7 +86,7 @@ Password: admin123
 
 ### Linux (`install.sh`)
 1. ✅ Auto-elevates to root via sudo
-2. ✅ Downloads latest `novabackup-linux-amd64` from GitHub
+2. ✅ Clones repository and builds from source (requires Go)
 3. ✅ Creates directories: `/opt/novabackup/`, `/var/lib/novabackup/`
 4. ✅ Creates systemd service (`novabackup.service`)
 5. ✅ Enables and starts the service

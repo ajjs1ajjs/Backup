@@ -431,7 +431,7 @@ type NotificationSettings struct {
 func GetHealth(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status":  "healthy",
-		"version": "7.0.0",
+		"version": "8.0.0",
 		"time":    time.Now().Format(time.RFC3339),
 	})
 }

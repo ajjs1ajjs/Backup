@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"golang.org/x/sys/windows"
+	"golang.org/x/sys/unix"
 )
 
 // Storage Types

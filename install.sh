@@ -25,10 +25,10 @@ SYSTEMD_DIR="/etc/systemd/system"
 ENV_FILE="/etc/novabackup.env"
 RAW_URL="https://raw.githubusercontent.com/ajjs1ajjs/Backup/main"
 
-echo "[*] Downloading from GitHub..."
+echo "[*] Downloading novabackup from GitHub..."
 cd /tmp
 
-# Download latest release
+# Download pre-built release
 curl -sL -o novabackup "$RAW_URL/novabackup-linux-amd64"
 if [ ! -f novabackup ] || [ ! -s novabackup ]; then
     echo "[ERROR] Download failed!"

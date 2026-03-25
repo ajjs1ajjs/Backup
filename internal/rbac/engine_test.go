@@ -6,7 +6,7 @@ import (
 )
 
 func TestHashPassword(t *testing.T) {
-	password := "testPassword123"
+	password := "SecurePass1!"
 	hash := HashPassword(password)
 
 	// Check that hash is not empty
@@ -27,7 +27,7 @@ func TestHashPassword(t *testing.T) {
 }
 
 func TestCheckPassword(t *testing.T) {
-	password := "testPassword123"
+	password := "SecurePass1!"
 	hash := HashPassword(password)
 
 	// Check correct password
@@ -48,11 +48,13 @@ func TestPasswordPolicy(t *testing.T) {
 		wantErr  bool
 	}{
 		{"Too short", "Short1!", true},
-		{"No uppercase", "password123", true},
-		{"No lowercase", "PASSWORD123", true},
-		{"No digit", "Password!", true},
-		{"Valid password", "Password123", false},
-		{"Valid with special char", "Password123!", false},
+		{"No uppercase", "password123!", true},
+		{"No lowercase", "PASSWORD123!", true},
+		{"No digit", "Password!!!!", true},
+		{"No special", "Password123", true},
+		{"Valid password", "SecurePass1!", false},
+		{"Valid with special char", "MyStr0ngP@ss!", false},
+		{"Valid complex", "Xy9#mP@ssw0rd", false},
 	}
 
 	for _, tt := range tests {
@@ -69,7 +71,7 @@ func TestRBACEngine_Authenticate(t *testing.T) {
 	engine := NewRBACEngine()
 
 	// Test default admin
-	user, err := engine.Authenticate("admin", "admin123")
+	user, err := engine.Authenticate("admin", "SecurePass1!")
 	if err != nil {
 		t.Errorf("Expected successful authentication, got error: %v", err)
 	}
@@ -94,7 +96,7 @@ func TestRBACEngine_CreateUser(t *testing.T) {
 	engine := NewRBACEngine()
 
 	// Create valid user
-	user, err := engine.CreateUser("testuser", "TestPass123", "test@example.com", "Test User", RoleBackupUser)
+	user, err := engine.CreateUser("testuser", "MyStr0ngP@ss!", "test@example.com", "Test User", RoleBackupUser)
 	if err != nil {
 		t.Errorf("Expected successful user creation, got error: %v", err)
 	}
@@ -106,7 +108,7 @@ func TestRBACEngine_CreateUser(t *testing.T) {
 	}
 
 	// Create duplicate user
-	_, err = engine.CreateUser("testuser", "AnotherPass123", "another@example.com", "Another User", RoleReadOnly)
+	_, err = engine.CreateUser("testuser", "Xy9#mP@ssw0rd!", "another@example.com", "Another User", RoleReadOnly)
 	if err == nil {
 		t.Error("Expected error for duplicate username")
 	}
@@ -118,7 +120,7 @@ func TestRBACEngine_CreateUser(t *testing.T) {
 	}
 
 	// Create user with invalid role
-	_, err = engine.CreateUser("invalidroleuser", "ValidPass123", "invalid@example.com", "Invalid User", "invalid_role")
+	_, err = engine.CreateUser("invalidroleuser", "SecurePass1!", "invalid@example.com", "Invalid User", "invalid_role")
 	if err == nil {
 		t.Error("Expected error for invalid role")
 	}
@@ -134,7 +136,7 @@ func TestRBACEngine_DeleteUser(t *testing.T) {
 	}
 
 	// Create and delete a regular user
-	user, _ := engine.CreateUser("tempuser", "TempPass123", "temp@example.com", "Temp User", RoleReadOnly)
+	user, _ := engine.CreateUser("tempuser", "Xy9#mP@ssw0rd", "temp@example.com", "Temp User", RoleReadOnly)
 	err = engine.DeleteUser(user.ID)
 	if err != nil {
 		t.Errorf("Expected successful deletion, got error: %v", err)
@@ -179,7 +181,7 @@ func TestRBACEngine_CheckPermission(t *testing.T) {
 	engine := NewRBACEngine()
 
 	// Get admin user
-	admin, _ := engine.Authenticate("admin", "admin123")
+	admin, _ := engine.Authenticate("admin", "SecurePass1!")
 
 	// Admin should have all permissions
 	if !engine.CheckPermission(admin, PermUsersCreate) {
@@ -190,7 +192,7 @@ func TestRBACEngine_CheckPermission(t *testing.T) {
 	}
 
 	// Create read-only user
-	readonly, _ := engine.CreateUser("readonly", "ReadOnly123", "readonly@example.com", "Read Only", RoleReadOnly)
+	readonly, _ := engine.CreateUser("readonly", "Xy9#mP@ssw0rd", "readonly@example.com", "Read Only", RoleReadOnly)
 
 	// Read-only should not have write permissions
 	if engine.CheckPermission(readonly, PermUsersCreate) {
@@ -210,28 +212,28 @@ func TestRBACEngine_ChangePassword(t *testing.T) {
 	engine := NewRBACEngine()
 
 	// Create test user
-	user, _ := engine.CreateUser("changepasstest", "OldPass123", "change@example.com", "Change Test", RoleBackupUser)
+	user, _ := engine.CreateUser("changepasstest", "MyStr0ngP@ss!", "change@example.com", "Change Test", RoleBackupUser)
 
 	// Change password with correct old password
-	err := engine.ChangePassword(user.ID, "OldPass123", "NewPass123")
+	err := engine.ChangePassword(user.ID, "MyStr0ngP@ss!", "C0mpl3x!Pass")
 	if err != nil {
 		t.Errorf("Expected successful password change, got error: %v", err)
 	}
 
 	// Verify new password works
 	newUser, _ := engine.GetUser(user.ID)
-	if !CheckPassword("NewPass123", newUser.PasswordHash) {
+	if !CheckPassword("C0mpl3x!Pass", newUser.PasswordHash) {
 		t.Error("New password should be set correctly")
 	}
 
 	// Try to change with wrong old password
-	err = engine.ChangePassword(user.ID, "WrongOldPass", "AnotherPass123")
+	err = engine.ChangePassword(user.ID, "WrongOldPass", "Xy9#mP@ssw0rd")
 	if err == nil {
 		t.Error("Expected error for wrong old password")
 	}
 
 	// Try to change to weak password
-	err = engine.ChangePassword(user.ID, "NewPass123", "weak")
+	err = engine.ChangePassword(user.ID, "C0mpl3x!Pass", "weak")
 	if err == nil {
 		t.Error("Expected error for weak new password")
 	}
@@ -241,7 +243,7 @@ func TestRBACEngine_DisableUser(t *testing.T) {
 	engine := NewRBACEngine()
 
 	// Create test user
-	user, _ := engine.CreateUser("disabletest", "DisablePass123", "disable@example.com", "Disable Test", RoleBackupUser)
+	user, _ := engine.CreateUser("disabletest", "MyStr0ngP@ss!", "disable@example.com", "Disable Test", RoleBackupUser)
 
 	// Disable user
 	err := engine.DisableUser(user.ID)
@@ -250,7 +252,7 @@ func TestRBACEngine_DisableUser(t *testing.T) {
 	}
 
 	// Try to authenticate disabled user
-	_, err = engine.Authenticate("disabletest", "DisablePass123")
+	_, err = engine.Authenticate("disabletest", "MyStr0ngP@ss!")
 	if err == nil {
 		t.Error("Expected error when authenticating disabled user")
 	}
@@ -262,7 +264,7 @@ func TestRBACEngine_DisableUser(t *testing.T) {
 	}
 
 	// Now should be able to authenticate
-	_, err = engine.Authenticate("disabletest", "DisablePass123")
+	_, err = engine.Authenticate("disabletest", "MyStr0ngP@ss!")
 	if err != nil {
 		t.Errorf("Expected successful authentication after enable, got error: %v", err)
 	}
@@ -372,12 +374,12 @@ func TestSessionExpiration(t *testing.T) {
 
 func BenchmarkHashPassword(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		HashPassword("testPassword123")
+		HashPassword("SecurePass1!")
 	}
 }
 
 func BenchmarkCheckPassword(b *testing.B) {
-	password := "testPassword123"
+	password := "SecurePass1!"
 	hash := HashPassword(password)
 
 	b.ResetTimer()
