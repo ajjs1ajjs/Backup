@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"novabackup/internal/backup"
@@ -26,6 +27,236 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+// loginAttempt tracks login attempts for rate limiting
+type loginAttempt struct {
+	timestamp time.Time
+	count     int
+}
+
+var (
+	// loginAttempts stores login attempts per IP/username
+	loginAttempts = make(map[string][]loginAttempt)
+	loginMu       sync.Mutex
+	// Rate limiting configuration
+	maxLoginAttempts = 5
+	loginWindow      = 15 * time.Minute
+	loginLockout     = 30 * time.Minute
+)
+
+// checkRateLimit checks if the client has exceeded login attempt limits
+// Returns true if rate limit exceeded
+func checkRateLimit(identifier string) (bool, int) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	now := time.Now()
+	attempts := loginAttempts[identifier]
+
+	// Remove old attempts (older than window)
+	valid := []loginAttempt{}
+	for _, attempt := range attempts {
+		if now.Sub(attempt.timestamp) < loginWindow {
+			valid = append(valid, attempt)
+		}
+	}
+
+	// Check if rate limit exceeded
+	if len(valid) >= maxLoginAttempts {
+		// Find oldest attempt to calculate lockout time
+		if len(valid) > 0 {
+			oldest := valid[0].timestamp
+			for _, a := range valid {
+				if a.timestamp.Before(oldest) {
+					oldest = a.timestamp
+				}
+			}
+			retryAfter := int(loginWindow.Seconds() - now.Sub(oldest).Seconds())
+			if retryAfter < 0 {
+				retryAfter = 0
+			}
+			return true, retryAfter
+		}
+		return true, int(loginWindow.Seconds())
+	}
+
+	loginAttempts[identifier] = valid
+	return false, 0
+}
+
+// recordLoginAttempt records a login attempt for rate limiting
+func recordLoginAttempt(identifier string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	now := time.Now()
+	attempts := loginAttempts[identifier]
+	attempts = append(attempts, loginAttempt{timestamp: now, count: 1})
+
+	// Keep only recent attempts (within 2x window for cleanup)
+	cutoff := now.Add(-2 * loginWindow)
+	filtered := []loginAttempt{}
+	for _, attempt := range attempts {
+		if attempt.timestamp.After(cutoff) {
+			filtered = append(filtered, attempt)
+		}
+	}
+	loginAttempts[identifier] = filtered
+}
+
+// clearLoginAttempts clears login attempts after successful login
+func clearLoginAttempts(identifier string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+	delete(loginAttempts, identifier)
+}
+
+// SafeJob sanitizes a job for logging by removing sensitive fields
+type SafeJob struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Sources     []string `json:"sources"`
+	Destination string   `json:"destination"`
+	// Sensitive fields omitted: Password, EncryptionKey, CloudSecretKey, etc.
+}
+
+// toSafeJob creates a sanitized version of a job for logging
+func toSafeJob(job *database.Job) SafeJob {
+	return SafeJob{
+		ID:          job.ID,
+		Name:        job.Name,
+		Type:        job.Type,
+		Sources:     job.Sources,
+		Destination: job.Destination,
+	}
+}
+
+// validateBackupJob validates backup job input
+func validateBackupJob(job *database.Job) error {
+	// Name validation
+	if strings.TrimSpace(job.Name) == "" {
+		return errors.New("назва завдання обов'язкова")
+	}
+	if len(job.Name) > 100 {
+		return errors.New("назва занадто довга (максимум 100 символів)")
+	}
+
+	// Type validation
+	validTypes := map[string]bool{
+		"file": true, "database": true, "vm": true, "cloud": true,
+	}
+	if !validTypes[job.Type] {
+		return fmt.Errorf("непідтримуваний тип завдання: %s", job.Type)
+	}
+
+	// Sources validation
+	if job.Type == "file" && len(job.Sources) == 0 {
+		return errors.New("хоча б одне джерело обов'язкове")
+	}
+	for _, src := range job.Sources {
+		if !filepath.IsAbs(src) {
+			return errors.New("джерела мають бути абсолютними шляхами")
+		}
+		// Check for path traversal
+		if strings.Contains(src, "..") {
+			return errors.New("шляхи не можуть містити '..'")
+		}
+	}
+
+	// Destination validation
+	if job.Destination == "" {
+		return errors.New("призначення обов'язкове")
+	}
+	if !filepath.IsAbs(job.Destination) {
+		return errors.New("призначення має бути абсолютним шляхом")
+	}
+	if strings.Contains(job.Destination, "..") {
+		return errors.New("призначення не може містити '..'")
+	}
+
+	// Retention validation
+	if job.RetentionDays < 1 {
+		return errors.New("термін зберігання має бути більше 0 днів")
+	}
+	if job.RetentionDays > 3650 {
+		return errors.New("термін зберігання не може перевищувати 10 років")
+	}
+
+	// Compression level validation
+	if job.CompressionLevel < 0 || job.CompressionLevel > 9 {
+		return errors.New("рівень стиснення має бути від 0 до 9")
+	}
+
+	// Schedule validation (basic)
+	if job.Schedule != "" {
+		validSchedules := map[string]bool{
+			"once": true, "hourly": true, "daily": true, "weekly": true, "monthly": true,
+		}
+		if !validSchedules[job.Schedule] && !isValidCron(job.CronExpression) {
+			return errors.New("невірний формат розкладу")
+		}
+	}
+
+	// Database-specific validation
+	if job.Type == "database" {
+		validDBTypes := map[string]bool{
+			"mysql": true, "postgresql": true, "mssql": true, "oracle": true, "sqlite": true,
+		}
+		if !validDBTypes[job.DatabaseType] {
+			return fmt.Errorf("непідтримуваний тип бази даних: %s", job.DatabaseType)
+		}
+	}
+
+	// VM-specific validation
+	if job.Type == "vm" && len(job.VMNames) == 0 {
+		return errors.New("хоча б одна ВМ обов'язкова")
+	}
+
+	return nil
+}
+
+// isValidCron checks if a cron expression is valid (basic validation)
+func isValidCron(expr string) bool {
+	if expr == "" {
+		return false
+	}
+	// Basic check: should have 5-6 space-separated parts
+	parts := strings.Fields(expr)
+	return len(parts) >= 5 && len(parts) <= 6
+}
+
+// validateRestoreRequest validates restore request input
+func validateRestoreRequest(req *restore.RestoreRequest) error {
+	if req.Type == "" {
+		return errors.New("тип відновлення обов'язковий")
+	}
+
+	validTypes := map[string]bool{
+		"files": true, "database": true, "vm": true, "instant": true,
+	}
+	if !validTypes[req.Type] {
+		return fmt.Errorf("непідтримуваний тип відновлення: %s", req.Type)
+	}
+
+	if req.Destination == "" && !req.RestoreOriginal {
+		return errors.New("призначення обов'язкове")
+	}
+
+	if req.Destination != "" && !filepath.IsAbs(req.Destination) {
+		return errors.New("призначення має бути абсолютним шляхом")
+	}
+
+	return nil
+}
+
+// maskSecret replaces sensitive values with [REDACTED] for logging
+func maskSecret(secret string) string {
+	if secret == "" {
+		return ""
+	}
+	return "[REDACTED]"
+}
 
 var (
 	DB                 *database.Database
@@ -217,12 +448,29 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Rate limiting: use combination of IP and username
+	identifier := fmt.Sprintf("%s:%s", c.ClientIP(), strings.ToLower(req.Username))
+
+	// Check rate limit
+	if exceeded, retryAfter := checkRateLimit(identifier); exceeded {
+		log.Printf("Rate limit exceeded for login attempt: %s from %s", req.Username, c.ClientIP())
+		c.JSON(429, gin.H{
+			"error":       "Забагато невдалих спроб входу. Спробуйте пізніше.",
+			"retry_after": retryAfter,
+		})
+		return
+	}
+
 	user, err := RBACEngine.Authenticate(req.Username, req.Password)
 	if err != nil {
 		log.Printf("Failed login attempt for user '%s': %v", req.Username, err)
+		recordLoginAttempt(identifier)
 		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Clear login attempts on successful login
+	clearLoginAttempts(identifier)
 
 	session, err := RBACEngine.CreateSession(user.ID, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
@@ -460,6 +708,12 @@ func CreateJob(c *gin.Context) {
 		return
 	}
 
+	// Validate job input
+	if err := validateBackupJob(&job); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
 	// Normalize paths (remove Unicode characters and convert slashes)
 	for i, src := range job.Sources {
 		job.Sources[i] = normalizePath(src)
@@ -655,7 +909,10 @@ func RunJob(c *gin.Context) {
 		HyperVHost: job.HyperVHost,
 	}
 
-	log.Printf("Starting backup job '%s' (%s): type=%s, sources=%v, dest=%s", job.Name, job.ID, job.Type, job.Sources, job.Destination)
+	// Log job start without sensitive data
+	log.Printf("Starting backup job '%s' (%s): type=%s, sources=%v, dest=%s",
+		job.Name, job.ID, job.Type, job.Sources, job.Destination)
+
 	session, err := BackupEngine.ExecuteBackup(backupJob)
 	persistBackupSession(session)
 	if err != nil {

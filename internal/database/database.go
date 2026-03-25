@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/scrypt"
 	_ "modernc.org/sqlite"
 )
 
@@ -130,13 +131,28 @@ func NewDatabase(dbPath string) (*Database, error) {
 	return d, nil
 }
 
+// loadMasterKey derives a 32-byte key from the master password using scrypt.
+// This provides strong key derivation resistant to brute-force attacks.
 func loadMasterKey() []byte {
 	raw := strings.TrimSpace(os.Getenv("NOVABACKUP_MASTER_KEY"))
 	if raw == "" {
 		return nil
 	}
-	sum := sha256.Sum256([]byte(raw))
-	return sum[:]
+
+	// Use scrypt for key derivation with strong parameters
+	// N=32768, r=8, p=1 provides good security/performance balance
+	// Salt is fixed for master key derivation (same password = same key)
+	salt := []byte("NovaBackup.MasterKey.Derivation.Salt.v1")
+
+	key, err := scrypt.Key([]byte(raw), salt, 32768, 8, 1, 32)
+	if err != nil {
+		// Fallback to SHA-256 only if scrypt fails (should never happen)
+		// This is a last-resort fallback, not a security feature
+		sum := sha256.Sum256([]byte(raw))
+		return sum[:]
+	}
+
+	return key
 }
 
 func (d *Database) encryptSecret(value string) (string, error) {
@@ -206,6 +222,11 @@ func (d *Database) decryptSecret(value string) (string, error) {
 }
 
 func (d *Database) init() error {
+	// Create audit_logs table first for logging
+	if err := d.createAuditTable(); err != nil {
+		return fmt.Errorf("failed to create audit table: %w", err)
+	}
+
 	// Create migrations table if not exists
 	_, err := d.db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`)
 	if err != nil {
@@ -970,6 +991,156 @@ func (d *Database) addMissingColumns() error {
 	}
 
 	return nil
+}
+
+// AuditLog represents an audit log entry in the database
+type AuditLog struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username"`
+	Action    string    `json:"action"`
+	Resource  string    `json:"resource"`
+	IPAddress string    `json:"ip_address"`
+	Success   bool      `json:"success"`
+	Details   string    `json:"details,omitempty"` // JSON-encoded details
+}
+
+// createAuditTable creates the audit_logs table if it doesn't exist
+func (d *Database) createAuditTable() error {
+	_, err := d.db.Exec(`
+		CREATE TABLE IF NOT EXISTS audit_logs (
+			id TEXT PRIMARY KEY,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+			user_id TEXT,
+			username TEXT,
+			action TEXT,
+			resource TEXT,
+			ip_address TEXT,
+			success BOOLEAN,
+			details TEXT
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create audit_logs table: %w", err)
+	}
+
+	// Create index on timestamp for efficient queries
+	_, err = d.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create audit_logs index: %w", err)
+	}
+
+	// Create index on user_id for user-specific queries
+	_, err = d.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create audit_logs user index: %w", err)
+	}
+
+	return nil
+}
+
+// CreateAuditLog persists an audit log entry to the database
+func (d *Database) CreateAuditLog(audit *AuditLog) error {
+	if audit.ID == "" {
+		audit.ID = fmt.Sprintf("audit_%d", time.Now().UnixNano())
+	}
+
+	// Encode details as JSON
+	detailsJSON := "{}"
+	if audit.Details != "" {
+		detailsJSON = audit.Details
+	}
+
+	_, err := d.db.Exec(`
+		INSERT INTO audit_logs (id, timestamp, user_id, username, action, resource, ip_address, success, details)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, audit.ID, audit.Timestamp, audit.UserID, audit.Username, audit.Action, audit.Resource, audit.IPAddress, audit.Success, detailsJSON)
+
+	if err != nil {
+		return fmt.Errorf("failed to create audit log: %w", err)
+	}
+
+	return nil
+}
+
+// GetAuditLogs retrieves audit logs with pagination
+func (d *Database) GetAuditLogs(limit, offset int) ([]AuditLog, error) {
+	rows, err := d.db.Query(`
+		SELECT id, timestamp, user_id, username, action, resource, ip_address, success, details
+		FROM audit_logs
+		ORDER BY timestamp DESC
+		LIMIT ? OFFSET ?
+	`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLog
+	for rows.Next() {
+		var log AuditLog
+		err := rows.Scan(&log.ID, &log.Timestamp, &log.UserID, &log.Username, &log.Action, &log.Resource, &log.IPAddress, &log.Success, &log.Details)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan audit log: %w", err)
+		}
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
+// GetAuditLogsByUser retrieves audit logs for a specific user
+func (d *Database) GetAuditLogsByUser(userID string, limit, offset int) ([]AuditLog, error) {
+	rows, err := d.db.Query(`
+		SELECT id, timestamp, user_id, username, action, resource, ip_address, success, details
+		FROM audit_logs
+		WHERE user_id = ?
+		ORDER BY timestamp DESC
+		LIMIT ? OFFSET ?
+	`, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLog
+	for rows.Next() {
+		var log AuditLog
+		err := rows.Scan(&log.ID, &log.Timestamp, &log.UserID, &log.Username, &log.Action, &log.Resource, &log.IPAddress, &log.Success, &log.Details)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan audit log: %w", err)
+		}
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
+// DeleteAuditLogsBefore deletes audit logs older than the specified time
+func (d *Database) DeleteAuditLogsBefore(cutoff time.Time) error {
+	_, err := d.db.Exec(`
+		DELETE FROM audit_logs
+		WHERE timestamp < ?
+	`, cutoff)
+	if err != nil {
+		return fmt.Errorf("failed to delete old audit logs: %w", err)
+	}
+	return nil
+}
+
+// GetAuditLogsCount returns the total number of audit logs
+func (d *Database) GetAuditLogsCount() (int, error) {
+	var count int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM audit_logs`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count audit logs: %w", err)
+	}
+	return count, nil
 }
 
 func (d *Database) Close() error {

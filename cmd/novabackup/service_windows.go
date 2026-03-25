@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -56,7 +57,7 @@ func (s *novaService) Execute(args []string, r <-chan svc.ChangeRequest, status 
 				status <- change.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				status <- svc.Status{State: svc.StopPending}
-				shutdownServer(server)
+				shutdownServer(context.Background(), server)
 				status <- svc.Status{State: svc.Stopped}
 				return false, 0
 			default:
@@ -64,7 +65,7 @@ func (s *novaService) Execute(args []string, r <-chan svc.ChangeRequest, status 
 		case err := <-serverErr:
 			log.Printf("Server stopped: %v", err)
 			status <- svc.Status{State: svc.StopPending}
-			shutdownServer(server)
+			shutdownServer(context.Background(), server)
 			status <- svc.Status{State: svc.Stopped}
 			return false, 1
 		}

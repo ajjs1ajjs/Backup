@@ -45,6 +45,7 @@ type Scheduler struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	ticker       *time.Ticker
+	wg           sync.WaitGroup // Track running jobs
 }
 
 // NewScheduler creates a new scheduler
@@ -81,13 +82,33 @@ func (s *Scheduler) Start() error {
 	return nil
 }
 
-// Stop stops the scheduler
+// Stop stops the scheduler and waits for all running jobs to complete
 func (s *Scheduler) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Cancel context to stop scheduler loop
 	s.cancel()
 	s.ticker.Stop()
+
+	// Wait for all running jobs to complete (with timeout)
+	s.mu.Unlock()
+	defer s.mu.Lock()
+
+	// Use a channel with timeout to wait for goroutines
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All jobs completed
+	case <-time.After(30 * time.Second):
+		// Timeout - jobs may still be running
+		fmt.Println("⚠️ Timeout waiting for jobs to complete")
+	}
 }
 
 // run is the main scheduler loop
@@ -124,12 +145,15 @@ func (s *Scheduler) checkAndRunJobs() {
 	s.mu.Unlock()
 
 	for _, job := range toRun {
+		s.wg.Add(1) // Track goroutine
 		go s.executeJob(job)
 	}
 }
 
 // executeJob executes a scheduled backup job
 func (s *Scheduler) executeJob(job *ScheduledJob) {
+	defer s.wg.Done() // Signal completion
+
 	if s.backupEngine == nil {
 		s.mu.Lock()
 		job.Running = false
@@ -373,45 +397,45 @@ func (s *Scheduler) loadJobs() error {
 		}
 
 		scheduledJob := &ScheduledJob{
-			JobID:        job.ID,
-			JobName:      job.Name,
-			ScheduleType: job.Schedule,
-			ScheduleTime: job.ScheduleTime,
-			ScheduleDays: job.ScheduleDays,
+			JobID:          job.ID,
+			JobName:        job.Name,
+			ScheduleType:   job.Schedule,
+			ScheduleTime:   job.ScheduleTime,
+			ScheduleDays:   job.ScheduleDays,
 			CronExpression: job.CronExpression,
-			Enabled:      job.Enabled,
+			Enabled:        job.Enabled,
 			job: &backup.BackupJob{
-				ID:          job.ID,
-				Name:        job.Name,
-				Type:        job.Type,
-				Sources:     job.Sources,
-				Destination: job.Destination,
-				Compression: job.Compression,
+				ID:               job.ID,
+				Name:             job.Name,
+				Type:             job.Type,
+				Sources:          job.Sources,
+				Destination:      job.Destination,
+				Compression:      job.Compression,
 				CompressionLevel: job.CompressionLevel,
-				Encryption:  job.Encryption,
-				Incremental: job.Incremental,
-				FullBackupEvery: job.FullBackupEvery,
-				Schedule: job.Schedule,
-				ScheduleTime: job.ScheduleTime,
-				ScheduleDays: job.ScheduleDays,
-				CronExpression: job.CronExpression,
-				DatabaseType: job.DatabaseType,
-				Server: job.Server,
-				Port: job.Port,
-				AuthType: job.AuthType,
-				Login: job.Login,
-				Password: job.Password,
-				Service: job.Service,
-				VMNames: job.VMNames,
-				HyperVHost: job.HyperVHost,
-				RetentionDays: job.RetentionDays,
-				RetentionCopies: job.RetentionCopies,
-				ExcludePatterns: job.ExcludePatterns,
-				IncludePatterns: job.IncludePatterns,
-				PreBackupScript: job.PreBackupScript,
+				Encryption:       job.Encryption,
+				Incremental:      job.Incremental,
+				FullBackupEvery:  job.FullBackupEvery,
+				Schedule:         job.Schedule,
+				ScheduleTime:     job.ScheduleTime,
+				ScheduleDays:     job.ScheduleDays,
+				CronExpression:   job.CronExpression,
+				DatabaseType:     job.DatabaseType,
+				Server:           job.Server,
+				Port:             job.Port,
+				AuthType:         job.AuthType,
+				Login:            job.Login,
+				Password:         job.Password,
+				Service:          job.Service,
+				VMNames:          job.VMNames,
+				HyperVHost:       job.HyperVHost,
+				RetentionDays:    job.RetentionDays,
+				RetentionCopies:  job.RetentionCopies,
+				ExcludePatterns:  job.ExcludePatterns,
+				IncludePatterns:  job.IncludePatterns,
+				PreBackupScript:  job.PreBackupScript,
 				PostBackupScript: job.PostBackupScript,
-				MaxThreads: job.MaxThreads,
-				BlockSize: job.BlockSize,
+				MaxThreads:       job.MaxThreads,
+				BlockSize:        job.BlockSize,
 			},
 		}
 
@@ -438,14 +462,14 @@ func (s *Scheduler) AddJob(job *backup.BackupJob, scheduleType, scheduleTime str
 	defer s.mu.Unlock()
 
 	scheduledJob := &ScheduledJob{
-		JobID:        job.ID,
-		JobName:      job.Name,
-		ScheduleType: scheduleType,
-		ScheduleTime: scheduleTime,
-		ScheduleDays: scheduleDays,
+		JobID:          job.ID,
+		JobName:        job.Name,
+		ScheduleType:   scheduleType,
+		ScheduleTime:   scheduleTime,
+		ScheduleDays:   scheduleDays,
 		CronExpression: cronExpression,
-		Enabled:      true,
-		job:          job,
+		Enabled:        true,
+		job:            job,
 	}
 
 	scheduledJob.NextRun = s.calculateNextRun(scheduledJob)

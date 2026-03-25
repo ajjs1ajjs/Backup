@@ -5,12 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"novabackup/internal/database"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -269,10 +272,16 @@ func (e *RBACEngine) CreateSession(userID, ipAddress, userAgent string) (*Sessio
 		return nil, errors.New("користувача не знайдено")
 	}
 
+	// Generate secure token
+	token, err := generateToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate session token: %w", err)
+	}
+
 	session := &Session{
 		ID:        generateSessionID(),
 		UserID:    userID,
-		Token:     generateToken(),
+		Token:     token,
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(24 * time.Hour), // 24 hour session
 		LastUsed:  time.Now(),
@@ -302,17 +311,20 @@ func (e *RBACEngine) CreateSession(userID, ipAddress, userAgent string) (*Sessio
 }
 
 // ValidateSession validates a session token
+// ValidateSession validates a session token with proper locking to prevent race conditions.
+// Uses a single lock acquisition to avoid TOCTOU (time-of-check-time-of-use) vulnerabilities.
 func (e *RBACEngine) ValidateSession(token string) (*User, error) {
-	e.mu.RLock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	session, exists := e.sessions[token]
-	e.mu.RUnlock()
 
 	// Check memory first
 	if exists {
-		e.mu.Lock()
-		defer e.mu.Unlock()
-
+		// Check expiration
 		if time.Now().After(session.ExpiresAt) {
+			// Delete expired session
+			delete(e.sessions, token)
 			return nil, errors.New("сесія закінчилася")
 		}
 
@@ -335,6 +347,8 @@ func (e *RBACEngine) ValidateSession(token string) (*User, error) {
 		if err == nil {
 			// Found in database
 			if time.Now().After(dbSession.ExpiresAt) {
+				// Delete expired session from DB
+				_ = e.DB.DeleteUserSession(token)
 				return nil, errors.New("сесія закінчилася")
 			}
 
@@ -705,26 +719,35 @@ func generateSessionID() string {
 	return fmt.Sprintf("session_%d", time.Now().UnixNano())
 }
 
-func generateToken() string {
-	// Use crypto/rand for secure random token
+// generateToken creates a cryptographically secure random token.
+// Returns error if secure random generation fails - no weak fallback.
+func generateToken() (string, error) {
 	bytes := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, bytes); err != nil {
-		// Fallback to time-based (less secure, but better than nothing)
-		hash := sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
-		return hex.EncodeToString(hash[:])
+	_, err := io.ReadFull(rand.Reader, bytes)
+	if err != nil {
+		// Fail securely - don't fallback to predictable time-based generation
+		return "", fmt.Errorf("failed to generate secure random token: %w", err)
 	}
-	return hex.EncodeToString(bytes)
+	return hex.EncodeToString(bytes), nil
 }
 
-// PasswordPolicy validates password strength
+// PasswordPolicy validates password strength with enterprise-grade requirements.
+// Requires minimum 12 characters with uppercase, lowercase, digits, and special characters.
 func PasswordPolicy(password string) error {
-	if len(password) < 8 {
-		return errors.New("пароль має бути не менше 8 символів")
+	// Check minimum length (12 characters for enterprise security)
+	if len(password) < 12 {
+		return errors.New("пароль має бути не менше 12 символів")
+	}
+
+	// Check maximum length (prevent DoS via very long passwords)
+	if len(password) > 128 {
+		return errors.New("пароль занадто довгий (максимум 128 символів)")
 	}
 
 	hasUpper := false
 	hasLower := false
 	hasDigit := false
+	hasSpecial := false
 
 	for _, c := range password {
 		switch {
@@ -734,14 +757,84 @@ func PasswordPolicy(password string) error {
 			hasLower = true
 		case c >= '0' && c <= '9':
 			hasDigit = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
 		}
 	}
 
-	if !hasUpper || !hasLower || !hasDigit {
-		return errors.New("пароль має містити великі літери, малі літери та цифри")
+	if !hasUpper {
+		return errors.New("пароль має містити хоча б одну велику літеру")
+	}
+	if !hasLower {
+		return errors.New("пароль має містити хоча б одну малу літеру")
+	}
+	if !hasDigit {
+		return errors.New("пароль має містити хоча б одну цифру")
+	}
+	if !hasSpecial {
+		return errors.New("пароль має містити хоча б один спеціальний символ")
+	}
+
+	// Check against common passwords
+	commonPasswords := []string{
+		"password", "admin", "qwerty", "123456", "12345678",
+		"admin123", "password123", "qwerty123", "letmein",
+		"welcome", "monkey", "dragon", "master", "login",
+	}
+	lowerPassword := strings.ToLower(password)
+	for _, common := range commonPasswords {
+		if strings.Contains(lowerPassword, common) {
+			return errors.New("пароль занадто простий, оберіть складніший")
+		}
+	}
+
+	// Check for sequential characters (abc, 123, etc.)
+	if hasSequential(password, 3) {
+		return errors.New("пароль не повинен містити послідовних символів (abc, 123)")
+	}
+
+	// Check for repeated characters (aaa, 111, etc.)
+	if hasRepeated(password, 3) {
+		return errors.New("пароль не повинен містити повторюваних символів (aaa, 111)")
 	}
 
 	return nil
+}
+
+// hasSequential checks for sequential characters (abc, 123, etc.)
+func hasSequential(password string, minLen int) bool {
+	runes := []rune(password)
+	for i := 0; i <= len(runes)-minLen; i++ {
+		isSequential := true
+		for j := 1; j < minLen; j++ {
+			if runes[i+j] != runes[i+j-1]+1 {
+				isSequential = false
+				break
+			}
+		}
+		if isSequential {
+			return true
+		}
+	}
+	return false
+}
+
+// hasRepeated checks for repeated characters (aaa, 111, etc.)
+func hasRepeated(password string, minRepeat int) bool {
+	runes := []rune(password)
+	for i := 0; i <= len(runes)-minRepeat; i++ {
+		isRepeated := true
+		for j := 1; j < minRepeat; j++ {
+			if runes[i+j] != runes[i] {
+				isRepeated = false
+				break
+			}
+		}
+		if isRepeated {
+			return true
+		}
+	}
+	return false
 }
 
 // AuditLog represents an audit log entry
@@ -757,10 +850,11 @@ type AuditLog struct {
 	Success   bool                   `json:"success"`
 }
 
-// AuditEngine handles audit logging
+// AuditEngine handles audit logging with database persistence
 type AuditEngine struct {
 	logs []AuditLog
 	mu   sync.Mutex
+	DB   *database.Database // Optional: for persistence
 }
 
 // NewAuditEngine creates a new audit engine
@@ -770,7 +864,7 @@ func NewAuditEngine() *AuditEngine {
 	}
 }
 
-// Log adds an audit log entry
+// Log adds an audit log entry and persists to database if available
 func (e *AuditEngine) Log(userID, username, action, resource, ipAddress string, success bool, details map[string]interface{}) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -787,15 +881,44 @@ func (e *AuditEngine) Log(userID, username, action, resource, ipAddress string, 
 		Details:   details,
 	}
 
+	// Persist to database if available
+	if e.DB != nil {
+		// Convert details to JSON string
+		detailsJSON := "{}"
+		if details != nil {
+			if jsonBytes, err := json.Marshal(details); err == nil {
+				detailsJSON = string(jsonBytes)
+			}
+		}
+
+		dbAudit := &database.AuditLog{
+			ID:        log.ID,
+			Timestamp: log.Timestamp,
+			UserID:    log.UserID,
+			Username:  log.Username,
+			Action:    log.Action,
+			Resource:  log.Resource,
+			IPAddress: log.IPAddress,
+			Success:   log.Success,
+			Details:   detailsJSON,
+		}
+
+		if err := e.DB.CreateAuditLog(dbAudit); err != nil {
+			// Log error but don't fail the audit
+			fmt.Printf("Warning: failed to persist audit log to DB: %v\n", err)
+		}
+	}
+
+	// Also keep in memory for recent access
 	e.logs = append(e.logs, log)
 
-	// Keep only last 10000 entries
-	if len(e.logs) > 10000 {
-		e.logs = e.logs[len(e.logs)-10000:]
+	// Keep only last 1000 entries in memory (database has full history)
+	if len(e.logs) > 1000 {
+		e.logs = e.logs[len(e.logs)-1000:]
 	}
 }
 
-// GetLogs returns audit logs
+// GetLogs returns audit logs from memory
 func (e *AuditEngine) GetLogs(limit int) []AuditLog {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -805,4 +928,64 @@ func (e *AuditEngine) GetLogs(limit int) []AuditLog {
 	}
 
 	return e.logs[len(e.logs)-limit:]
+}
+
+// GetLogsFromDB retrieves audit logs from database with pagination
+func (e *AuditEngine) GetLogsFromDB(limit, offset int) ([]AuditLog, error) {
+	if e.DB == nil {
+		return nil, errors.New("database not available")
+	}
+
+	dbLogs, err := e.DB.GetAuditLogs(limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert database logs to engine logs
+	logs := make([]AuditLog, len(dbLogs))
+	for i, dbLog := range dbLogs {
+		// Parse JSON details back to map
+		var details map[string]interface{}
+		if dbLog.Details != "" && dbLog.Details != "{}" {
+			json.Unmarshal([]byte(dbLog.Details), &details)
+		}
+
+		logs[i] = AuditLog{
+			ID:        dbLog.ID,
+			Timestamp: dbLog.Timestamp,
+			UserID:    dbLog.UserID,
+			Username:  dbLog.Username,
+			Action:    dbLog.Action,
+			Resource:  dbLog.Resource,
+			IPAddress: dbLog.IPAddress,
+			Success:   dbLog.Success,
+			Details:   details,
+		}
+	}
+
+	return logs, nil
+}
+
+// GetLogsCount returns total number of audit logs in database
+func (e *AuditEngine) GetLogsCount() (int, error) {
+	if e.DB == nil {
+		return len(e.logs), nil
+	}
+
+	count, err := e.DB.GetAuditLogsCount()
+	if err != nil {
+		return len(e.logs), err
+	}
+
+	return count, nil
+}
+
+// RotateLogs deletes audit logs older than the specified duration
+func (e *AuditEngine) RotateLogs(olderThan time.Duration) error {
+	if e.DB == nil {
+		return errors.New("database not available")
+	}
+
+	cutoff := time.Now().Add(-olderThan)
+	return e.DB.DeleteAuditLogsBefore(cutoff)
 }

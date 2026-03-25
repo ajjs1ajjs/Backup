@@ -7,7 +7,6 @@ import (
 	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -19,8 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/scrypt"
 	"novabackup/internal/backup"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Restore Types
@@ -360,34 +360,67 @@ func (e *RestoreEngine) extractFile(f *zip.File, destPath string, encryptionKey 
 	return err
 }
 
+// safeJoin securely joins a base directory with a relative path, preventing path traversal attacks.
+// It validates that the resulting path is within the base directory boundary.
 func safeJoin(baseDir, relPath string) (string, error) {
 	if relPath == "" {
 		return "", fmt.Errorf("empty path")
 	}
 
+	// Clean both paths to normalize separators and resolve . and ..
 	cleanRel := filepath.Clean(relPath)
+	baseClean := filepath.Clean(baseDir)
+
+	// Reject empty or root-only paths
 	if cleanRel == "." || cleanRel == string(os.PathSeparator) {
 		return "", fmt.Errorf("invalid path")
 	}
+
+	// Reject absolute paths (check both filepath.IsAbs and volume name for Windows)
 	if filepath.IsAbs(cleanRel) || filepath.VolumeName(cleanRel) != "" {
 		return "", fmt.Errorf("absolute path is not allowed")
 	}
-	if strings.HasPrefix(cleanRel, ".."+string(os.PathSeparator)) || cleanRel == ".." {
+
+	// Reject paths that start with .. (even if cleaned, check original)
+	if strings.HasPrefix(relPath, "..") || strings.HasPrefix(cleanRel, "..") {
 		return "", fmt.Errorf("path traversal detected")
 	}
 
-	if baseDir == "" {
+	// Check for embedded .. components (e.g., "foo/../../bar")
+	// Split and check each component
+	parts := strings.Split(cleanRel, string(os.PathSeparator))
+	for _, part := range parts {
+		if part == ".." {
+			return "", fmt.Errorf("path traversal detected in component: %s", part)
+		}
+	}
+
+	// If baseDir is empty, return cleaned relative path
+	if baseDir == "" || baseClean == "" {
 		return cleanRel, nil
 	}
 
-	baseClean := filepath.Clean(baseDir)
+	// Join paths
 	fullPath := filepath.Join(baseClean, cleanRel)
+
+	// CRITICAL: Verify the result is within base directory
+	// Use filepath.Rel and check it doesn't start with ..
 	relCheck, err := filepath.Rel(baseClean, fullPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to validate path: %w", err)
 	}
-	if strings.HasPrefix(relCheck, ".."+string(os.PathSeparator)) || relCheck == ".." {
-		return "", fmt.Errorf("path escapes destination")
+
+	// Check if relative path escapes base directory
+	// On Windows, also check for .. without separator (e.g., "..\\foo")
+	if strings.HasPrefix(relCheck, "..") {
+		return "", fmt.Errorf("path escapes destination: %s", relPath)
+	}
+
+	// Additional check: ensure fullPath starts with baseClean
+	// This catches edge cases on Windows with mixed separators
+	if !strings.HasPrefix(strings.ToLower(fullPath), strings.ToLower(baseClean+string(os.PathSeparator))) &&
+		!strings.EqualFold(fullPath, baseClean) {
+		return "", fmt.Errorf("path validation failed: %s", relPath)
 	}
 
 	return fullPath, nil
@@ -1037,14 +1070,22 @@ func (e *RestoreEngine) decryptFile(src, dst, password string) error {
 	return nil
 }
 
+// decryptFileLegacy decrypts a file using a password.
+// Uses scrypt for key derivation to resist brute-force attacks.
 func (e *RestoreEngine) decryptFileLegacy(src, dst, password string) error {
 	ciphertext, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 
-	key := sha256.Sum256([]byte(password))
-	block, err := aes.NewCipher(key[:])
+	// Use scrypt for key derivation with strong parameters
+	salt := []byte("NovaBackup.LegacyFileDecrypt.Salt.v1")
+	keyBytes, err := scrypt.Key([]byte(password), salt, 32768, 8, 1, 32)
+	if err != nil {
+		return fmt.Errorf("key derivation failed: %w", err)
+	}
+
+	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return err
 	}
