@@ -23,6 +23,36 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+  db-dialects:
+    needs: linux-python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install dependencies for DB dialect tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[db,dev,api]"
+      - name: Run dialect tests (Postgres/MSSQL/Oracle) if URLs provided
+        env:
+          NOVABACKUP_DATABASE_URL_POSTGRES: ${{ secrets.NOVABACKUP_DATABASE_URL_POSTGRES }}
+          NOVABACKUP_DATABASE_URL_MSSQL: ${{ secrets.NOVABACKUP_DATABASE_URL_MSSQL }}
+          NOVABACKUP_DATABASE_URL_ORACLE: ${{ secrets.NOVABACKUP_DATABASE_URL_ORACLE }}
+        run: |
+          set +e
+          echo "Postgres URL: $NOVABACKUP_DATABASE_URL_POSTGRES"
+          echo "MSSQL URL: $NOVABACKUP_DATABASE_URL_MSSQL"
+          echo "Oracle URL: $NOVABACKUP_DATABASE_URL_ORACLE"
+          if [ -z "$NOVABACKUP_DATABASE_URL_POSTGRES" ] && [ -z "$NOVABACKUP_DATABASE_URL_MSSQL" ] && [ -z "$NOVABACKUP_DATABASE_URL_ORACLE" ]; then
+            echo "No DB URLs provided; skipping dialect tests"
+            exit 0
+          fi
+          pytest tests/test_sa_multi_db.py -q
+          set -e
       - name: Type checking (mypy)
         run: |
           mypy --version || true

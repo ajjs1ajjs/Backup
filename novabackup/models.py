@@ -45,6 +45,10 @@ class BackupCreateRequest(BaseModel):
     dest: str
     type: str = "full"
     name: Optional[str] = None
+    destination_type: str = "local"
+    cloud_provider: Optional[str] = None
+    cloud_region: Optional[str] = None
+    cloud_dest: Optional[str] = None
 
 
 class RestoreRequest(BaseModel):

@@ -67,3 +67,11 @@ Roadmap and future work
 - See ROADMAP.md for the current plan and milestones.
 
 If you need help or want me to tailor the DW (Docs/Wiki) for your team, just say the word.
+## Database backends (PostgreSQL, MSSQL, Oracle)
+- To use a real database backend, set NOVABACKUP_DATABASE_URL to a dialect URL and install the required driver libraries.
+- Supported dialect URLs:
+- PostgreSQL: postgresql+psycopg2://user:pass@host:5432/novabackup
+- MSSQL: mssql+pyodbc://user:pass@host:1433/novabackup?driver=ODBC+Driver+17+for+SQL+Server
+- Oracle: oracle+cx_oracle://user:pass@host:1521/?service_name=ORCLCDB
+- Drivers to install: psycopg2-binary, pyodbc, cx_Oracle
+- Environment variables to test in CI: NOVABACKUP_DATABASE_URL_POSTGRES, NOVABACKUP_DATABASE_URL_MSSQL, NOVABACKUP_DATABASE_URL_ORACLE

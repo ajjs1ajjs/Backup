@@ -1,7 +1,10 @@
 import os
+import datetime
 from typing import List
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import APIKeyHeader
+
 from novabackup.core import list_vms, normalize_vm_type
 from novabackup.models import (
     VMModel,
@@ -14,13 +17,12 @@ from novabackup.models import (
 )
 from novabackup.backup import BackupManager
 
-# Optional API key authentication (can be disabled by not setting NOVABACKUP_API_KEY)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def get_api_key(api_key: str = Depends(api_key_header)):
+def get_api_key(api_key: str = Depends(api_key_header)):
     if api_key is None:
-        return None
+        raise HTTPException(status_code=403, detail="Not authenticated")
     expected = os.environ.get("NOVABACKUP_API_KEY")
     if expected and api_key != expected:
         raise HTTPException(status_code=403, detail="Invalid API Key")
@@ -45,9 +47,24 @@ def get_app():
         req: BackupCreateRequest, _api: str = Depends(get_api_key)
     ):
         manager = BackupManager()
-        job = manager.create_backup(
-            vm_id=req.vm_id, dest=req.dest, backup_type=req.type, snapshot_name=req.name
-        )
+        if getattr(req, "destination_type", "local").lower() == "cloud":
+            job = manager.create_backup(
+                vm_id=req.vm_id,
+                dest=req.cloud_dest or req.dest,
+                backup_type=req.type,
+                snapshot_name=req.name,
+                destination_type=req.destination_type,
+                cloud_provider=req.cloud_provider,
+                cloud_region=req.cloud_region,
+                cloud_dest=req.cloud_dest,
+            )
+        else:
+            job = manager.create_backup(
+                vm_id=req.vm_id,
+                dest=req.dest,
+                backup_type=req.type,
+                snapshot_name=req.name,
+            )
         return BackupModel(**job)
 
     @app.get("/backups", response_model=BackupsResponse)
