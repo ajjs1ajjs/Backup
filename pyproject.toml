@@ -12,10 +12,13 @@ license = { text = "MIT" }
 authors = [ { name = "OpenCode" } ]
 dependencies = [
   "typer>=0.3.2",
+  # Optional SQL backends support via SQLAlchemy
+  "sqlalchemy>=2.0",
 ]
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110.0", "uvicorn>=0.18.0"]
+db = ["sqlalchemy>=2.0", "psycopg2-binary>=2.9.3", "pyodbc>=4.0; platform_system != \"Windows\"", "cx_Oracle>=8.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -56,6 +56,17 @@ class BackupManager:
                     self.use_db = True
                 except Exception:
                     self.use_db = False
+        # Also try SQLAlchemy-based DB backend when NOVABACKUP_DATABASE_URL is provided
+        if not self.use_db:
+            try:
+                from .db_sa import SA_DBManager  # type: ignore
+
+                url = database_url or os.environ.get("NOVABACKUP_DATABASE_URL")
+                if url:
+                    self._db = SA_DBManager(url)
+                    self.use_db = True
+            except Exception:
+                pass
         if not self.use_db:
             # Storage is a simple JSON file to persist backups across CLI invocations
             self.storage_path = storage_path or self._default_storage_path()
