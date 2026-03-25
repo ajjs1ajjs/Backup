@@ -1949,8 +1949,11 @@ func ListVMs(c *gin.Context) {
 
 	var vms []gin.H
 
-	if req.VMType == "hyper-v" {
-		// Use PowerShell to list Hyper-V VMs
+	if req.VMType == "hyper-v" || (req.VMType == "" && req.Host == "" && req.Login == "" && req.Password == "") {
+		if req.VMType == "" {
+			req.VMType = "hyper-v"
+		}
+
 		psScript := `
 $ErrorActionPreference = "Continue"
 try {

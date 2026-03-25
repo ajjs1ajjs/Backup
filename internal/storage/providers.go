@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 // Storage Providers - Veeam-style storage support
 package storage
 
@@ -9,7 +12,7 @@ import (
 	"runtime"
 	"time"
 
-	"golang.org/x/sys/unix"
+	"golang.org/x/sys/windows"
 )
 
 // Storage Types
