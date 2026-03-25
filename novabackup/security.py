@@ -6,7 +6,7 @@ import jwt  # PyJWT
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
-# In-memory user store (for MVP; replace with DB in production)
+# Simple in‑memory store for MVP (replace with DB in production)
 USERS = {
     "alice": {"password": "secret", "roles": ["admin"]},
     "bob": {"password": "secret", "roles": ["user"]},

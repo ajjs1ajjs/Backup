@@ -1,6 +1,6 @@
 import os
-from datetime import timedelta
 from typing import List, Optional
+from datetime import timedelta
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -25,7 +25,6 @@ from novabackup.security import (
     get_current_user,
     require_role,
 )
-from novabackup.security import oauth2_scheme
 
 
 class Token(BaseModel):

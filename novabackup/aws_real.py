@@ -13,21 +13,18 @@ class AWSCloudProvider:
     def list_vms(self) -> List[Dict[str, Any]]:
         ec2 = boto3.client("ec2", region_name=self.region, profile_name=self.profile)
         resp = ec2.describe_instances()
-        vms = []
+        vms: List[Dict[str, Any]] = []
         for r in resp.get("Reservations", []):
             for inst in r.get("Instances", []):
+                vid = inst.get("InstanceId")
                 name = None
                 for t in inst.get("Tags", []) or []:
                     if t.get("Key") == "Name":
                         name = t.get("Value")
-                vms.append(
-                    {
-                        "id": inst.get("InstanceId"),
-                        "name": name or inst.get("InstanceId"),
-                        "type": "AWS",
-                        "status": inst.get("State", {}).get("Name", "unknown"),
-                    }
-                )
+                if not name:
+                    name = vid
+                state = inst.get("State", {}).get("Name", "unknown")
+                vms.append({"id": vid, "name": name, "type": "AWS", "status": state})
         return vms
 
     def backup_to_cloud(
@@ -41,19 +38,15 @@ class AWSCloudProvider:
     ) -> Optional[Dict[str, Any]]:
         try:
             ec2 = boto3.client("ec2", region_name=region, profile_name=self.profile)
-            volumes = []
             resp = ec2.describe_instances(
                 Filters=[{"Name": "tag:Name", "Values": [vm_id]}]
             )
+            volumes = []
             for r in resp.get("Reservations", []):
                 for inst in r.get("Instances", []):
-                    volumes.extend(
-                        [
-                            bd.get("Ebs")["VolumeId"]
-                            for bd in inst.get("BlockDeviceMappings", [])
-                            if "Ebs" in bd
-                        ]
-                    )
+                    for bd in inst.get("BlockDeviceMappings", []) or []:
+                        if "Ebs" in bd and "VolumeId" in bd["Ebs"]:
+                            volumes.append(bd["Ebs"]["VolumeId"])
             if not volumes:
                 return None
             snap = ec2.create_snapshot(

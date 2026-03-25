@@ -42,19 +42,16 @@ class AzureCloudProvider:
         backup_type: str,
         snapshot_name: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        # Real logic would require disks/snapshots operations; return a stub for MVP if credentials missing
-        try:
-            now = datetime.datetime.utcnow().isoformat() + "Z"
-            return {
-                "backup_id": f"azure-{vm_id}-backup",
-                "snapshot_id": f"azure-snap-{vm_id}",
-                "provider": "Azure",
-                "status": "created",
-                "created_at": now,
-                "dest": dest,
-            }
-        except Exception:
-            return None
+        # Real implementation would call Azure Snapshot APIs
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        return {
+            "backup_id": f"azure-{vm_id}-backup",
+            "snapshot_id": f"azure-snap-{vm_id}",
+            "provider": "Azure",
+            "status": "created",
+            "created_at": now,
+            "dest": dest,
+        }
 
     def restore_from_cloud(self, backup_id: str, dest: str) -> Dict[str, Any]:
         now = datetime.datetime.utcnow().isoformat() + "Z"
