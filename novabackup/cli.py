@@ -4,6 +4,7 @@ import typer
 import json
 from .core import list_vms, normalize_vm_type
 from .backup import BackupManager
+from .migrate import migrate_json_to_db
 
 app = typer.Typer(help="Novabackup Python MVP CLI.")
 
