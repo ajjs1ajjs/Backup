@@ -1998,7 +1998,7 @@ try {
 				})
 			}
 		}
-	} else if req.VMType == "kvm" {
+	} else if req.VMType == "kvm" || req.VMType == "qemu" || req.VMType == "kvm/qemu" {
 		// Use SSH to list KVM VMs via virsh
 		sshCmd := fmt.Sprintf(`sshpass -p '%s' ssh -o StrictHostKeyChecking=no %s@%s "virsh list --all"`,
 			req.Password, req.Login, req.Host)
