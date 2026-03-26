@@ -25,33 +25,29 @@ class CloudOrchestrator:
         backup_type: str,
         snapshot_name: Optional[str] = None,
     ) -> Optional[dict]:
+        # Find provider by class name (case-insensitive match)
+        provider_lower = provider.lower() if provider else ""
         for p in self.providers:
-            try:
-                if (
-                    provider
-                    and provider.lower()
-                    in getattr(p, "__class__", type(p)).__name__.lower()
-                ):
+            if provider_lower == p.__class__.__name__.lower():
+                try:
                     if hasattr(p, "backup_to_cloud"):
                         return p.backup_to_cloud(
                             vm_id, provider, region, dest, backup_type, snapshot_name
                         )
-            except Exception:
-                continue
+                except Exception:
+                    # If the provider fails, we return None for this provider.
+                    return None
         return None
 
     def restore_from_cloud(
         self, provider: str, backup_id: str, dest: str
     ) -> Optional[dict]:
+        provider_lower = provider.lower() if provider else ""
         for p in self.providers:
-            try:
-                if (
-                    provider
-                    and provider.lower()
-                    in getattr(p, "__class__", type(p)).__name__.lower()
-                ):
+            if provider_lower == p.__class__.__name__.lower():
+                try:
                     if hasattr(p, "restore_from_cloud"):
                         return p.restore_from_cloud(backup_id, dest)
-            except Exception:
-                continue
+                except Exception:
+                    return None
         return None
