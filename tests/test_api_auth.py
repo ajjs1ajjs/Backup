@@ -31,7 +31,8 @@ def test_token_login_and_refresh_flow():
 
     # Refresh tokens
     refresh_resp = client.post(
-        "/token/refresh", json={"refresh_token": data["refresh_token"]}
+        "/token/refresh",
+        json={"access_token": None, "refresh_token": data["refresh_token"]},
     )
     assert refresh_resp.status_code == 200
     refresh_data = refresh_resp.json()

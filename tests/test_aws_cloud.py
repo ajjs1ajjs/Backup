@@ -1,9 +1,9 @@
-from moto import mock_ec2
+from moto import mock_aws
 import boto3
 from novabackup.providers.cloud.aws import AWSCloudProvider
 
 
-@mock_ec2
+@mock_aws
 def test_aws_cloud_provider_list_and_backup():
     # Create a mock EC2 instance with a Name tag
     ec2 = boto3.client("ec2", region_name="us-east-1")

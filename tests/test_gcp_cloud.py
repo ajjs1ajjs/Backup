@@ -1,10 +1,9 @@
-import os
 from unittest.mock import MagicMock, patch
 
 from novabackup.gcp_real import GCPCloudProvider
 
 
-@patch("novabackup.gcp_real.build")
+@patch("googleapiclient.discovery.build")
 def test_gcp_cloud_provider_list_and_backup(mock_build):
     # Setup mock service
     mock_service = MagicMock()
@@ -25,7 +24,6 @@ def test_gcp_cloud_provider_list_and_backup(mock_build):
 
     # Create provider with a dummy project id
     provider = GCPCloudProvider(project_id="test-project")
-    # Note: the real provider would have set up the service, but we mocked it.
 
     # Test list_vms
     vms = provider.list_vms()

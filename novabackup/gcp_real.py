@@ -57,4 +57,5 @@ class GCPCloudProvider:
             "dest": dest,
             "status": "restored",
             "restored_at": now,
+            "provider": "GCP",
         }

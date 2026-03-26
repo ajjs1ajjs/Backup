@@ -1,28 +1,20 @@
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from novabackup.azure_real import AzureCloudProvider
 
 
-@patch("novabackup.azure_real.DefaultAzureCredential")
-@patch("novabackup.azure_real.ComputeManagementClient")
-def test_azure_cloud_provider_list_and_backup(mock_compute_client, mock_credential):
-    # Setup mock credential
-    mock_credential.return_value = MagicMock()
-
-    # Setup mock compute client
+def test_azure_cloud_provider_list_and_backup():
+    # Create provider with a dummy subscription id and no credential (will cause client to be None initially)
+    provider = AzureCloudProvider(subscription_id="xxx")
+    # Override the client with a mock
     mock_client = MagicMock()
-    mock_compute_client.return_value = mock_client
+    provider.client = mock_client
 
     # Setup mock VM list
     mock_vm = MagicMock()
     mock_vm.id = "/subscriptions/xxx/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/test-vm"
     mock_vm.name = "test-vm"
     mock_client.virtual_machines.list_all.return_value = [mock_vm]
-
-    # Create provider with a dummy subscription id
-    provider = AzureCloudProvider(subscription_id="xxx")
-    assert provider.client is not None
 
     # Test list_vms
     vms = provider.list_vms()

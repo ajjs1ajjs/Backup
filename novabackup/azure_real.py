@@ -60,4 +60,5 @@ class AzureCloudProvider:
             "dest": dest,
             "status": "restored",
             "restored_at": now,
+            "provider": "Azure",
         }
