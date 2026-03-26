@@ -96,8 +96,11 @@ Table of Contents
 - Tests rely on the Mock cloud provider by default to avoid real cloud credentials in CI.
 
 ## Deployment
-- Docker/Compose scaffolding is available for multi-service deployment (db/api/ui).
+- Dockerfile provided for building a production-ready image.
+- docker-compose.yml for local development (builds from Dockerfile).
+- docker-compose-prod.yml template for production deployment (uses external image).
 - Production installation scripts are included for Linux and Windows.
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`) runs tests and builds Docker image on push/PR to main.
 
 ## Documentation & Roadmap
 - ROADMAP.md and SUMMARY.md outline ongoing work and milestones for Stage 1 through Stage 7.

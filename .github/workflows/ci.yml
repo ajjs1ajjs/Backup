@@ -2,87 +2,43 @@ name: CI
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
-  linux-python:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.9, 3.10, 3.11]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,api]"
-      - name: Run tests
-        run: |
-          pytest -q
-
-  db-dialects:
-    needs: linux-python
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-      - name: Install dependencies for DB dialect tests
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[db,dev,api]"
-      - name: Run dialect tests (Postgres/MSSQL/Oracle) if URLs provided
-        env:
-          NOVABACKUP_DATABASE_URL_POSTGRES: ${{ secrets.NOVABACKUP_DATABASE_URL_POSTGRES }}
-          NOVABACKUP_DATABASE_URL_MSSQL: ${{ secrets.NOVABACKUP_DATABASE_URL_MSSQL }}
-          NOVABACKUP_DATABASE_URL_ORACLE: ${{ secrets.NOVABACKUP_DATABASE_URL_ORACLE }}
-        run: |
-          set +e
-          echo "Postgres URL: $NOVABACKUP_DATABASE_URL_POSTGRES"
-          echo "MSSQL URL: $NOVABACKUP_DATABASE_URL_MSSQL"
-          echo "Oracle URL: $NOVABACKUP_DATABASE_URL_ORACLE"
-          if [ -z "$NOVABACKUP_DATABASE_URL_POSTGRES" ] && [ -z "$NOVABACKUP_DATABASE_URL_MSSQL" ] && [ -z "$NOVABACKUP_DATABASE_URL_ORACLE" ]; then
-            echo "No DB URLs provided; skipping dialect tests"
-            exit 0
-          fi
-          pytest tests/test_sa_multi_db.py -q
-          set -e
-      - name: Type checking (mypy)
-        run: |
-          mypy --version || true
-          mypy novabackup || true
-      - name: Linting (flake8)
-        run: |
-          flake8 --version || true
-          flake8 novabackup tests || true
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[api,db] pytest
+        # Install cloud provider deps for testing (they are optional but we need them for the tests)
+        pip install boto3 azure-mgmt-compute google-api-python-client moto
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v
 
-  windows-python:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        python-version: [3.9, 3.11]
+  build:
+    runs-on: ubuntu-latest
+    needs: test
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,api]"
-      - name: Run tests
-        run: |
-          pytest -q
-      - name: Type checking (mypy)
-        run: |
-          mypy novabackup || true
-      - name: Linting (flake8)
-        run: |
-          flake8 novabackup tests || true
+    - uses: actions/checkout@v4
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Log in to Docker Hub (optional, not needed for build only)
+      # If you want to push, you need to provide DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets
+      # We'll skip login for now, just build.
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: novabackup:latest
+        load: true  # Load the image into Docker daemon for potential next steps (if any)

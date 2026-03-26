@@ -8,8 +8,9 @@ services:
     environment:
       - NOVABACKUP_API_KEY=secret-key
       - NOVABACKUP_CLOUD_PROVIDERS=MOCK
-      - NOVABACKUP_DATABASE_URL=/dev/null
-    command: ["uvicorn", "novabackup.api:app", "--host", "0.0.0.0", "--port", "8000"]
+      - NOVABACKUP_DATABASE_URL=sqlite:///./novabackup.db
+    # The Dockerfile already contains the CMD, but we can override if needed
+    # command: ["uvicorn", "novabackup.api:get_app", "--host", "0.0.0.0", "--port", "8000"]
   db:
     image: postgres:15
     environment:
