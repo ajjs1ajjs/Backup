@@ -3,21 +3,222 @@
   <head>
     <meta charset="utf-8" />
     <title>Novabackup Dashboard</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+      input, button { margin: 5px; padding: 8px; }
+      button { cursor: pointer; }
+      #login-form { display: none; }
+      #logout-btn { display: none; }
+      #dashboard { display: none; }
+    </style>
   </head>
   <body>
     <h1>Novabackup Dashboard</h1>
-    <div id="vm-list"></div>
-    <div id="backup-list"></div>
+
+    <div id="login-form" class="section">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <div id="login-error" style="color:red; margin-top:10px;"></div>
+    </div>
+
+    <div id="dashboard" class="section">
+      <h2>Dashboard</h2>
+      <button onclick="logout()">Logout</button>
+      <div>
+        <h3>VMs</h3>
+        <div id="vm-list"></div>
+      </div>
+      <div>
+        <h3>Backups</h3>
+        <div id="backup-list"></div>
+      </div>
+      <div>
+        <h3>Create Backup</h3>
+        <input type="text" id="vm-id" placeholder="VM ID" />
+        <input type="text" id="dest" placeholder="Destination" />
+        <input type="text" id="backup-type" placeholder="Backup type (full)" value="full" />
+        <input type="text" id="backup-name" placeholder="Backup name (optional)" />
+        <br/>
+        <label>Destination type:
+          <select id="dest-type">
+            <option value="local">Local</option>
+            <option value="cloud">Cloud</option>
+          </select>
+        </label>
+        <br/>
+        <label>Cloud provider:
+          <select id="cloud-provider">
+            <option value=""></option>
+            <option value="AWS">AWS</option>
+            <option value="Azure">Azure</option>
+            <option value="GCP">GCP</option>
+          </select>
+        </label>
+        <br/>
+        <label>Cloud region:
+          <input type="text" id="cloud-region" placeholder="Region (e.g., us-east-1)" />
+        </label>
+        <br/>
+        <label>Cloud destination:
+          <input type="text" id="cloud-dest" placeholder="Cloud destination (e.g., s3://bucket/backups)" />
+        </label>
+        <br/>
+        <button onclick="createBackup()">Create Backup</button>
+        <div id="backup-result" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
     <script>
-      async function load() {
-        const vmRes = await fetch('/vms');
-        const vms = await vmRes.json();
-        document.getElementById('vm-list').innerText = 'VMs: ' + (Array.isArray(vms) ? vms.length : 0);
-        const bRes = await fetch('/backups');
-        const backs = await bRes.json();
-        document.getElementById('backup-list').innerText = 'Backups: ' + (backs.backups ? backs.backups.length : 0);
+      let token = localStorage.getItem('novabackup_token') || '';
+
+      function setToken(t) {
+        token = t;
+        if (t) {
+          localStorage.setItem('novabackup_token', t);
+        } else {
+          localStorage.removeItem('novabackup_token');
+        }
       }
-      load();
+
+      async function apiFetch(url, options = {}) {
+        const headers = new Headers(options.headers || {});
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        const resp = await fetch(url, { ...options, headers });
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(`API error ${resp.status}: ${err}`);
+        }
+        return resp.json();
+      }
+
+      async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+        try {
+          const data = await apiFetch('/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData
+          });
+          setToken(data.access_token);
+          document.getElementById('login-error').textContent = '';
+          showDashboard();
+          loadDashboard();
+        } catch (e) {
+          document.getElementById('login-error').textContent = e.message;
+        }
+      }
+
+      function logout() {
+        setToken('');
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('vm-list').innerText = '';
+        document.getElementById('backup-list').innerText = '';
+        document.getElementById('backup-result').innerText = '';
+      }
+
+      function showDashboard() {
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+      }
+
+      async function loadDashboard() {
+        try {
+          const vms = await apiFetch('/vms');
+          document.getElementById('vm-list').innerHTML = '';
+          if (Array.isArray(vms) && vms.length) {
+            const ul = document.createElement('ul');
+            vms.forEach(vm => {
+              const li = document.createElement('li');
+              li.textContent = `${vm.name} (${vm.id}) - ${vm.type} - ${vm.status}`;
+              ul.appendChild(li);
+            });
+            document.getElementById('vm-list').appendChild(ul);
+          } else {
+            document.getElementById('vm-list').textContent = 'No VMs';
+          }
+        } catch (e) {
+          document.getElementById('vm-list').textContent = `Error loading VMs: ${e.message}`;
+        }
+
+        try {
+          const backs = await apiFetch('/backups');
+          document.getElementById('backup-list').innerHTML = '';
+          if (backs.backups && backs.backups.length) {
+            const ul = document.createElement('ul');
+            backs.backups.forEach(b => {
+              const li = document.createElement('li');
+              li.textContent = `${b.backup_id} - ${b.vm_id} - ${b.type} - ${b.status}`;
+              ul.appendChild(li);
+            });
+            document.getElementById('backup-list').appendChild(ul);
+          } else {
+            document.getElementById('backup-list').textContent = 'No backups';
+          }
+        } catch (e) {
+          document.getElementById('backup-list').textContent = `Error loading backups: ${e.message}`;
+        }
+      }
+
+      async function createBackup() {
+        const vmId = document.getElementById('vm-id').value.trim();
+        const dest = document.getElementById('dest').value.trim();
+        const backupType = document.getElementById('backup-type').value.trim() || 'full';
+        const backupName = document.getElementById('backup-name').value.trim() || null;
+        const destType = document.getElementById('dest-type').value;
+        const cloudProvider = document.getElementById('cloud-provider').value.trim() || null;
+        const cloudRegion = document.getElementById('cloud-region').value.trim() || null;
+        const cloudDest = document.getElementById('cloud-dest').value.trim() || null;
+
+        if (!vmId || !dest) {
+          document.getElementById('backup-result').textContent = 'VM ID and Destination are required';
+          return;
+        }
+
+        const payload = {
+          vm_id: vmId,
+          dest: dest,
+          type: backupType,
+          name: backupName,
+          destination_type: destType,
+          cloud_provider: cloudProvider,
+          cloud_region: cloudRegion,
+          cloud_dest: cloudDest
+        };
+
+        // Remove null values
+        Object.keys(payload).forEach(k => (payload[k] === null || payload[k] === '') && delete payload[k]);
+
+        try {
+          const result = await apiFetch('/backups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          document.getElementById('backup-result').textContent = `Backup created: ${result.backup_id}`;
+          loadDashboard(); // refresh lists
+        } catch (e) {
+          document.getElementById('backup-result').textContent = `Error: ${e.message}`;
+        }
+      }
+
+      // Initialize UI based on token
+      if (token) {
+        showDashboard();
+        loadDashboard();
+      } else {
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+      }
     </script>
   </body>
-  </html>
+</html>
