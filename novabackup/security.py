@@ -10,6 +10,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 USERS = {
     "alice": {"password": "secret", "roles": ["admin"]},
     "bob": {"password": "secret", "roles": ["user"]},
+    # New test user with no privileges to validate RBAC boundaries in tests
+    "charlie": {"password": "secret", "roles": []},
 }
 
 SECRET_KEY = os.environ.get("NOVABACKUP_JWT_SECRET", "change-me")
