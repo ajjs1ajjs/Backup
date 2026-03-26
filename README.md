@@ -41,23 +41,55 @@ Table of Contents
 - Cloud credentials (for real cloud tests; by default Mock provider is used in CI)
 
 ## Installation
+
+### Option 1: Using the provided installer scripts (Recommended for first-time users)
+
+#### Linux/macOS
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | bash
+```
+
+#### Windows (PowerShell)
+```powershell
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat | iex
+```
+
+> These scripts will create a virtual environment at `$HOME/.novabackup/venv` (Linux/macOS) or `%USERPROFILE%\.novabackup\venv` (Windows), install the package in development mode with API and dev dependencies, and attempt to fetch the latest source from the repository.
+
+### Option 2: Manual installation
+
 1. Clone the repository
-   
    ```bash
-   git clone https://github.com/username/Novabackup.git
-   cd Novabackup
+   git clone https://github.com/ajjs1ajjs/Backup.git
+   cd Backup
    ```
 2. Create a Python virtual environment and install dependencies
    ```bash
    python -m venv venv
    source venv/bin/activate  # on Windows: .\\venv\\Scripts\\activate
-   pip install -r requirements.txt  # if a requirements file exists
+   pip install -e ".[dev,api]"
    ```
 3. Create a local configuration (optional)
    - The project uses environment variables for sensitive config:
      - NOVABACKUP_JWT_SECRET: secret for JWT signing
      - NOVABACKUP_DATABASE_URL: optional DB URL for DB-backed storage
      - NOVABACKUP_CLOUD_PROVIDER: MOCK to use mock cloud provider in CI, or AWS/AZURE/GCP for real providers when credentials are available
+
+## Quick Start
+
+To get Novabackup up and running in under a minute:
+
+### Linux/macOS
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | bash && source $HOME/.novabackup/venv/bin/activate && novabackup list-vms
+```
+
+### Windows (PowerShell)
+```powershell
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat | iex; & "$USERPROFILE\.novabackup\venv\Scripts\activate"; novabackup list-vms
+```
+
+> Note: The `novabackup list-vms` command may return an empty list or an error if no hypervisor is available. This is expected in environments without Hyper-V (Windows) or libvirt (Linux). The installation is successful if the command runs without import errors.
 
 ## Usage
 - Run the API locally (FastAPI / uvicorn)
@@ -104,7 +136,8 @@ Table of Contents
 
 ## Documentation & Roadmap
 - ROADMAP.md and SUMMARY.md outline ongoing work and milestones for Stage 1 through Stage 7.
-- Migration guides and release notes are included in docs.
+- Migration guide: MIGRATION_GUIDE.md
+- Release notes: RELEASE_NOTES.md
 
 ## Contributing
 - Please open issues or submit pull requests with your proposed changes.
