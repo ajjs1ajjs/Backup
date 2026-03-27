@@ -94,14 +94,22 @@ REM Upgrade pip
 echo [INFO] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM Install NovaBackup from PROJECT_DIR (not current directory!)
+REM Install NovaBackup from PROJECT_DIR (change to project directory first!)
 echo [INFO] Installing NovaBackup from: %PROJECT_DIR%
 cd /d "%PROJECT_DIR%"
-pip install -e ".[api,dev]" --quiet
-if %errorlevel% equ 0 (
-    echo [OK] NovaBackup installed successfully
+if exist "%PROJECT_DIR%\pyproject.toml" (
+    echo [OK] Found pyproject.toml in %PROJECT_DIR%
+    pip install -e ".[api,dev]" --quiet
+    if %errorlevel% equ 0 (
+        echo [OK] NovaBackup installed successfully
+    ) else (
+        echo [WARNING] Installation completed with warnings
+    )
 ) else (
-    echo [WARNING] Installation completed with warnings
+    echo [ERROR] pyproject.toml not found in %PROJECT_DIR%
+    echo [ERROR] Directory contents:
+    dir "%PROJECT_DIR%" 2>&1
+    exit /b 1
 )
 
 REM Create .env if not exists
