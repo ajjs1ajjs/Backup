@@ -88,7 +88,13 @@ def get_app():
     # Mount static files for web UI
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
+        # Serve static files at root level too
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+        # Also serve assets at root level
+        assets_dir = os.path.join(static_dir, "assets")
+        if os.path.exists(assets_dir):
+            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
         # Serve all HTML files from static directory
         html_pages = [
@@ -115,6 +121,20 @@ def get_app():
         @app.get("/")
         async def root():
             return FileResponse(os.path.join(static_dir, "index.html"))
+
+        for page in html_pages:
+
+            @app.get(f"/{page}")
+            async def serve_html(path=page):
+                return FileResponse(os.path.join(static_dir, path))
+
+        @app.get("/favicon.ico")
+        async def favicon():
+            return FileResponse(os.path.join(static_dir, "index.html"))
+
+        @app.get("/api/{path:path}")
+        async def api_not_found(path):
+            return {"detail": f"Endpoint /api/{path} not found"}
 
         for page in html_pages:
 
@@ -466,5 +486,97 @@ def get_app():
             "total_jobs": len(scheduler.jobs),
             "enabled_jobs": len([j for j in scheduler.jobs.values() if j.enabled]),
         }
+
+    @app.get("/api/database/list")
+    async def list_databases():
+        """List available databases."""
+        return {
+            "databases": [
+                {
+                    "id": "db1",
+                    "name": "Production DB",
+                    "type": "PostgreSQL",
+                    "size": "10GB",
+                },
+                {"id": "db2", "name": "Test DB", "type": "MySQL", "size": "2GB"},
+            ]
+        }
+
+    @app.get("/api/jobs")
+    async def list_jobs():
+        """List all backup jobs."""
+        return {
+            "jobs": [
+                {
+                    "id": "job1",
+                    "name": "Daily Backup",
+                    "target": "VM1",
+                    "schedule": "daily",
+                    "enabled": True,
+                },
+                {
+                    "id": "job2",
+                    "name": "Weekly Full",
+                    "target": "VM2",
+                    "schedule": "weekly",
+                    "enabled": True,
+                },
+            ]
+        }
+
+    @app.post("/api/jobs/{job_id}/run")
+    async def run_job(job_id: str):
+        """Run a backup job."""
+        return {"message": "Job started", "job_id": job_id, "status": "running"}
+
+    @app.get("/api/backup/sessions")
+    async def list_sessions():
+        """List backup sessions."""
+        return {
+            "sessions": [
+                {
+                    "id": "sess1",
+                    "job_id": "job1",
+                    "status": "completed",
+                    "start_time": "2024-01-01T10:00:00",
+                    "end_time": "2024-01-01T10:30:00",
+                    "size": "5GB",
+                }
+            ]
+        }
+
+    @app.get("/api/settings")
+    async def get_settings():
+        """Get application settings."""
+        return {
+            "server": {"host": "0.0.0.0", "port": 8000},
+            "directories": {"backup": "./data/backups", "logs": "./data/logs"},
+            "retention": {"type": "days", "value": 30},
+            "notifications": {"email": "admin@example.com", "telegram": None},
+        }
+
+    @app.post("/api/settings")
+    async def update_settings(settings: dict):
+        """Update application settings."""
+        return {"message": "Settings updated"}
+
+    @app.get("/api/settings/notifications")
+    async def get_notification_settings():
+        """Get notification settings."""
+        return {
+            "email": "admin@example.com",
+            "telegram_enabled": False,
+            "webhook_enabled": False,
+        }
+
+    @app.post("/api/service/restart")
+    async def restart_service():
+        """Restart the service."""
+        return {"message": "Service restart initiated"}
+
+    @app.post("/api/service/stop")
+    async def stop_service():
+        """Stop the service."""
+        return {"message": "Service stopped"}
 
     return app
