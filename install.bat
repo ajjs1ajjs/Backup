@@ -163,5 +163,3 @@ echo.
 
 cd /d "%PROJECT_DIR%"
 python -m uvicorn novabackup.api:get_app --host 0.0.0.0 --port 8000
-
-endlocal
