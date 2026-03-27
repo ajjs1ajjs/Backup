@@ -24,6 +24,10 @@ from novabackup.security import (
     refresh_access_token,
     get_current_user,
     require_role,
+    require_scope,
+    revoke_token,
+    get_audit_logs,
+    audit_log,
 )
 from novabackup.observability import (
     REQUEST_COUNT,
@@ -188,5 +192,36 @@ def get_app():
     async def metrics():
         """Endpoint to expose Prometheus metrics."""
         return metrics_response()
+
+    @app.get("/audit/logs")
+    @track_requests(method="GET", endpoint="/audit/logs")
+    async def get_logs(
+        limit: int = 100,
+        current_user: dict = Depends(require_role(["admin"])),
+    ):
+        """Get recent audit logs (admin only)."""
+        audit_log("audit_logs_accessed", current_user.get("username", "unknown"))
+        return {"logs": get_audit_logs(limit)}
+
+    @app.post("/auth/logout")
+    @track_requests(method="POST", endpoint="/auth/logout")
+    async def logout(
+        token: str = Depends(oauth2_scheme),
+        current_user: dict = Depends(get_current_user),
+    ):
+        """Logout user by revoking their token."""
+        revoke_token(token)
+        audit_log("logout", current_user.get("username", "unknown"))
+        return {"message": "Successfully logged out"}
+
+    @app.get("/auth/me")
+    @track_requests(method="GET", endpoint="/auth/me")
+    async def get_me(current_user: dict = Depends(get_current_user)):
+        """Get current user information."""
+        return {
+            "username": current_user.get("username"),
+            "roles": current_user.get("roles", []),
+            "scopes": current_user.get("scopes", []),
+        }
 
     return app
