@@ -188,27 +188,27 @@ Write-Host ""
 $generatedSomething = $false
 
 if ($All -or $MasterKey) {
-    $masterKey = & { New-MasterKey -NoNewline }
+    $masterKey = New-MasterKey
     $generatedSomething = $true
 }
 
 if ($All -or $JwtSecret) {
-    $jwtSecret = & { New-JwtSecret -NoNewline }
+    $jwtSecret = New-JwtSecret
     $generatedSomething = $true
 }
 
 if ($All -or $ApiKey) {
-    $apiKey = & { New-ApiKey -NoNewline }
+    $apiKey = New-ApiKey
     $generatedSomething = $true
 }
 
 if ($All -or $Password) {
-    $password = & { New-SecurePassword -Length 20 -IncludeSpecial -NoNewline }
+    $password = New-SecurePassword -Length 20 -IncludeSpecial
     $generatedSomething = $true
 }
 
 if ($All -or $PostgresPassword) {
-    $postgresPassword = & { New-PostgresPassword -NoNewline }
+    $postgresPassword = New-PostgresPassword
     $generatedSomething = $true
 }
 
