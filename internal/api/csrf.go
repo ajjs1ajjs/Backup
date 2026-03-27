@@ -29,8 +29,22 @@ type CSRFConfig struct {
 
 // DefaultCSRFConfig returns a default CSRF configuration
 func DefaultCSRFConfig() *CSRFConfig {
+	// Get secret key from environment variable or generate secure random fallback
+	secretKey := os.Getenv("NOVABACKUP_CSRF_SECRET")
+	if secretKey == "" {
+		// Generate a secure random key for development only
+		// IMPORTANT: Set NOVABACKUP_CSRF_SECRET environment variable in production!
+		bytes := make([]byte, 32)
+		if _, err := cryptoRand.Read(bytes); err == nil {
+			secretKey = hex.EncodeToString(bytes)
+		} else {
+			secretKey = "nova-backup-csrf-secret-key-change-in-production"
+		}
+		fmt.Println("⚠️  WARNING: Using auto-generated CSRF secret. Set NOVABACKUP_CSRF_SECRET in production!")
+	}
+
 	return &CSRFConfig{
-		SecretKey:  "nova-backup-csrf-secret-key-change-in-production",
+		SecretKey:  secretKey,
 		Secure:     false,
 		SameSite:   "Strict",
 		HeaderName: csrfTokenHeader,

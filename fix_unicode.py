@@ -4,18 +4,32 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import requests
 
-BASE_URL = "http://localhost:8050"
+# Get project root directory (no hardcoded paths)
+SCRIPT_DIR = Path(__file__).parent.absolute()
+PROJECT_ROOT = SCRIPT_DIR
+
+BASE_URL = os.environ.get("NOVABACKUP_URL", "http://localhost:8050")
+DEFAULT_USERNAME = os.environ.get("NOVABACKUP_ADMIN_USER", "admin")
+DEFAULT_PASSWORD = os.environ.get("NOVABACKUP_ADMIN_PASSWORD")  # Must be set in env!
 
 
 def login():
     """Login and return token"""
+    if not DEFAULT_PASSWORD:
+        print("[ERROR] NOVABACKUP_ADMIN_PASSWORD environment variable not set!")
+        print("\nPlease set it:")
+        print("  Windows: setx NOVABACKUP_ADMIN_PASSWORD \"your-password\"")
+        print("  Linux: export NOVABACKUP_ADMIN_PASSWORD=\"your-password\"")
+        return None
+    
     try:
         resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": DEFAULT_USERNAME, "password": DEFAULT_PASSWORD},
             timeout=5,
         )
         if resp.status_code == 200:
@@ -72,9 +86,9 @@ def main():
     if not token:
         print("[ERROR] Failed to login. Is server running?")
         print("\nPlease run:")
-        print("  cd D:\\WORK_CODE\\Backup")
-        print("  .\\nova-backup.exe server")
-        raw_input("Press Enter to exit...")
+        print(f"  cd {PROJECT_ROOT}")
+        print("  nova-backup.exe server  (or: python -m uvicorn novabackup.api:app)")
+        input("Press Enter to exit...")
         sys.exit(1)
     print("[OK] Logged in successfully")
 
@@ -126,7 +140,7 @@ def main():
     print("  Starting new server...")
     subprocess.Popen(
         ["nova-backup.exe", "server"],
-        cwd=r"D:\WORK_CODE\Backup",
+        cwd=str(PROJECT_ROOT),
         creationflags=subprocess.CREATE_NEW_CONSOLE,
     )
 
@@ -137,14 +151,14 @@ def main():
     print("=" * 60)
     print("\nNext steps:")
     print("1. Wait 5 seconds for server to fully start")
-    print("2. Open http://localhost:8050/quick-backup.html")
+    print(f"2. Open {BASE_URL}/quick-backup.html")
     print("3. Create NEW backup job with clean paths")
     print("   Example: D:/Documents/MySoft (use forward slashes)")
     print("4. Test the backup")
     print("\nWARNING: DO NOT reuse old corrupted jobs from dropdown!")
     print("=" * 60)
 
-    raw_input("\nPress Enter to exit...")
+    input("\nPress Enter to exit...")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import os
+import secrets
 
 import jwt  # PyJWT
 from fastapi import HTTPException, Depends
@@ -14,7 +15,14 @@ USERS = {
     "charlie": {"password": "secret", "roles": []},
 }
 
-SECRET_KEY = os.environ.get("NOVABACKUP_JWT_SECRET", "change-me")
+# JWT secret from environment variable or generate secure random fallback
+# IMPORTANT: Set NOVABACKUP_JWT_SECRET environment variable in production!
+SECRET_KEY = os.environ.get("NOVABACKUP_JWT_SECRET")
+if not SECRET_KEY:
+    # Generate a secure random key for development only
+    SECRET_KEY = secrets.token_hex(32)
+    print("⚠️  WARNING: Using auto-generated JWT secret. Set NOVABACKUP_JWT_SECRET in production!")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7

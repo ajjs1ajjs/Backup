@@ -1,7 +1,10 @@
 # PowerShell script to check changes in restore.html
 Write-Host "=== Перевірка змін у restore.html ===" -ForegroundColor Cyan
 
-$filePath = "D:\WORK_CODE\Backup\web\restore.html"
+# Use script directory as base path (no hardcoded paths)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = if ($scriptDir) { $scriptDir } else { "." }
+$filePath = Join-Path $projectRoot "web\restore.html"
 
 if (Test-Path $filePath) {
     $content = Get-Content $filePath -Raw
@@ -38,7 +41,7 @@ if (Test-Path $filePath) {
 }
 
 Write-Host "`n=== Перевірка jobs.html ===" -ForegroundColor Cyan
-$jobsFile = "D:\WORK_CODE\Backup\web\jobs.html"
+$jobsFile = Join-Path $projectRoot "web\jobs.html"
 
 if (Test-Path $jobsFile) {
     $content = Get-Content $jobsFile -Raw

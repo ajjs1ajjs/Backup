@@ -1,27 +1,44 @@
 # Force kill all nova-backup processes
-Get-Process | Where-Object {$_.Name -like "*nova*"} | Stop-Process -Force -ErrorAction SilentlyContinue
+# Usage: .\force_kill.ps1 [-Port 8050]
 
-# Kill process by PID if still running
-$processId = 12428
-$process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-if ($process) {
-    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-    Write-Host "Killed process $processId"
-} else {
-    Write-Host "Process $processId not found"
+param(
+    [int]$Port = 8050
+)
+
+# Get script directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location -Path $scriptDir -ErrorAction SilentlyContinue
+
+Write-Host "=== Stopping all NovaBackup processes ===" -ForegroundColor Cyan
+
+# Kill by name patterns
+$processPatterns = @("nova-backup", "novabackup", "NovaBackup")
+foreach ($pattern in $processPatterns) {
+    Get-Process | Where-Object {$_.Name -like "*$pattern*"} | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
 # Wait and check port
+Write-Host "Waiting for port $Port to be free..." -ForegroundColor Gray
 Start-Sleep -Seconds 3
-$port = netstat -ano | Select-String ":8050.*LISTENING"
-if ($port) {
-    Write-Host "Port 8050 still in use!"
-    Write-Host $port
-} else {
-    Write-Host "Port 8050 is free!"
+
+$portInUse = netstat -ano | Select-String ":$Port.*LISTENING"
+if ($portInUse) {
+    Write-Host "Port $Port still in use, finding process..." -ForegroundColor Yellow
+    foreach ($line in $portInUse) {
+        $parts = $line.Line -split '\s+'
+        $pid = $parts[-1]
+        Write-Host "  Killing PID: $pid" -ForegroundColor Gray
+        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
 }
 
-# Start new server
-Write-Host "Starting new server..."
-cd D:\WORK_CODE\Backup
-Start-Process ".\nova-backup.exe" -ArgumentList "server" -WindowStyle Normal
+# Final check
+$portInUse = netstat -ano | Select-String ":$Port.*LISTENING"
+if ($portInUse) {
+    Write-Host "WARNING: Port $Port still in use!" -ForegroundColor Red
+} else {
+    Write-Host "Port $Port is free!" -ForegroundColor Green
+}
+
+Write-Host "`nUse .\nova-manager.ps1 -Action start  to restart server" -ForegroundColor Gray

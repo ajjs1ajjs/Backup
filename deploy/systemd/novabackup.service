@@ -8,7 +8,15 @@ Type=simple
 User=novabackup
 Group=novabackup
 WorkingDirectory=/opt/novabackup
-Environment=NOVABACKUP_API_KEY=changeme
+
+# Load environment variables from file (create /etc/novabackup/env with your secrets)
+EnvironmentFile=-/etc/novabackup/env
+
+# Fallback environment variables (override with EnvironmentFile)
+Environment=NOVABACKUP_API_KEY=${NOVABACKUP_API_KEY}
+Environment=NOVABACKUP_JWT_SECRET=${NOVABACKUP_JWT_SECRET}
+Environment=NOVABACKUP_CSRF_SECRET=${NOVABACKUP_CSRF_SECRET}
+
 ExecStart=/opt/novabackup/venv/bin/uvicorn novabackup.api:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=5

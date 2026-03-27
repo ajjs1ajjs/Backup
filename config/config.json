@@ -1,8 +1,8 @@
 {
   "directories": {
-    "backup_dir": "D:\\WORK_CODE\\Backup\\data\\backups",
-    "data_dir": "D:\\WORK_CODE\\Backup\\data",
-    "logs_dir": "D:\\WORK_CODE\\Backup\\data\\logs"
+    "backup_dir": "./data/backups",
+    "data_dir": "./data",
+    "logs_dir": "./data/logs"
   },
   "notifications": {
     "channels": {},

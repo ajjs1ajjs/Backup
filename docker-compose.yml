@@ -5,20 +5,66 @@ services:
     container_name: novabackup_api
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - NOVABACKUP_API_KEY=secret-key
-      - NOVABACKUP_CLOUD_PROVIDERS=MOCK
-      - NOVABACKUP_DATABASE_URL=sqlite:///./novabackup.db
+      - NOVABACKUP_CLOUD_PROVIDERS=${NOVABACKUP_CLOUD_PROVIDERS:-MOCK}
+      - NOVABACKUP_DATABASE_URL=${NOVABACKUP_DATABASE_URL:-sqlite:///./novabackup.db}
     # The Dockerfile already contains the CMD, but we can override if needed
     # command: ["uvicorn", "novabackup.api:get_app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
   db:
     image: postgres:15
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=novabackup
+      - POSTGRES_USER=${POSTGRES_USER:-novabackup}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - POSTGRES_DB=${POSTGRES_DB:-novabackup}
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-novabackup}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
   dashboard:
     image: nginx:alpine
     ports:
@@ -27,3 +73,25 @@ services:
       - ./novabackup/static:/usr/share/nginx/html:ro
     depends_on:
       - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:

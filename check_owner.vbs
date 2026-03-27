@@ -1,32 +1,55 @@
+' Check NovaBackup Process Owner
+' Usage: cscript check_owner.vbs [PID]
+' If no PID specified, finds process by name
+
+Dim objWMIService, colItems, objItem
+Dim targetPID
+
+' Get PID from argument or find by process name
+If WScript.Arguments.Count > 0 Then
+    targetPID = WScript.Arguments(0)
+Else
+    ' Find process by name instead of hardcoded PID
+    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+    Set colItems = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name LIKE '%nova%'")
+    
+    For Each objItem in colItems
+        Wscript.Echo "Process: " & objItem.Name & " (PID: " & objItem.ProcessId & ")"
+        Wscript.Echo "Owner: " & GetProcessOwner(objItem.ProcessId)
+    Next
+    
+    If colItems.Count = 0 Then
+        Wscript.Echo "No NovaBackup process found"
+    End If
+    WScript.Quit(0)
+End If
+
+' Check specific PID
 Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
-Set colItems = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE ProcessId = '12428'")
+Set colItems = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE ProcessId = '" & targetPID & "'")
 
-For Each objItem in colItems
-    Wscript.Echo "Process: " & objItem.Name
-    Wscript.Echo "PID: " & objItem.ProcessId
-    Wscript.Echo "Executable: " & objItem.ExecutablePath
+If colItems.Count > 0 Then
+    For Each objItem in colItems
+        Wscript.Echo "Process: " & objItem.Name & " (PID: " & targetPID & ")"
+        Wscript.Echo "Owner: " & GetProcessOwner(targetPID)
+    Next
+Else
+    Wscript.Echo "Process " & targetPID & " not found"
+End If
 
-    ' Get owner
-    strOwner = objItem.GetOwner()
-    Wscript.Echo "Owner: " & strOwner
-
-    ' Check if we can terminate
-    Wscript.Echo "Attempting termination..."
-    intReturn = objItem.Terminate()
-    Wscript.Echo "Return code: " & intReturn
-
-    Select Case intReturn
-        Case 0
-            Wscript.Echo "Result: SUCCESS"
-        Case 2
-            Wscript.Echo "Result: ACCESS DENIED - Need administrator privileges"
-        Case 8
-            Wscript.Echo "Result: OUT OF MEMORY"
-        Case 9
-            Wscript.Echo "Result: INVALID PATH"
-        Case 10
-            Wscript.Echo "Result: INVALID PARAMETER"
-        Case Else
-            Wscript.Echo "Result: UNKNOWN ERROR"
-    End Select
-Next
+Function GetProcessOwner(pid)
+    On Error Resume Next
+    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+    Set colItems = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE ProcessId = '" & pid & "'")
+    
+    For Each objItem in colItems
+        Dim arrUser, strDomain, strName
+        If objItem.GetOwner(strName, strDomain) = 0 Then
+            GetProcessOwner = strDomain & "\" & strName
+        Else
+            GetProcessOwner = "Unknown"
+        End If
+        Exit Function
+    Next
+    GetProcessOwner = "Not found"
+End Function

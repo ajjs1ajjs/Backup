@@ -1,8 +1,18 @@
 # Force kill and restart
-Write-Host "=== Вбиваємо всі процеси на порту 8050..." -ForegroundColor Yellow
+# Usage: .\force-restart.ps1 [-Port 8050]
 
-# Find process on port 8050
-$proc = Get-NetTCPConnection -LocalPort 8050 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+param(
+    [int]$Port = 8050
+)
+
+# Get script directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location -Path $scriptDir -ErrorAction SilentlyContinue
+
+Write-Host "=== Вбиваємо всі процеси на порту $Port ===" -ForegroundColor Yellow
+
+# Find process on port
+$proc = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
 if ($proc) {
     Write-Host "Знайдено процес PID: $proc" -ForegroundColor Gray
     Stop-Process -Id $proc -Force -ErrorAction SilentlyContinue
@@ -11,9 +21,10 @@ if ($proc) {
 
 # Also kill by name
 Get-Process nova-backup -ErrorAction SilentlyContinue | Stop-Process -Force
-
 Start-Sleep -Seconds 2
 
-Write-Host "=== Запуск сервера..." -ForegroundColor Green
-cd D:\WORK_CODE\Backup
+Write-Host "=== Запуск сервера ===" -ForegroundColor Green
+Write-Host "Port: $Port" -ForegroundColor Gray
+Write-Host "Directory: $(Get-Location)" -ForegroundColor Gray
+
 .\nova-backup.exe server

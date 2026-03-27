@@ -23,8 +23,9 @@ if %errorLevel% neq 0 (
 echo [OK] Administrator rights confirmed
 echo.
 
-REM Set paths
-set "SOURCE=D:\PROJECT\Backup\novabackup.exe"
+REM Use script directory instead of hardcoded path
+set "SCRIPT_DIR=%~dp0"
+set "SOURCE=%SCRIPT_DIR%novabackup.exe"
 set "DEST=C:\Program Files\NovaBackup\NovaBackup.exe"
 set "BACKUP_DIR=C:\Program Files\NovaBackup\backup_%date:~-4,4%%date:~-7,2%%date:~-10,2%"
 

@@ -3,22 +3,66 @@ services:
   api:
     image: ghcr.io/your-org/novabackup-api:latest
     container_name: nb_api_prod
+    env_file:
+      - .env
     environment:
-      - NOVABACKUP_API_KEY=prod-secret
-      - NOVABACKUP_CLOUD_PROVIDERS=MOCK AWS,AZURE,GCP
-      - NOVABACKUP_DATABASE_URL=sqlite:///./prod_novabackup.db
+      - NOVABACKUP_CLOUD_PROVIDERS=${NOVABACKUP_CLOUD_PROVIDERS:-MOCK,AWS,AZURE,GCP}
+      - NOVABACKUP_DATABASE_URL=${NOVABACKUP_DATABASE_URL:-sqlite:///./prod_novabackup.db}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    volumes:
+      - novabackup_data:/app/data
   db:
     image: postgres:15
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=novabackup_prod
+      - POSTGRES_USER=${POSTGRES_USER:-novabackup}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - POSTGRES_DB=${POSTGRES_DB:-novabackup_prod}
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-novabackup}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
   ui:
     image: nginx:alpine
     ports:
@@ -27,3 +71,26 @@ services:
       - ./novabackup/static:/usr/share/nginx/html:ro
     depends_on:
       - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  novabackup_data:

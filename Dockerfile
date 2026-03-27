@@ -13,6 +13,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
+        curl \
         && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -25,13 +26,17 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy the source code
 COPY . .
 
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash novabackup
+RUN chown -R novabackup:novabackup /app
+USER novabackup
+
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Define environment variable for the app (can be overridden)
-ENV NOVABACKUP_API_KEY=changeme
-ENV NOVABACKUP_CLOUD_PROVIDERS=MOCK
-ENV NOVABACKUP_DATABASE_URL=sqlite:///./novabackup.db
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/docs || exit 1
 
 # Run the application
 CMD ["uvicorn", "novabackup.api:get_app", "--host", "0.0.0.0", "--port", "8000"]
