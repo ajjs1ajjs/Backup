@@ -1,41 +1,88 @@
 @echo off
-setlocal
-echo Novabackup installer (Windows)
+setlocal enabledelayedexpansion
 
+echo ========================================
+echo   NovaBackup Installer for Windows
+echo ========================================
+echo.
+
+REM Check Python
 where python >nul 2>&1
 if %errorlevel% neq 0 (
-  echo Python is not found on PATH. Please install Python 3.9+ and ensure it's on PATH.
-  exit /b 1
+    echo [ERROR] Python is not found on PATH.
+    echo Please install Python 3.9+ from https://python.org
+    exit /b 1
 )
 
+echo [OK] Python found: 
+python --version
+echo.
+
+REM Set installation directory
 set "INSTALL_DIR=%USERPROFILE%\.novabackup"
 set "VENV=%INSTALL_DIR%\venv"
+
+REM Create virtual environment if not exists
 if not exist "%VENV%" (
-  mkdir "%INSTALL_DIR%" >nul 2>&1
+    echo [INFO] Creating virtual environment...
+    mkdir "%INSTALL_DIR%" >nul 2>&1
+    python -m venv "%VENV%"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to create virtual environment
+        exit /b 1
+    )
+    echo [OK] Virtual environment created
+) else (
+    echo [OK] Virtual environment exists
 )
-python -m venv "%VENV%"
+
+REM Activate virtual environment
+echo [INFO] Activating virtual environment...
 call "%VENV%\Scripts\activate.bat"
 
-pip install --upgrade pip
-pip install -e ".[api,dev]"
+REM Upgrade pip
+echo [INFO] Upgrading pip...
+python -m pip install --upgrade pip --quiet
 
-echo Novabackup installed. Use: call "%VENV%\Scripts\activate.bat" and run 'novabackup'"
-novabackup list-vms || echo "Note: VM list may require Windows Hyper-V to be enabled."
-
-REM Optional: Try to fetch repo for source installation if git is available
-where git >nul 2>&1
-if %errorlevel% equ 0 (
-  echo Fetching repository for source installation...
-  set "REPO_URL_DEFAULT=https://github.com/ajjs1ajjs/Backup"
-  set "TMPDIR=%TEMP%\novabackup_install"
-  if exist "%TMPDIR%" (rmdir /s /q "%TMPDIR%")
-  mkdir "%TMPDIR%"
-  git clone --depth 1 "%REPO_URL_DEFAULT%" "%TMPDIR%\novabackup" >nul 2>&1 || (
-    echo Failed to clone repository. You can install manually after cloning.
-  )
-  if exist "%TMPDIR%\novabackup\pyproject.toml" (
-    call "%VENV%\Scripts\activate.bat"
-    cd /d "%TMPDIR%\novabackup"
-    pip install -e .
-  )
+REM Install novabackup from current directory
+echo [INFO] Installing NovaBackup...
+if exist "pyproject.toml" (
+    pip install -e ".[api,dev]" --quiet
+    if %errorlevel% equ 0 (
+        echo [OK] NovaBackup installed successfully
+    ) else (
+        echo [WARNING] Installation completed with warnings
+    )
+) else (
+    echo [ERROR] pyproject.toml not found in current directory
+    echo Please run this script from the Backup directory
+    exit /b 1
 )
+
+echo.
+echo ========================================
+echo   Installation Complete!
+echo ========================================
+echo.
+echo To activate NovaBackup, run:
+echo   ^& "$env:USERPROFILE\.novabackup\venv\Scripts\Activate.ps1"
+echo.
+echo Or from Command Prompt:
+echo   call "%VENV%\Scripts\activate.bat"
+echo.
+echo Then run:
+echo   novabackup --help
+echo.
+
+REM Test installation
+echo [INFO] Testing installation...
+novabackup list-vms 2>&1 | findstr "id"
+if %errorlevel% equ 0 (
+    echo [OK] NovaBackup is working
+) else (
+    echo [INFO] VM list may require Hyper-V enabled
+)
+
+echo.
+echo Done!
+endlocal
