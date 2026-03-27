@@ -23,8 +23,8 @@ wheels/
 *.out
 vendor/
 
-# Go binaries (deprecated - project is now Python only)
-# *.exe
+# Go binaries
+*.exe
 
 # Virtual environments
 venv/
@@ -40,8 +40,10 @@ env/
 *.crt
 secrets/
 
-# Database files
-*.db
+# Database files (keep main db, ignore temp)
+novabackup.db
+data/*.db
+internal/api/test_api.db
 *.sqlite
 *.sqlite3
 
