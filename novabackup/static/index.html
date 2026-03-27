@@ -38,6 +38,15 @@
       --border: #e2e8f0;
     }
 
+    /* Dark theme */
+    [data-theme="dark"] {
+      --background: #0f172a;
+      --surface: #1e293b;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -686,30 +695,50 @@
             </header>
 
             <div class="stats-grid">
-              <StatCard 
-                title="Всього VM" 
-                :value="stats.totalVms" 
+              <StatCard
+                title="Всього VM"
+                :value="stats.totalVms"
                 icon="bi-pc-display"
                 color="primary"
               />
-              <StatCard 
-                title="Бекапи" 
-                :value="stats.totalBackups" 
+              <StatCard
+                title="Бекапи"
+                :value="stats.totalBackups"
                 icon="bi-database-check"
                 color="success"
               />
-              <StatCard 
-                title="Активні задачі" 
-                :value="stats.activeJobs" 
+              <StatCard
+                title="Активні задачі"
+                :value="stats.activeJobs"
                 icon="bi-activity"
                 color="warning"
               />
-              <StatCard 
-                title="Помилки" 
-                :value="stats.errors" 
+              <StatCard
+                title="Помилки"
+                :value="stats.errors"
                 icon="bi-exclamation-triangle"
                 color="danger"
               />
+            </div>
+
+            <!-- Charts Row -->
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="card-title">Бекапи по днях</h2>
+                </div>
+                <div class="card-body">
+                  <canvas ref="backupsChart"></canvas>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="card-title">Розподіл по провайдерах</h2>
+                </div>
+                <div class="card-body">
+                  <canvas ref="providersChart"></canvas>
+                </div>
+              </div>
             </div>
 
             <div class="card">
@@ -917,9 +946,76 @@
           return new Date(dateString).toLocaleString('uk-UA');
         };
 
+        const initCharts = () => {
+          // Backups by day chart
+          const backupsCtx = document.getElementById('backupsChart');
+          if (backupsCtx) {
+            const backupsByDay = {};
+            backups.value.forEach(b => {
+              const day = new Date(b.created_at).toLocaleDateString('uk-UA');
+              backupsByDay[day] = (backupsByDay[day] || 0) + 1;
+            });
+            
+            new Chart(backupsCtx, {
+              type: 'line',
+              data: {
+                labels: Object.keys(backupsByDay),
+                datasets: [{
+                  label: 'Бекапи',
+                  data: Object.values(backupsByDay),
+                  borderColor: '#4f46e5',
+                  backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                  tension: 0.4,
+                  fill: true,
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: { display: false }
+                }
+              }
+            });
+          }
+          
+          // Providers distribution chart
+          const providersCtx = document.getElementById('providersChart');
+          if (providersCtx) {
+            const providers = {};
+            backups.value.forEach(b => {
+              const provider = b.provider || 'local';
+              providers[provider] = (providers[provider] || 0) + 1;
+            });
+            
+            new Chart(providersCtx, {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(providers),
+                datasets: [{
+                  data: Object.values(providers),
+                  backgroundColor: [
+                    '#4f46e5',
+                    '#22c55e',
+                    '#f59e0b',
+                    '#ef4444',
+                    '#64748b',
+                  ]
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: { position: 'bottom' }
+                }
+              }
+            });
+          }
+        };
+
         onMounted(() => {
           loadVms();
           loadBackups();
+          setTimeout(initCharts, 500); // Initialize charts after data loads
         });
 
         return {
@@ -962,6 +1058,18 @@
                 <span>Audit логи</span>
               </router-link>
             </li>
+            <li class="sidebar-nav-item" v-if="authStore.isAdmin">
+              <router-link to="/users" class="sidebar-nav-link">
+                <i class="bi bi-people"></i>
+                <span>Користувачі</span>
+              </router-link>
+            </li>
+            <li class="sidebar-nav-item">
+              <router-link to="/settings" class="sidebar-nav-link">
+                <i class="bi bi-gear"></i>
+                <span>Налаштування</span>
+              </router-link>
+            </li>
           </ul>
         </aside>
       `,
@@ -975,6 +1083,9 @@
     const UserMenu = {
       template: `
         <div class="user-menu">
+          <button class="btn btn-sm" @click="toggleTheme" :title="theme">
+            <i :class="theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill'"></i>
+          </button>
           <div class="user-info">
             <div class="user-name">{{ authStore.user?.username || 'User' }}</div>
             <div class="user-role">{{ authStore.user?.roles?.join(', ') || '' }}</div>
@@ -988,6 +1099,19 @@
         const authStore = useAuthStore();
         const toastStore = useToastStore();
         const router = useRouter();
+        
+        const theme = ref(localStorage.getItem('theme') || 'light');
+        
+        const toggleTheme = () => {
+          theme.value = theme.value === 'light' ? 'dark' : 'light';
+          localStorage.setItem('theme', theme.value);
+          document.documentElement.setAttribute('data-theme', theme.value);
+          toastStore.info(`Тема: ${theme.value === 'dark' ? 'Темна' : 'Світла'}`);
+        };
+        
+        onMounted(() => {
+          document.documentElement.setAttribute('data-theme', theme.value);
+        });
 
         const handleLogout = () => {
           authStore.logout();
@@ -995,7 +1119,7 @@
           router.push('/login');
         };
 
-        return { authStore, handleLogout };
+        return { authStore, theme, toggleTheme, handleLogout };
       },
     };
 
@@ -1240,6 +1364,190 @@
       },
     };
 
+    // Settings Page Component
+    const SettingsPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Налаштування</h1>
+              <UserMenu />
+            </header>
+            
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Сповіщення</h2>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label">Канали сповіщень</label>
+                  <div v-if="channels.length > 0">
+                    <span v-for="ch in channels" :key="ch" class="badge badge-info" style="margin-right: 0.5rem;">
+                      {{ ch }}
+                    </span>
+                  </div>
+                  <p v-else class="text-secondary">Канали не налаштовані</p>
+                </div>
+                <button class="btn btn-primary" @click="sendTestNotification">
+                  <i class="bi bi-bell"></i> Тестове сповіщення
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Експорт/Імпорт</h2>
+              </div>
+              <div class="card-body">
+                <div style="display: flex; gap: 1rem;">
+                  <button class="btn btn-primary" @click="exportConfig">
+                    <i class="bi bi-download"></i> Експорт конфігурації
+                  </button>
+                  <button class="btn btn-secondary" @click="$refs.importFile.click()">
+                    <i class="bi bi-upload"></i> Імпорт конфігурації
+                  </button>
+                  <input type="file" ref="importFile" style="display: none" @change="importConfig" accept=".json" />
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Про систему</h2>
+              </div>
+              <div class="card-body">
+                <table class="table">
+                  <tr><td>Версія</td><td><strong>8.4.0</strong></td></tr>
+                  <tr><td>API</td><td><code>/docs</code></td></tr>
+                  <tr><td>WebSocket</td><td><code>/ws</code></td></tr>
+                </table>
+              </div>
+            </div>
+          </main>
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const channels = ref([]);
+
+        onMounted(async () => {
+          try {
+            const response = await api.get('/notifications/channels');
+            channels.value = response.data.channels || [];
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити канали');
+          }
+        });
+
+        const sendTestNotification = async () => {
+          try {
+            await api.post('/notifications/test', {
+              message: 'Тестове сповіщення з NovaBackup',
+              level: 'info'
+            });
+            toastStore.success('Тестове сповіщення відправлено');
+          } catch (error) {
+            toastStore.error('Помилка відправки сповіщення');
+          }
+        };
+
+        const exportConfig = () => {
+          const config = {
+            version: '8.4.0',
+            exported_at: new Date().toISOString(),
+            message: 'Configuration export not implemented yet'
+          };
+          const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `novabackup-config-${new Date().toISOString().split('T')[0]}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          toastStore.success('Конфігурацію експортовано');
+        };
+
+        const importConfig = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const config = JSON.parse(e.target.result);
+              toastStore.success(`Конфігурацію ${config.version} імпортовано`);
+            } catch (error) {
+              toastStore.error('Невірний формат файлу');
+            }
+          };
+          reader.readAsText(file);
+        };
+
+        return { channels, sendTestNotification, exportConfig, importConfig };
+      },
+    };
+
+    // Users Page Component (admin only)
+    const UsersPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Користувачі</h1>
+              <UserMenu />
+            </header>
+            <div class="card">
+              <div class="card-body">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Користувач</th>
+                      <th>Ролі</th>
+                      <th>Scopes</th>
+                      <th>Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="user in users" :key="user.username">
+                      <td><strong>{{ user.username }}</strong></td>
+                      <td>
+                        <span v-for="role in user.roles" :key="role" class="badge badge-info" style="margin-right: 0.25rem;">
+                          {{ role }}
+                        </span>
+                      </td>
+                      <td>
+                        <span v-for="scope in user.scopes" :key="scope" class="badge badge-success" style="margin-right: 0.25rem;">
+                          {{ scope }}
+                        </span>
+                      </td>
+                      <td><span class="badge badge-success">Active</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="empty-state" v-if="users.length === 0">
+                  <i class="bi bi-people empty-state-icon"></i>
+                  <p>Користувачі не знайдені</p>
+                </div>
+              </div>
+            </div>
+          </main>
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const users = ref([
+          { username: 'alice', roles: ['admin'], scopes: ['read', 'write', 'delete', 'manage_users'] },
+          { username: 'bob', roles: ['user'], scopes: ['read', 'write'] },
+          { username: 'service', roles: ['service'], scopes: ['read', 'backup', 'restore'] },
+        ]);
+
+        return { users };
+      },
+    };
+
     // Router configuration
     const routes = [
       { path: '/login', component: LoginPage },
@@ -1247,6 +1555,8 @@
       { path: '/vms', component: VMsPage },
       { path: '/backups', component: BackupsPage },
       { path: '/audit', component: AuditPage },
+      { path: '/settings', component: SettingsPage },
+      { path: '/users', component: UsersPage },
       { path: '/', redirect: '/dashboard' },
     ];
 
