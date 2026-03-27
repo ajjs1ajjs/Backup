@@ -166,8 +166,8 @@
                         type="text"
                         class="form-input"
                         id="username"
-                        placeholder="admin"
-                        value="admin"
+                        placeholder="alice"
+                        value="alice"
                         required
                     />
                 </div>
@@ -179,7 +179,7 @@
                         class="form-input"
                         id="password"
                         placeholder="••••••••"
-                        value="admin123"
+                        value="secret"
                         required
                     />
                 </div>
@@ -200,8 +200,6 @@
         </div>
 
         <script>
-            const API_BASE = "/api";
-
             async function login(event) {
                 event.preventDefault();
 
@@ -209,48 +207,34 @@
                 const password = document.getElementById("password").value;
 
                 try {
-                    const res = await fetch(`${API_BASE}/auth/login`, {
+                    const formData = new URLSearchParams();
+                    formData.append('username', username);
+                    formData.append('password', password);
+
+                    const res = await fetch(`/token`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ username, password }),
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: formData,
                     });
 
                     const data = await res.json();
 
-                    if (res.ok && data.success) {
-                        // Save token
-                        localStorage.setItem("authToken", data.token);
-                        localStorage.setItem("user", JSON.stringify(data.user));
-
-                        // Check if default password - ALWAYS force change for admin/admin123
-                        const isDefaultPassword =
-                            username === "admin" && password === "admin123";
-
-                        if (isDefaultPassword) {
-                            // Always force password change for default password
-                            window.location.href = "change-password.html";
-                        } else {
-                            // Go to dashboard
-                            window.location.href = "index.html";
-                        }
+                    if (res.ok && data.access_token) {
+                        localStorage.setItem("access_token", data.access_token);
+                        localStorage.setItem("refresh_token", data.refresh_token);
+                        localStorage.setItem("user", JSON.stringify({ username, roles: ['admin'] }));
+                        window.location.href = "index.html";
                     } else {
-                        alert(
-                            "❌ Помилка входу: " +
-                                (data.error ||
-                                    "Невірне ім'я користувача або пароль"),
-                        );
+                        alert("❌ Помилка входу: Невірне ім'я користувача або пароль");
                     }
                 } catch (error) {
-                    alert("❌ Помилка: Невірне ім'я користувача або пароль");
+                    alert("❌ Помилка з'єднання");
                 }
             }
 
-            // Check if already logged in
             window.addEventListener("load", function () {
-                const token = localStorage.getItem("authToken");
-
+                const token = localStorage.getItem("access_token");
                 if (token) {
-                    // Always go to dashboard if already logged in
                     window.location.href = "index.html";
                 }
             });
