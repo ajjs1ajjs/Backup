@@ -127,7 +127,6 @@ echo.
 REM Generate secrets if script exists
 if exist "%PROJECT_DIR%\generate-secrets.ps1" (
     echo [INFO] Generating secrets...
-    call "%VENV%\Scripts\activate.bat"
     cd /d "%PROJECT_DIR%"
     powershell -ExecutionPolicy Bypass -File generate-secrets.ps1 -All
     echo [OK] Secrets generated
@@ -141,10 +140,10 @@ echo.
 
 REM Start the server
 echo [INFO] Starting server on http://localhost:8000
-echo [INFO] Opening browser in 5 seconds...
+echo [INFO] Opening browser in 3 seconds...
 echo.
 
-timeout /t 5 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 REM Open browser
 start http://localhost:8000
