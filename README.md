@@ -217,16 +217,109 @@
 
 ## ⚡ Швидкий старт
 
-### Windows (PowerShell)
+### 🪟 Windows (PowerShell)
+
+#### Спосіб 1: Автоматична установка (Одна команда)
 
 ```powershell
-# 1. Клонувати репозиторій
-git clone https://github.com/ajjs1ajjs/Backup.git
-cd Backup
+# Завантажити та запустити інсталятор
+iwr https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile $env:TEMP\install.bat; & $env:TEMP\install.bat; Remove-Item $env:TEMP\install.bat
+```
+
+#### Спосіб 2: Ручна установка (Всі команди)
+
+```powershell
+# 1. Перейти в папку проекту
+cd D:\PROJECT\Backup
 
 # 2. Створити віртуальне оточення
 python -m venv venv
+
+# 3. Активувати
 .\venv\Scripts\Activate.ps1
+
+# 4. Оновити pip
+python -m pip install --upgrade pip
+
+# 5. Встановити NovaBackup
+pip install -e ".[api,dev]"
+
+# 6. Створити конфігурацію
+copy .env.example .env
+
+# 7. Згенерувати секрети
+.\generate-secrets.ps1 -All
+
+# 8. Запустити сервер
+python -m uvicorn novabackup.api:get_app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Спосіб 3: Встановлення в домашню папку
+
+```powershell
+# Встановити в ~/.novabackup
+iwr https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.bat -OutFile install.bat; .\install.bat; Remove-Item install.bat
+
+# Активувати
+& "$env:USERPROFILE\.novabackup\venv\Scripts\Activate.ps1"
+
+# Запустити
+cd D:\PROJECT\Backup
+python -m uvicorn novabackup.api:get_app --reload
+```
+
+---
+
+### 🐧 Linux / macOS (Bash)
+
+#### Спосіб 1: Автоматична установка (Одна команда)
+
+```bash
+# Завантажити та запустити інсталятор
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | bash
+```
+
+#### Спосіб 2: Ручна установка (Всі команди)
+
+```bash
+# 1. Перейти в папку проекту
+cd /path/to/Backup
+
+# 2. Створити віртуальне оточення
+python3 -m venv venv
+
+# 3. Активувати
+source venv/bin/activate
+
+# 4. Оновити pip
+pip install --upgrade pip
+
+# 5. Встановити NovaBackup
+pip install -e ".[api,dev]"
+
+# 6. Створити конфігурацію
+cp .env.example .env
+
+# 7. Згенерувати секрети
+python3 generate-secrets.py --all
+
+# 8. Запустити сервер
+python -m uvicorn novabackup.api:get_app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Спосіб 3: Встановлення в домашню папку
+
+```bash
+# Встановити в ~/.novabackup
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh > /tmp/install.sh && bash /tmp/install.sh
+
+# Активувати
+source ~/.novabackup/venv/bin/activate
+
+# Запустити
+cd /path/to/Backup
+python -m uvicorn novabackup.api:get_app --reload
+```
 
 # 3. Встановити залежності
 pip install -e ".[api,dev]"
