@@ -4,7 +4,15 @@ from datetime import timedelta
 import asyncio
 import json
 
-from fastapi import FastAPI, Depends, HTTPException, status, Response, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    status,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -81,10 +89,41 @@ def get_app():
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-        
-        # Serve index.html at root
+
+        # Serve all HTML files from static directory
+        html_pages = [
+            "index.html",
+            "login.html",
+            "jobs.html",
+            "manage-jobs.html",
+            "quick-backup.html",
+            "restore.html",
+            "database-backup.html",
+            "vm-backup.html",
+            "repositories.html",
+            "users.html",
+            "sessions.html",
+            "progress.html",
+            "verification.html",
+            "verify-changes.html",
+            "notifications.html",
+            "settings.html",
+            "help.html",
+            "change-password.html",
+        ]
+
         @app.get("/")
         async def root():
+            return FileResponse(os.path.join(static_dir, "index.html"))
+
+        for page in html_pages:
+
+            @app.get(f"/{page}")
+            async def serve_html(path=page):
+                return FileResponse(os.path.join(static_dir, path))
+
+        @app.get("/favicon.ico")
+        async def favicon():
             return FileResponse(os.path.join(static_dir, "index.html"))
 
     # WebSocket connection manager for real-time updates
@@ -301,7 +340,7 @@ def get_app():
         }
 
     # ==================== Notifications ====================
-    
+
     @app.post("/notifications/test")
     @track_requests(method="POST", endpoint="/notifications/test")
     async def test_notification(
@@ -313,7 +352,7 @@ def get_app():
         """Send test notification."""
         await notify(message, level, channels)
         return {"message": "Notification sent", "level": level}
-    
+
     @app.get("/notifications/history")
     @track_requests(method="GET", endpoint="/notifications/history")
     async def get_notification_history(
@@ -323,7 +362,7 @@ def get_app():
         """Get notification history."""
         manager = get_notification_manager()
         return {"notifications": manager.get_history(limit)}
-    
+
     @app.get("/notifications/channels")
     @track_requests(method="GET", endpoint="/notifications/channels")
     async def get_notification_channels(
@@ -332,9 +371,9 @@ def get_app():
         """Get registered notification channels."""
         manager = get_notification_manager()
         return {"channels": list(manager.channels.keys())}
-    
+
     # ==================== Scheduler ====================
-    
+
     @app.get("/scheduler/jobs")
     @track_requests(method="GET", endpoint="/scheduler/jobs")
     async def list_scheduled_jobs(
@@ -345,7 +384,7 @@ def get_app():
         scheduler = get_scheduler()
         jobs = scheduler.list_jobs(enabled_only)
         return {"jobs": [job.to_dict() for job in jobs]}
-    
+
     @app.get("/scheduler/jobs/{job_id}")
     @track_requests(method="GET", endpoint="/scheduler/jobs/{job_id}")
     async def get_scheduled_job(
@@ -358,7 +397,7 @@ def get_app():
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return job.to_dict()
-    
+
     @app.post("/scheduler/jobs")
     @track_requests(method="POST", endpoint="/scheduler/jobs")
     async def create_scheduled_job(
@@ -378,7 +417,7 @@ def get_app():
             cloud_dest=job_data.get("cloud_dest"),
         )
         return {"job": job.to_dict(), "message": "Scheduled job created"}
-    
+
     @app.delete("/scheduler/jobs/{job_id}")
     @track_requests(method="DELETE", endpoint="/scheduler/jobs/{job_id}")
     async def delete_scheduled_job(
@@ -390,7 +429,7 @@ def get_app():
         if not scheduler.remove_job(job_id):
             raise HTTPException(status_code=404, detail="Job not found")
         return {"message": "Job deleted"}
-    
+
     @app.post("/scheduler/jobs/{job_id}/enable")
     @track_requests(method="POST", endpoint="/scheduler/jobs/{job_id}/enable")
     async def enable_scheduled_job(
@@ -402,7 +441,7 @@ def get_app():
         if not scheduler.enable_job(job_id):
             raise HTTPException(status_code=404, detail="Job not found")
         return {"message": "Job enabled"}
-    
+
     @app.post("/scheduler/jobs/{job_id}/disable")
     @track_requests(method="POST", endpoint="/scheduler/jobs/{job_id}/disable")
     async def disable_scheduled_job(
@@ -414,7 +453,7 @@ def get_app():
         if not scheduler.disable_job(job_id):
             raise HTTPException(status_code=404, detail="Job not found")
         return {"message": "Job disabled"}
-    
+
     @app.get("/scheduler/status")
     @track_requests(method="GET", endpoint="/scheduler/status")
     async def get_scheduler_status(

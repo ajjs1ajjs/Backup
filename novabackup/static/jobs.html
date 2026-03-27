@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Редагування завдання - NovaBackup Enterprise</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+            }
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+                font-size: 0.9rem;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+            .btn-danger {
+                background: linear-gradient(135deg, var(--accent-red), #dc2626);
+                color: white;
+            }
+            .btn-secondary {
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+                font-size: 1rem;
+            }
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+            }
+            .form-hint {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0.5rem 0;
+            }
+            .checkbox-group input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent-blue);
+            }
+            .form-actions {
+                display: flex;
+                gap: 1rem;
+                flex-wrap: wrap;
+                margin-top: 2rem;
+                padding-top: 1.5rem;
+                border-top: 1px solid var(--border);
+            }
+            .loading-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(15, 23, 42, 0.85);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .loading-overlay.active {
+                display: flex;
+            }
+            .spinner {
+                width: 48px;
+                height: 48px;
+                border: 4px solid var(--border);
+                border-top-color: var(--accent-blue);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .loading-text {
+                color: var(--text-secondary);
+                font-size: 1rem;
+            }
+            .alert {
+                padding: 1rem 1.25rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1.5rem;
+                display: none;
+            }
+            .alert-error {
+                background: rgba(239, 68, 68, 0.15);
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                color: var(--accent-red);
+            }
+            .alert-success {
+                background: rgba(16, 185, 129, 0.15);
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                color: var(--accent-green);
+            }
+            @media (max-width: 768px) {
+                body {
+                    padding: 1rem;
+                }
+                .page-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                .form-actions {
+                    flex-direction: column;
+                }
+                .form-actions .btn {
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loading-text">Завантаження...</div>
+        </div>
+
+        <div class="page-header">
+            <div>
+                <h1 class="page-title" id="page-title">Редагування Завдання</h1>
+                <p class="page-subtitle" id="page-subtitle">
+                    Змініть параметри завдання резервного копіювання
+                </p>
+            </div>
+            <button
+                class="btn btn-secondary"
+                onclick="window.location.href = 'index.html'"
+            >
+                Повернутися
+            </button>
+        </div>
+
+        <div class="alert alert-error" id="alert-error"></div>
+        <div class="alert alert-success" id="alert-success"></div>
+
+        <div class="card">
+            <h2 class="card-title">Основні параметри</h2>
+
+            <div class="form-group">
+                <label class="form-label">Назва завдання *</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-name"
+                    placeholder="Наприклад: Щоденний бекап документів"
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Тип</label>
+                <select class="form-select" id="job-type">
+                    <option value="file">Файли</option>
+                    <option value="database">База даних</option>
+                    <option value="vm">Віртуальна машина</option>
+                    <option value="cloud">Хмарне сховище</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Джерела (шляхи через кому)</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-sources"
+                    placeholder="C:\Data, D:\Documents"
+                />
+                <div class="form-hint">
+                    Вкажіть один або кілька шляхів через кому
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Сховище призначення</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-destination"
+                    placeholder="C:\ProgramData\NovaBackup\Backups"
+                />
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Опції</h2>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="job-compression" />
+                <label for="job-compression">🗜️ Стиснення даних</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="job-encryption" />
+                <label for="job-encryption">🔒 Шифрування (AES-256)</label>
+            </div>
+            <div class="form-group" style="margin: 0.5rem 0 1rem 2rem">
+                <label class="form-label" style="font-size: 0.875rem"
+                    >🔐 Ключ шифрування</label
+                >
+                <input
+                    type="password"
+                    id="job-encryption-key"
+                    class="form-input"
+                    placeholder="Залиште пустим, щоб не змінювати"
+                    style="font-size: 0.875rem"
+                />
+                <div class="form-hint">
+                    Зберігається тільки на сервері. Для зміни введіть новий ключ
+                </div>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="job-deduplication" />
+                <label for="job-deduplication">💾 Дедуплікація</label>
+                <small style="color: var(--text-secondary); margin-left: 2rem"
+                    >Видаляє дублікати даних для економії місця</small
+                >
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="job-incremental" />
+                <label for="job-incremental"
+                    >🔄 Інкрементальне бекапування</label
+                >
+                <small style="color: var(--text-secondary); margin-left: 2rem"
+                    >Зберігає тільки зміни після повного бекапу</small
+                >
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">📋 Політика зберігання</h2>
+
+            <div class="form-group">
+                <label class="form-label">Зберігати (днів)</label>
+                <input
+                    type="number"
+                    class="form-input"
+                    id="job-retention-days"
+                    value="30"
+                    min="1"
+                    max="365"
+                />
+                <small class="form-hint">1-365 днів</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Макс. копій</label>
+                <input
+                    type="number"
+                    class="form-input"
+                    id="job-retention-copies"
+                    value="10"
+                    min="1"
+                    max="100"
+                />
+                <small class="form-hint">1-100 копій</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Розклад</h2>
+
+            <div class="form-group">
+                <label class="form-label">Тип розкладу</label>
+                <select class="form-select" id="job-schedule">
+                    <option value="manual">Вручну</option>
+                    <option value="daily">Щоденно</option>
+                    <option value="weekly">Щотижня</option>
+                    <option value="monthly">Щомісяця</option>
+                </select>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="job-enabled" checked />
+                <label for="job-enabled">Завдання активне</label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-success" id="btn-save" onclick="saveJob()">
+                Зберегти зміни
+            </button>
+            <button class="btn btn-primary" id="btn-run" onclick="runJob()">
+                Запустити зараз
+            </button>
+            <button
+                class="btn btn-danger"
+                id="btn-delete"
+                onclick="deleteJob()"
+            >
+                Видалити завдання
+            </button>
+            <button
+                class="btn btn-secondary"
+                onclick="window.location.href = 'index.html'"
+            >
+                Скасувати
+            </button>
+        </div>
+
+        <script>
+            const API_BASE = "/api";
+            let currentJobId = null;
+
+            function getJobIdFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                return params.get("id");
+            }
+
+            function showLoading(text) {
+                document.getElementById("loading-text").textContent =
+                    text || "Завантаження...";
+                document.getElementById("loading").classList.add("active");
+            }
+
+            function hideLoading() {
+                document.getElementById("loading").classList.remove("active");
+            }
+
+            function showError(msg) {
+                const el = document.getElementById("alert-error");
+                el.textContent = msg;
+                el.style.display = "block";
+                document.getElementById("alert-success").style.display = "none";
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            function showSuccess(msg) {
+                const el = document.getElementById("alert-success");
+                el.textContent = msg;
+                el.style.display = "block";
+                document.getElementById("alert-error").style.display = "none";
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            async function loadJob() {
+                currentJobId = getJobIdFromUrl();
+                if (!currentJobId) {
+                    showLoading("Перенаправлення...");
+                    setTimeout(() => {
+                        window.location.href = "manage-jobs.html";
+                    }, 500);
+                    return;
+                }
+
+                showLoading("Завантаження завдання...");
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE}/jobs`, {
+                        headers: {
+                            Authorization: "Bearer " + token,
+                        },
+                    });
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
+                        throw new Error(
+                            "Не вдалося завантажити список завдань",
+                        );
+                    }
+
+                    const data = await res.json();
+                    const jobs = data.jobs || [];
+                    const job = jobs.find((j) => j.id === currentJobId);
+
+                    if (!job) {
+                        throw new Error("Завдання не знайдено");
+                    }
+
+                    document.getElementById("page-title").textContent =
+                        "Редагування: " + job.name;
+                    document.getElementById("job-name").value = job.name || "";
+                    document.getElementById("job-type").value =
+                        job.type || "file";
+                    document.getElementById("job-sources").value = (
+                        job.sources || []
+                    ).join(", ");
+                    document.getElementById("job-destination").value =
+                        job.destination || "";
+                    document.getElementById("job-compression").checked =
+                        job.compression || false;
+                    document.getElementById("job-encryption").checked =
+                        job.encryption || false;
+                    document.getElementById("job-encryption-key").value = "";
+                    document.getElementById("job-deduplication").checked =
+                        job.deduplication || false;
+                    document.getElementById("job-incremental").checked =
+                        job.incremental || false;
+                    document.getElementById("job-retention-days").value =
+                        job.retention_days || 30;
+                    document.getElementById("job-retention-copies").value =
+                        job.retention_copies || 10;
+                    document.getElementById("job-schedule").value =
+                        job.schedule || "manual";
+                    document.getElementById("job-enabled").checked =
+                        job.enabled !== false;
+                } catch (error) {
+                    showError(error.message);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            async function saveJob() {
+                if (!currentJobId) return;
+
+                const name = document.getElementById("job-name").value.trim();
+                if (!name) {
+                    showError("Назва завдання обов'язкова");
+                    return;
+                }
+
+                const sourcesRaw = document
+                    .getElementById("job-sources")
+                    .value.trim();
+                const sources = sourcesRaw
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+
+                const encryptionEnabled =
+                    document.getElementById("job-encryption").checked;
+                const encryptionKey =
+                    document.getElementById("job-encryption-key").value.trim();
+
+                const jobData = {
+                    name: name,
+                    type: document.getElementById("job-type").value,
+                    sources: sources,
+                    destination: document
+                        .getElementById("job-destination")
+                        .value.trim(),
+                    compression:
+                        document.getElementById("job-compression").checked,
+                    encryption: encryptionEnabled,
+                    deduplication:
+                        document.getElementById("job-deduplication").checked,
+                    incremental:
+                        document.getElementById("job-incremental").checked,
+                    retention_days:
+                        parseInt(
+                            document.getElementById("job-retention-days").value,
+                        ) || 30,
+                    retention_copies:
+                        parseInt(
+                            document.getElementById("job-retention-copies")
+                                .value,
+                        ) || 10,
+                    schedule: document.getElementById("job-schedule").value,
+                    enabled: document.getElementById("job-enabled").checked,
+                };
+
+                if (encryptionEnabled && encryptionKey) {
+                    jobData.encryption_key = encryptionKey;
+                }
+                if (!encryptionEnabled) {
+                    jobData.encryption_key = "";
+                }
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
+                showLoading("Збереження...");
+
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/jobs/${currentJobId}`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: "Bearer " + token,
+                            },
+                            body: JSON.stringify(jobData),
+                        },
+                    );
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || "Помилка збереження");
+                    }
+
+                    showSuccess("Завдання успішно збережено!");
+                    document.getElementById("page-title").textContent =
+                        "Редагування: " + name;
+                } catch (error) {
+                    showError(error.message);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            async function runJob() {
+                if (!currentJobId) return;
+                if (!confirm("Запустити це завдання зараз?")) return;
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    setTimeout(() => {
+                        window.location.href = "login.html";
+                    }, 1000);
+                    return;
+                }
+
+                showLoading("Запуск завдання...");
+
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/jobs/${currentJobId}/run`,
+                        {
+                            method: "POST",
+                            headers: {
+                                Authorization: "Bearer " + token,
+                            },
+                        },
+                    );
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            return;
+                        }
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || "Помилка запуску");
+                    }
+
+                    showSuccess(
+                        "Завдання запущено! Перевірте сесії для перегляду прогресу.",
+                    );
+                } catch (error) {
+                    showError(error.message);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            async function deleteJob() {
+                if (!currentJobId) return;
+                if (
+                    !confirm(
+                        "Ви впевнені, що хочете видалити це завдання?\n\nЦю дію не можна скасувати.",
+                    )
+                )
+                    return;
+
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    showError("Відсутній токен авторизації");
+                    hideLoading();
+                    return;
+                }
+
+                showLoading("Видалення завдання...");
+
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/jobs/${currentJobId}`,
+                        {
+                            method: "DELETE",
+                            headers: {
+                                Authorization: "Bearer " + token,
+                            },
+                        },
+                    );
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            showError(
+                                "Термін дії токена минув. Перенаправлення на сторінку входу...",
+                            );
+                            setTimeout(() => {
+                                window.location.href = "login.html";
+                            }, 1500);
+                            hideLoading();
+                            return;
+                        }
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || "Помилка видалення");
+                    }
+
+                    alert("Завдання видалено!");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    showError(error.message);
+                    hideLoading();
+                }
+            }
+
+            loadJob();
+        </script>
+    </body>
+</html>

@@ -1,1589 +1,1244 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NovaBackup Dashboard</title>
-  
-  <!-- Vue.js 3 -->
-  <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.js"></script>
-
-  <!-- Vue Router -->
-  <script src="https://unpkg.com/vue-router@4.3.0/dist/vue-router.global.js"></script>
-
-  <!-- Pinia (State Management) - MUST load AFTER Vue -->
-  <script src="https://unpkg.com/pinia@2.1.7/dist/pinia.iife.js"></script>
-
-  <!-- Axios -->
-  <script src="https://unpkg.com/axios@1.6.8/dist/axios.min.js"></script>
-
-  <!-- Chart.js для графіків -->
-  <script src="https://unpkg.com/chart.js@4.4.2/dist/chart.umd.js"></script>
-  
-  <!-- Іконки -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-  
-  <style>
-    :root {
-      --primary: #4f46e5;
-      --primary-dark: #4338ca;
-      --secondary: #64748b;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --background: #f8fafc;
-      --surface: #ffffff;
-      --text: #1e293b;
-      --text-secondary: #64748b;
-      --border: #e2e8f0;
-    }
-
-    /* Dark theme */
-    [data-theme="dark"] {
-      --background: #0f172a;
-      --surface: #1e293b;
-      --text: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --border: #334155;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--background);
-      color: var(--text);
-      line-height: 1.6;
-    }
-
-    /* Login Page */
-    .login-container {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    }
-
-    .login-card {
-      background: var(--surface);
-      padding: 2.5rem;
-      border-radius: 1rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-      width: 100%;
-      max-width: 400px;
-    }
-
-    .login-title {
-      text-align: center;
-      margin-bottom: 2rem;
-      color: var(--primary);
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      transition: border-color 0.2s;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      width: 100%;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-dark);
-    }
-
-    .btn-secondary {
-      background: var(--secondary);
-      color: white;
-    }
-
-    .btn-success {
-      background: var(--success);
-      color: white;
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      color: white;
-    }
-
-    .btn-sm {
-      padding: 0.5rem 1rem;
-      font-size: 0.875rem;
-    }
-
-    /* Dashboard Layout */
-    .dashboard-container {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      width: 260px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 1.5rem;
-      position: fixed;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 2rem;
-    }
-
-    .sidebar-nav {
-      list-style: none;
-    }
-
-    .sidebar-nav-item {
-      margin-bottom: 0.5rem;
-    }
-
-    .sidebar-nav-link {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      color: var(--text-secondary);
-      text-decoration: none;
-      border-radius: 0.5rem;
-      transition: all 0.2s;
-    }
-
-    .sidebar-nav-link:hover,
-    .sidebar-nav-link.router-link-active {
-      background: var(--primary);
-      color: white;
-    }
-
-    .main-content {
-      flex: 1;
-      margin-left: 260px;
-      padding: 2rem;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-
-    .header-title {
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-
-    .user-menu {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .user-info {
-      text-align: right;
-    }
-
-    .user-name {
-      font-weight: 600;
-    }
-
-    .user-role {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-    }
-
-    /* Stats Cards */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      padding: 1.5rem;
-      border-radius: 0.75rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .stat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .stat-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 0.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-    }
-
-    .stat-icon.primary { background: #e0e7ff; color: var(--primary); }
-    .stat-icon.success { background: #dcfce7; color: var(--success); }
-    .stat-icon.warning { background: #fef3c7; color: var(--warning); }
-    .stat-icon.danger { background: #fee2e2; color: var(--danger); }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .stat-label {
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-    }
-
-    /* Tables */
-    .card {
-      background: var(--surface);
-      border-radius: 0.75rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .card-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-    }
-
-    .card-body {
-      padding: 1.5rem;
-    }
-
-    .table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .table th,
-    .table td {
-      padding: 1rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .table th {
-      background: var(--background);
-      font-weight: 600;
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .table tr:hover {
-      background: var(--background);
-    }
-
-    /* Status Badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.25rem 0.75rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .badge-success {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .badge-warning {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .badge-danger {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .badge-info {
-      background: #dbeafe;
-      color: #1e40af;
-    }
-
-    /* Toast Notifications */
-    .toast-container {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      z-index: 9999;
-    }
-
-    .toast {
-      background: var(--surface);
-      padding: 1rem 1.5rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-width: 300px;
-      animation: slideIn 0.3s ease;
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    .toast.success { border-left: 4px solid var(--success); }
-    .toast.error { border-left: 4px solid var(--danger); }
-    .toast.warning { border-left: 4px solid var(--warning); }
-    .toast.info { border-left: 4px solid var(--primary); }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .modal {
-      background: var(--surface);
-      border-radius: 0.75rem;
-      width: 100%;
-      max-width: 500px;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-    }
-
-    .modal-footer {
-      padding: 1.5rem;
-      border-top: 1px solid var(--border);
-      display: flex;
-      gap: 0.75rem;
-      justify-content: flex-end;
-    }
-
-    /* Loading Spinner */
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--border);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem;
-    }
-
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      padding: 3rem;
-      color: var(--text-secondary);
-    }
-
-    .empty-state-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s;
-      }
-      
-      .sidebar.open {
-        transform: translateX(0);
-      }
-      
-      .main-content {
-        margin-left: 0;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div id="app">
-    <router-view></router-view>
-  </div>
-
-  <script>
-    const { createApp, ref, computed, onMounted, reactive } = Vue;
-    const { createRouter, createWebHistory } = VueRouter;
-    const { createPinia, defineStore } = Pinia;
-
-    // API Base URL
-    const API_BASE = '';
-    
-    // Axios instance
-    const api = axios.create({
-      baseURL: API_BASE,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Request interceptor for auth
-    api.interceptors.request.use(config => {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
-
-    // Response interceptor for token refresh
-    api.interceptors.response.use(
-      response => response,
-      async error => {
-        if (error.response?.status === 401) {
-          const refreshToken = localStorage.getItem('refresh_token');
-          if (refreshToken) {
-            try {
-              const response = await axios.post(`${API_BASE}/token/refresh`, {
-                refresh_token: refreshToken
-              });
-              localStorage.setItem('access_token', response.data.access_token);
-              localStorage.setItem('refresh_token', response.data.refresh_token);
-              error.config.headers.Authorization = `Bearer ${response.data.access_token}`;
-              return api(error.config);
-            } catch (e) {
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
-              window.location.href = '/login';
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            NovaBackup Enterprise v7.0 - Система Резервного Копіювання
+        </title>
+        <link rel="stylesheet" href="assets/design-enhancements.css" />
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-red: #ef4444;
+                --accent-orange: #f59e0b;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
             }
-          }
-        }
-        return Promise.reject(error);
-      }
-    );
-
-    // Auth Store
-    const useAuthStore = defineStore('auth', {
-      state: () => ({
-        user: JSON.parse(localStorage.getItem('user') || 'null'),
-        accessToken: localStorage.getItem('access_token'),
-        refreshToken: localStorage.getItem('refresh_token'),
-      }),
-      getters: {
-        isAuthenticated: (state) => !!state.accessToken,
-        isAdmin: (state) => state.user?.roles?.includes('admin'),
-      },
-      actions: {
-        async login(username, password) {
-          const response = await api.post('/token', 
-            new URLSearchParams({ username, password }),
-            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-          );
-          this.accessToken = response.data.access_token;
-          this.refreshToken = response.data.refresh_token;
-          localStorage.setItem('access_token', response.data.access_token);
-          localStorage.setItem('refresh_token', response.data.refresh_token);
-          
-          // Get user info
-          const userResponse = await api.get('/auth/me');
-          this.user = userResponse.data;
-          localStorage.setItem('user', JSON.stringify(userResponse.data));
-          
-          return response.data;
-        },
-        logout() {
-          api.post('/auth/logout').catch(() => {});
-          this.user = null;
-          this.accessToken = null;
-          this.refreshToken = null;
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-        },
-      },
-    });
-
-    // Toast Store
-    const useToastStore = defineStore('toast', {
-      state: () => ({
-        toasts: [],
-      }),
-      actions: {
-        addToast(message, type = 'info') {
-          const id = Date.now();
-          this.toasts.push({ id, message, type });
-          setTimeout(() => this.removeToast(id), 5000);
-        },
-        removeToast(id) {
-          this.toasts = this.toasts.filter(t => t.id !== id);
-        },
-        success(message) { this.addToast(message, 'success'); },
-        error(message) { this.addToast(message, 'error'); },
-        warning(message) { this.addToast(message, 'warning'); },
-        info(message) { this.addToast(message, 'info'); },
-      },
-    });
-
-    // Login Page Component
-    const LoginPage = {
-      template: `
-        <div class="login-container">
-          <div class="login-card">
-            <h1 class="login-title">
-              <i class="bi bi-cloud-check"></i> NovaBackup
-            </h1>
-            <form @submit.prevent="handleLogin">
-              <div class="form-group">
-                <label class="form-label">Користувач</label>
-                <input 
-                  type="text" 
-                  class="form-input" 
-                  v-model="username"
-                  placeholder="admin"
-                  required
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Пароль</label>
-                <input 
-                  type="password" 
-                  class="form-input" 
-                  v-model="password"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              <button type="submit" class="btn btn-primary" :disabled="loading">
-                <span v-if="loading" class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span>
-                <span v-else><i class="bi bi-box-arrow-in-right"></i> Увійти</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      `,
-      setup() {
-        const authStore = useAuthStore();
-        const toastStore = useToastStore();
-        const router = useRouter();
-        
-        const username = ref('alice');
-        const password = ref('secret');
-        const loading = ref(false);
-
-        const handleLogin = async () => {
-          loading.value = true;
-          try {
-            await authStore.login(username.value, password.value);
-            toastStore.success('Успішний вхід!');
-            router.push('/dashboard');
-          } catch (error) {
-            toastStore.error('Помилка автентифікації');
-          } finally {
-            loading.value = false;
-          }
-        };
-
-        return { username, password, loading, handleLogin };
-      },
-    };
-
-    // Dashboard Component
-    const DashboardPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Dashboard</h1>
-              <UserMenu />
-            </header>
-
-            <div class="stats-grid">
-              <StatCard
-                title="Всього VM"
-                :value="stats.totalVms"
-                icon="bi-pc-display"
-                color="primary"
-              />
-              <StatCard
-                title="Бекапи"
-                :value="stats.totalBackups"
-                icon="bi-database-check"
-                color="success"
-              />
-              <StatCard
-                title="Активні задачі"
-                :value="stats.activeJobs"
-                icon="bi-activity"
-                color="warning"
-              />
-              <StatCard
-                title="Помилки"
-                :value="stats.errors"
-                icon="bi-exclamation-triangle"
-                color="danger"
-              />
-            </div>
-
-            <!-- Charts Row -->
-            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
-              <div class="card">
-                <div class="card-header">
-                  <h2 class="card-title">Бекапи по днях</h2>
-                </div>
-                <div class="card-body">
-                  <canvas ref="backupsChart"></canvas>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">
-                  <h2 class="card-title">Розподіл по провайдерах</h2>
-                </div>
-                <div class="card-body">
-                  <canvas ref="providersChart"></canvas>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">Останні бекапи</h2>
-                <button class="btn btn-primary btn-sm" @click="showBackupModal = true">
-                  <i class="bi bi-plus-lg"></i> Новий бекап
-                </button>
-              </div>
-              <div class="card-body">
-                <div v-if="loading" class="loading-container">
-                  <div class="spinner"></div>
-                </div>
-                <div v-else-if="backups.length === 0" class="empty-state">
-                  <i class="bi bi-inbox empty-state-icon"></i>
-                  <p>Бекапи відсутні</p>
-                </div>
-                <table v-else class="table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>VM ID</th>
-                      <th>Тип</th>
-                      <th>Статус</th>
-                      <th>Створено</th>
-                      <th>Дії</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="backup in backups" :key="backup.backup_id">
-                      <td>{{ backup.backup_id }}</td>
-                      <td>{{ backup.vm_id }}</td>
-                      <td>{{ backup.backup_type || 'full' }}</td>
-                      <td>
-                        <span class="badge" :class="getBadgeClass(backup.status)">
-                          {{ backup.status }}
-                        </span>
-                      </td>
-                      <td>{{ formatDate(backup.created_at) }}</td>
-                      <td>
-                        <button class="btn btn-success btn-sm" @click="restoreBackup(backup)" title="Відновити">
-                          <i class="bi bi-arrow-counterclockwise"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </main>
-
-          <!-- New Backup Modal -->
-          <div v-if="showBackupModal" class="modal-overlay" @click.self="showBackupModal = false">
-            <div class="modal">
-              <div class="modal-header">
-                <h3 class="modal-title">Створити новий бекап</h3>
-                <button class="btn btn-sm" @click="showBackupModal = false"><i class="bi bi-x-lg"></i></button>
-              </div>
-              <div class="modal-body">
-                <form @submit.prevent="createBackup">
-                  <div class="form-group">
-                    <label class="form-label">VM ID</label>
-                    <select class="form-input" v-model="newBackup.vmId" required>
-                      <option value="">Оберіть VM</option>
-                      <option v-for="vm in vms" :key="vm.id" :value="vm.id">{{ vm.name }} ({{ vm.id }})</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Тип бекапу</label>
-                    <select class="form-input" v-model="newBackup.type">
-                      <option value="full">Повний</option>
-                      <option value="incremental">Інкрементальний</option>
-                      <option value="differential">Диференціальний</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Призначення</label>
-                    <select class="form-input" v-model="newBackup.destinationType">
-                      <option value="local">Локально</option>
-                      <option value="cloud">Хмара</option>
-                    </select>
-                  </div>
-                  <div v-if="newBackup.destinationType === 'cloud'" class="form-group">
-                    <label class="form-label">Хмарний провайдер</label>
-                    <select class="form-input" v-model="newBackup.cloudProvider">
-                      <option value="AWS">AWS</option>
-                      <option value="Azure">Azure</option>
-                      <option value="GCP">Google Cloud</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Назва snapshot (опціонально)</label>
-                    <input type="text" class="form-input" v-model="newBackup.name" />
-                  </div>
-                </form>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-secondary" @click="showBackupModal = false">Скасувати</button>
-                <button class="btn btn-primary" @click="createBackup" :disabled="creatingBackup">
-                  <span v-if="creatingBackup" class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span>
-                  <span v-else>Створити</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <ToastContainer />
-        </div>
-      `,
-      setup() {
-        const authStore = useAuthStore();
-        const toastStore = useToastStore();
-        
-        const loading = ref(true);
-        const vms = ref([]);
-        const backups = ref([]);
-        const showBackupModal = ref(false);
-        const creatingBackup = ref(false);
-        
-        const newBackup = reactive({
-          vmId: '',
-          type: 'full',
-          destinationType: 'local',
-          cloudProvider: 'AWS',
-          name: '',
-        });
-
-        const stats = computed(() => ({
-          totalVms: vms.value.length,
-          totalBackups: backups.value.length,
-          activeJobs: backups.value.filter(b => b.status === 'running').length,
-          errors: backups.value.filter(b => b.status === 'failed').length,
-        }));
-
-        const loadVms = async () => {
-          try {
-            const response = await api.get('/vms');
-            vms.value = response.data;
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити VM');
-          }
-        };
-
-        const loadBackups = async () => {
-          try {
-            const response = await api.get('/backups');
-            backups.value = response.data.backups || [];
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити бекапи');
-          } finally {
-            loading.value = false;
-          }
-        };
-
-        const createBackup = async () => {
-          if (!newBackup.vmId) {
-            toastStore.warning('Оберіть VM');
-            return;
-          }
-          
-          creatingBackup.value = true;
-          try {
-            const payload = {
-              vm_id: newBackup.vmId,
-              type: newBackup.type,
-              destination_type: newBackup.destinationType,
-              cloud_provider: newBackup.destinationType === 'cloud' ? newBackup.cloudProvider : undefined,
-              name: newBackup.name || undefined,
-            };
-            
-            await api.post('/backups', payload);
-            toastStore.success('Бекап створено');
-            showBackupModal.value = false;
-            loadBackups();
-          } catch (error) {
-            toastStore.error('Помилка створення бекапу');
-          } finally {
-            creatingBackup.value = false;
-          }
-        };
-
-        const restoreBackup = async (backup) => {
-          if (!confirm(`Відновити бекап ${backup.backup_id}?`)) return;
-          
-          try {
-            await api.post(`/backups/${backup.backup_id}/restore`, { dest: './restore' });
-            toastStore.success('Відновлення запущено');
-          } catch (error) {
-            toastStore.error('Помилка відновлення');
-          }
-        };
-
-        const getBadgeClass = (status) => {
-          const map = {
-            'completed': 'badge-success',
-            'running': 'badge-info',
-            'failed': 'badge-danger',
-            'pending': 'badge-warning',
-          };
-          return map[status] || 'badge-info';
-        };
-
-        const formatDate = (dateString) => {
-          if (!dateString) return '-';
-          return new Date(dateString).toLocaleString('uk-UA');
-        };
-
-        const initCharts = () => {
-          // Backups by day chart
-          const backupsCtx = document.getElementById('backupsChart');
-          if (backupsCtx) {
-            const backupsByDay = {};
-            backups.value.forEach(b => {
-              const day = new Date(b.created_at).toLocaleDateString('uk-UA');
-              backupsByDay[day] = (backupsByDay[day] || 0) + 1;
-            });
-            
-            new Chart(backupsCtx, {
-              type: 'line',
-              data: {
-                labels: Object.keys(backupsByDay),
-                datasets: [{
-                  label: 'Бекапи',
-                  data: Object.values(backupsByDay),
-                  borderColor: '#4f46e5',
-                  backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                  tension: 0.4,
-                  fill: true,
-                }]
-              },
-              options: {
-                responsive: true,
-                plugins: {
-                  legend: { display: false }
-                }
-              }
-            });
-          }
-          
-          // Providers distribution chart
-          const providersCtx = document.getElementById('providersChart');
-          if (providersCtx) {
-            const providers = {};
-            backups.value.forEach(b => {
-              const provider = b.provider || 'local';
-              providers[provider] = (providers[provider] || 0) + 1;
-            });
-            
-            new Chart(providersCtx, {
-              type: 'doughnut',
-              data: {
-                labels: Object.keys(providers),
-                datasets: [{
-                  data: Object.values(providers),
-                  backgroundColor: [
-                    '#4f46e5',
-                    '#22c55e',
-                    '#f59e0b',
-                    '#ef4444',
-                    '#64748b',
-                  ]
-                }]
-              },
-              options: {
-                responsive: true,
-                plugins: {
-                  legend: { position: 'bottom' }
-                }
-              }
-            });
-          }
-        };
-
-        onMounted(() => {
-          loadVms();
-          loadBackups();
-          setTimeout(initCharts, 500); // Initialize charts after data loads
-        });
-
-        return {
-          loading, vms, backups, stats, showBackupModal, newBackup, creatingBackup,
-          createBackup, restoreBackup, getBadgeClass, formatDate,
-        };
-      },
-    };
-
-    // Sidebar Component
-    const Sidebar = {
-      template: `
-        <aside class="sidebar">
-          <div class="sidebar-brand">
-            <i class="bi bi-cloud-check"></i>
-            <span>NovaBackup</span>
-          </div>
-          <ul class="sidebar-nav">
-            <li class="sidebar-nav-item">
-              <router-link to="/dashboard" class="sidebar-nav-link">
-                <i class="bi bi-speedometer2"></i>
-                <span>Dashboard</span>
-              </router-link>
-            </li>
-            <li class="sidebar-nav-item">
-              <router-link to="/vms" class="sidebar-nav-link">
-                <i class="bi bi-pc-display"></i>
-                <span>Віртуальні машини</span>
-              </router-link>
-            </li>
-            <li class="sidebar-nav-item">
-              <router-link to="/backups" class="sidebar-nav-link">
-                <i class="bi bi-database-check"></i>
-                <span>Бекапи</span>
-              </router-link>
-            </li>
-            <li class="sidebar-nav-item" v-if="authStore.isAdmin">
-              <router-link to="/audit" class="sidebar-nav-link">
-                <i class="bi bi-shield-check"></i>
-                <span>Audit логи</span>
-              </router-link>
-            </li>
-            <li class="sidebar-nav-item" v-if="authStore.isAdmin">
-              <router-link to="/users" class="sidebar-nav-link">
-                <i class="bi bi-people"></i>
-                <span>Користувачі</span>
-              </router-link>
-            </li>
-            <li class="sidebar-nav-item">
-              <router-link to="/settings" class="sidebar-nav-link">
-                <i class="bi bi-gear"></i>
-                <span>Налаштування</span>
-              </router-link>
-            </li>
-          </ul>
-        </aside>
-      `,
-      setup() {
-        const authStore = useAuthStore();
-        return { authStore };
-      },
-    };
-
-    // User Menu Component
-    const UserMenu = {
-      template: `
-        <div class="user-menu">
-          <button class="btn btn-sm" @click="toggleTheme" :title="theme">
-            <i :class="theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill'"></i>
-          </button>
-          <div class="user-info">
-            <div class="user-name">{{ authStore.user?.username || 'User' }}</div>
-            <div class="user-role">{{ authStore.user?.roles?.join(', ') || '' }}</div>
-          </div>
-          <button class="btn btn-secondary btn-sm" @click="handleLogout">
-            <i class="bi bi-box-arrow-right"></i>
-          </button>
-        </div>
-      `,
-      setup() {
-        const authStore = useAuthStore();
-        const toastStore = useToastStore();
-        const router = useRouter();
-        
-        const theme = ref(localStorage.getItem('theme') || 'light');
-        
-        const toggleTheme = () => {
-          theme.value = theme.value === 'light' ? 'dark' : 'light';
-          localStorage.setItem('theme', theme.value);
-          document.documentElement.setAttribute('data-theme', theme.value);
-          toastStore.info(`Тема: ${theme.value === 'dark' ? 'Темна' : 'Світла'}`);
-        };
-        
-        onMounted(() => {
-          document.documentElement.setAttribute('data-theme', theme.value);
-        });
-
-        const handleLogout = () => {
-          authStore.logout();
-          toastStore.info('Ви вийшли з системи');
-          router.push('/login');
-        };
-
-        return { authStore, theme, toggleTheme, handleLogout };
-      },
-    };
-
-    // Stat Card Component
-    const StatCard = {
-      props: ['title', 'value', 'icon', 'color'],
-      template: `
-        <div class="stat-card">
-          <div class="stat-header">
-            <div class="stat-icon" :class="color">
-              <i :class="icon"></i>
-            </div>
-          </div>
-          <div class="stat-value">{{ value }}</div>
-          <div class="stat-label">{{ title }}</div>
-        </div>
-      `,
-    };
-
-    // Toast Container Component
-    const ToastContainer = {
-      template: `
-        <div class="toast-container">
-          <div 
-            v-for="toast in toastStore.toasts" 
-            :key="toast.id" 
-            class="toast" 
-            :class="toast.type"
-          >
-            <i :class="getIcon(toast.type)"></i>
-            <span>{{ toast.message }}</span>
-          </div>
-        </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const getIcon = (type) => {
-          const map = {
-            success: 'bi-check-circle-fill',
-            error: 'bi-x-circle-fill',
-            warning: 'bi-exclamation-triangle-fill',
-            info: 'bi-info-circle-fill',
-          };
-          return `bi ${map[type] || map.info}`;
-        };
-        return { toastStore, getIcon };
-      },
-    };
-
-    // VMs Page Component
-    const VMsPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Віртуальні машини</h1>
-              <UserMenu />
-            </header>
-            <div class="card">
-              <div class="card-body">
-                <table class="table" v-if="vms.length > 0">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Назва</th>
-                      <th>Тип</th>
-                      <th>Статус</th>
-                      <th>Деталі</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="vm in vms" :key="vm.id">
-                      <td>{{ vm.id }}</td>
-                      <td>{{ vm.name }}</td>
-                      <td>{{ vm.type }}</td>
-                      <td><span class="badge badge-info">{{ vm.status }}</span></td>
-                      <td>{{ JSON.stringify(vm.provider_details || {}) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div v-else class="empty-state">
-                  <i class="bi bi-inbox empty-state-icon"></i>
-                  <p>VM не знайдено</p>
-                </div>
-              </div>
-            </div>
-          </main>
-          <ToastContainer />
-        </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const vms = ref([]);
-        const loading = ref(true);
-
-        onMounted(async () => {
-          try {
-            const response = await api.get('/vms');
-            vms.value = response.data;
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити VM');
-          } finally {
-            loading.value = false;
-          }
-        });
-
-        return { vms };
-      },
-    };
-
-    // Backups Page Component
-    const BackupsPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Резервні копії</h1>
-              <UserMenu />
-            </header>
-            <div class="card">
-              <div class="card-body">
-                <table class="table" v-if="backups.length > 0">
-                  <thead>
-                    <tr>
-                      <th>Backup ID</th>
-                      <th>VM ID</th>
-                      <th>Тип</th>
-                      <th>Провайдер</th>
-                      <th>Статус</th>
-                      <th>Створено</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="backup in backups" :key="backup.backup_id">
-                      <td>{{ backup.backup_id }}</td>
-                      <td>{{ backup.vm_id }}</td>
-                      <td>{{ backup.backup_type }}</td>
-                      <td>{{ backup.provider || 'local' }}</td>
-                      <td><span class="badge" :class="getBadgeClass(backup.status)">{{ backup.status }}</span></td>
-                      <td>{{ formatDate(backup.created_at) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div v-else class="empty-state">
-                  <i class="bi bi-inbox empty-state-icon"></i>
-                  <p>Бекапи відсутні</p>
-                </div>
-              </div>
-            </div>
-          </main>
-          <ToastContainer />
-        </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const backups = ref([]);
-
-        onMounted(async () => {
-          try {
-            const response = await api.get('/backups');
-            backups.value = response.data.backups || [];
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити бекапи');
-          }
-        });
-
-        const getBadgeClass = (status) => {
-          const map = {
-            'completed': 'badge-success',
-            'running': 'badge-info',
-            'failed': 'badge-danger',
-            'pending': 'badge-warning',
-          };
-          return map[status] || 'badge-info';
-        };
-
-        const formatDate = (dateString) => {
-          if (!dateString) return '-';
-          return new Date(dateString).toLocaleString('uk-UA');
-        };
-
-        return { backups, getBadgeClass, formatDate };
-      },
-    };
-
-    // Audit Logs Page Component (admin only)
-    const AuditPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Audit логи</h1>
-              <UserMenu />
-            </header>
-            <div class="card">
-              <div class="card-body">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Час</th>
-                      <th>Дія</th>
-                      <th>Користувач</th>
-                      <th>Деталі</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="log in logs" :key="log.timestamp + log.action">
-                      <td>{{ formatDate(log.timestamp) }}</td>
-                      <td><code>{{ log.action }}</code></td>
-                      <td>{{ log.user }}</td>
-                      <td><code>{{ log.details }}</code></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </main>
-          <ToastContainer />
-        </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const logs = ref([]);
-
-        onMounted(async () => {
-          try {
-            const response = await api.get('/audit/logs?limit=100');
-            logs.value = response.data.logs || [];
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити audit логи');
-          }
-        });
-
-        const formatDate = (dateString) => {
-          return new Date(dateString).toLocaleString('uk-UA');
-        };
-
-        return { logs, formatDate };
-      },
-    };
-
-    // Settings Page Component
-    const SettingsPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Налаштування</h1>
-              <UserMenu />
-            </header>
-            
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">Сповіщення</h2>
-              </div>
-              <div class="card-body">
-                <div class="form-group">
-                  <label class="form-label">Канали сповіщень</label>
-                  <div v-if="channels.length > 0">
-                    <span v-for="ch in channels" :key="ch" class="badge badge-info" style="margin-right: 0.5rem;">
-                      {{ ch }}
-                    </span>
-                  </div>
-                  <p v-else class="text-secondary">Канали не налаштовані</p>
-                </div>
-                <button class="btn btn-primary" @click="sendTestNotification">
-                  <i class="bi bi-bell"></i> Тестове сповіщення
-                </button>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">Експорт/Імпорт</h2>
-              </div>
-              <div class="card-body">
-                <div style="display: flex; gap: 1rem;">
-                  <button class="btn btn-primary" @click="exportConfig">
-                    <i class="bi bi-download"></i> Експорт конфігурації
-                  </button>
-                  <button class="btn btn-secondary" @click="$refs.importFile.click()">
-                    <i class="bi bi-upload"></i> Імпорт конфігурації
-                  </button>
-                  <input type="file" ref="importFile" style="display: none" @change="importConfig" accept=".json" />
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">Про систему</h2>
-              </div>
-              <div class="card-body">
-                <table class="table">
-                  <tr><td>Версія</td><td><strong>8.4.0</strong></td></tr>
-                  <tr><td>API</td><td><code>/docs</code></td></tr>
-                  <tr><td>WebSocket</td><td><code>/ws</code></td></tr>
-                </table>
-              </div>
-            </div>
-          </main>
-          <ToastContainer />
-        </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const channels = ref([]);
-
-        onMounted(async () => {
-          try {
-            const response = await api.get('/notifications/channels');
-            channels.value = response.data.channels || [];
-          } catch (error) {
-            toastStore.error('Не вдалося завантажити канали');
-          }
-        });
-
-        const sendTestNotification = async () => {
-          try {
-            await api.post('/notifications/test', {
-              message: 'Тестове сповіщення з NovaBackup',
-              level: 'info'
-            });
-            toastStore.success('Тестове сповіщення відправлено');
-          } catch (error) {
-            toastStore.error('Помилка відправки сповіщення');
-          }
-        };
-
-        const exportConfig = () => {
-          const config = {
-            version: '8.4.0',
-            exported_at: new Date().toISOString(),
-            message: 'Configuration export not implemented yet'
-          };
-          const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `novabackup-config-${new Date().toISOString().split('T')[0]}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-          toastStore.success('Конфігурацію експортовано');
-        };
-
-        const importConfig = (event) => {
-          const file = event.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const config = JSON.parse(e.target.result);
-              toastStore.success(`Конфігурацію ${config.version} імпортовано`);
-            } catch (error) {
-              toastStore.error('Невірний формат файлу');
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
-          };
-          reader.readAsText(file);
-        };
+            body {
+                font-family: "Segoe UI", "Ubuntu", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                min-height: 100vh;
+            }
+            .header {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-secondary) 0%,
+                    #0f172a 100%
+                );
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid var(--accent-blue);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .logo-icon {
+                font-size: 2.5rem;
+                filter: drop-shadow(0 0 10px var(--accent-blue));
+            }
+            .logo-text h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    var(--accent-purple)
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .logo-text p {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+            }
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }
+            .status-badge {
+                background: rgba(16, 185, 129, 0.15);
+                padding: 0.5rem 1.25rem;
+                border-radius: 9999px;
+                font-size: 0.875rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--accent-green);
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+            }
+            .main-container {
+                display: grid;
+                grid-template-columns: 280px 1fr;
+                min-height: calc(100vh - 80px);
+            }
+            .sidebar {
+                background: var(--bg-secondary);
+                border-right: 1px solid var(--border);
+                padding: 1.5rem;
+            }
+            .nav-section {
+                margin-bottom: 2rem;
+            }
+            .nav-section-title {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
+                padding-left: 1rem;
+            }
+            .nav-menu {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 0.875rem;
+                padding: 0.875rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: var(--text-secondary);
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .nav-item:hover {
+                background: var(--bg-card);
+                color: var(--text-primary);
+                transform: translateX(4px);
+            }
+            .nav-item.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .nav-icon {
+                font-size: 1.25rem;
+                width: 24px;
+                text-align: center;
+            }
+            .content {
+                padding: 2rem;
+                overflow-y: auto;
+            }
+            .page-header {
+                margin-bottom: 2rem;
+            }
+            .page-title {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+            .page-subtitle {
+                color: var(--text-secondary);
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .stat-card {
+                background: linear-gradient(
+                    135deg,
+                    var(--bg-card) 0%,
+                    var(--bg-secondary) 100%
+                );
+                border-radius: 1rem;
+                padding: 1.5rem;
+                border: 1px solid var(--border);
+                transition: transform 0.2s;
+            }
+            .stat-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            .stat-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .stat-icon {
+                font-size: 2.5rem;
+            }
+            .stat-value {
+                font-size: 2.25rem;
+                font-weight: 800;
+                margin-bottom: 0.25rem;
+                background: linear-gradient(
+                    135deg,
+                    var(--text-primary),
+                    var(--text-secondary)
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+            .quick-actions {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+            .quick-action-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 1.25rem;
+                border-radius: 0.75rem;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .quick-action-btn:hover {
+                background: var(--bg-card);
+                border-color: var(--accent-blue);
+                transform: translateY(-2px);
+            }
+            .quick-action-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .quick-action-label {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                margin-top: 1.5rem;
+            }
+            .card-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 1rem 1.25rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+            }
+            th {
+                background: var(--bg-secondary);
+                font-weight: 700;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+            }
+            tr:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .status-badge-sm {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+            .status-success {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--accent-green);
+            }
+            .help-tip {
+                background: var(--bg-secondary);
+                border-left: 3px solid var(--accent-blue);
+                padding: 1rem 1.25rem;
+                margin: 1rem 0;
+                border-radius: 0.5rem;
+            }
+            .help-tip-title {
+                font-weight: 600;
+                color: var(--accent-blue);
+                margin-bottom: 0.5rem;
+            }
+            .help-tip-content {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                line-height: 1.6;
+            }
+            .help-tip-content code {
+                background: var(--bg-card);
+                padding: 0.2rem 0.5rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", monospace;
+                color: var(--accent-green);
+            }
+            .logout-btn {
+                background: var(--accent-red);
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            /* Filter buttons */
+            .filter-btn-small {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                color: var(--text-secondary);
+                padding: 0.4rem 0.75rem;
+                border-radius: 0.375rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .filter-btn-small:hover {
+                background: var(--bg-secondary);
+                border-color: var(--accent-blue);
+            }
+            .filter-btn-small.active {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+                border-color: var(--accent-blue);
+            }
+            /* Gauge indicators */
+            .job-gauges {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+            .gauge-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                opacity: 0.5;
+            }
+            .gauge-item:hover {
+                opacity: 0.8;
+                transform: translateY(-4px);
+            }
+            .gauge-item.active {
+                opacity: 1;
+                transform: scale(1.1);
+                filter: drop-shadow(0 0 15px currentColor);
+            }
+            .gauge-ring {
+                position: relative;
+                width: 90px;
+                height: 90px;
+            }
+            .gauge-svg {
+                width: 100%;
+                height: 100%;
+                transform: rotate(-90deg);
+            }
+            .gauge-bg {
+                fill: none;
+                stroke: var(--bg-secondary);
+                stroke-width: 4;
+            }
+            .gauge-fill {
+                fill: none;
+                stroke-width: 4;
+                stroke-linecap: round;
+                transition: stroke-dasharray 0.5s ease;
+            }
+            .gauge-fill.all {
+                stroke: var(--accent-blue);
+            }
+            .gauge-fill.database {
+                stroke: var(--accent-purple);
+            }
+            .gauge-fill.file {
+                stroke: var(--accent-green);
+            }
+            .gauge-fill.vm {
+                stroke: var(--accent-orange);
+            }
+            .gauge-icon {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 1.75rem;
+            }
+            .gauge-count {
+                font-size: 1.75rem;
+                font-weight: 800;
+                color: var(--text-primary);
+                text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            }
+            .gauge-label {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-weight: 600;
+            }
+            @media (max-width: 768px) {
+                body {
+                    padding: 0;
+                }
+                .header {
+                    flex-direction: column;
+                    padding: 1rem;
+                }
+                .nav-links {
+                    flex-direction: column;
+                    width: 100%;
+                }
+                .content {
+                    padding: 1rem;
+                }
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .quick-actions {
+                    grid-template-columns: 1fr;
+                }
+                table {
+                    font-size: 0.8rem;
+                }
+                th,
+                td {
+                    padding: 0.5rem;
+                }
 
-        return { channels, sendTestNotification, exportConfig, importConfig };
-      },
-    };
-
-    // Users Page Component (admin only)
-    const UsersPage = {
-      template: `
-        <div class="dashboard-container">
-          <Sidebar />
-          <main class="main-content">
-            <header class="header">
-              <h1 class="header-title">Користувачі</h1>
-              <UserMenu />
-            </header>
-            <div class="card">
-              <div class="card-body">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Користувач</th>
-                      <th>Ролі</th>
-                      <th>Scopes</th>
-                      <th>Статус</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="user in users" :key="user.username">
-                      <td><strong>{{ user.username }}</strong></td>
-                      <td>
-                        <span v-for="role in user.roles" :key="role" class="badge badge-info" style="margin-right: 0.25rem;">
-                          {{ role }}
-                        </span>
-                      </td>
-                      <td>
-                        <span v-for="scope in user.scopes" :key="scope" class="badge badge-success" style="margin-right: 0.25rem;">
-                          {{ scope }}
-                        </span>
-                      </td>
-                      <td><span class="badge badge-success">Active</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="empty-state" v-if="users.length === 0">
-                  <i class="bi bi-people empty-state-icon"></i>
-                  <p>Користувачі не знайдені</p>
+                /* Help Icons */
+                .help-icon-btn {
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    font-size: 12px;
+                    margin-left: 0.5rem;
+                    transition: all 0.2s;
+                    position: relative;
+                    color: var(--text-secondary);
+                }
+                .help-icon-btn:hover {
+                    background: rgba(59, 130, 246, 0.2);
+                    border-color: var(--accent-blue);
+                    color: var(--accent-blue);
+                    transform: scale(1.1);
+                }
+                .help-tooltip {
+                    display: none;
+                    position: absolute;
+                    top: 30px;
+                    right: 0;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                    border-radius: 0.5rem;
+                    padding: 1rem;
+                    width: 350px;
+                    z-index: 1000;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                    font-size: 0.85rem;
+                    line-height: 1.5;
+                }
+                .help-tooltip.active {
+                    display: block;
+                }
+                .help-tooltip h4 {
+                    color: var(--accent-blue);
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                }
+                .help-tooltip ul {
+                    margin-left: 1.2rem;
+                    margin-top: 0.5rem;
+                }
+                .help-tooltip li {
+                    margin-bottom: 0.3rem;
+                }
+                .help-tooltip code {
+                    background: var(--bg-card);
+                    padding: 0.2rem 0.4rem;
+                    border-radius: 0.25rem;
+                    font-family: "Consolas", monospace;
+                    color: var(--accent-green);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🛡️</span>
+                <div class="logo-text">
+                    <h1>NovaBackup Enterprise</h1>
+                    <p>Система Резервного Копіювання v7.0</p>
                 </div>
-              </div>
             </div>
-          </main>
-          <ToastContainer />
+            <div class="user-menu">
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>Система Працює</span>
+                </div>
+                <button
+                    class="theme-toggle"
+                    onclick="toggleTheme()"
+                    title="Перемкнути тему"
+                >
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <span id="username-display">👤 Admin</span>
+                <button class="logout-btn" onclick="logout()">🚪 Вихід</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <aside class="sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">Головне</div>
+                    <nav class="nav-menu">
+                        <a href="index.html" class="nav-item active">
+                            <span class="nav-icon">📊</span>
+                            <span>Панель Керування</span>
+                        </a>
+                        <a href="manage-jobs.html" class="nav-item">
+                            <span class="nav-icon">📋</span>
+                            <span>Завдання</span>
+                        </a>
+                        <a href="quick-backup.html" class="nav-item">
+                            <span class="nav-icon">🔄</span>
+                            <span>Швидке Резервне Копіювання</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Відновлення</div>
+                    <nav class="nav-menu">
+                        <a href="restore.html" class="nav-item">
+                            <span class="nav-icon">♻️</span>
+                            <span>Відновлення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Бази Даних</div>
+                    <nav class="nav-menu">
+                        <a href="database-backup.html" class="nav-item">
+                            <span class="nav-icon">🗄️</span>
+                            <span>SQL Server Бекап</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Віртуальні Машини</div>
+                    <nav class="nav-menu">
+                        <a href="vm-backup.html" class="nav-item">
+                            <span class="nav-icon">🖥️</span>
+                            <span>Бекап ВМ</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Інфраструктура</div>
+                    <nav class="nav-menu">
+                        <a href="repositories.html" class="nav-item">
+                            <span class="nav-icon">📁</span>
+                            <span>Сховища</span>
+                        </a>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                        <a href="help.html" class="nav-item" target="_blank">
+                            <span class="nav-icon">❓</span>
+                            <span>Допомога</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Моніторинг</div>
+                    <nav class="nav-menu">
+                        <a href="sessions.html" class="nav-item">
+                            <span class="nav-icon">📋</span>
+                            <span>Сесії</span>
+                        </a>
+                        <a href="progress.html" class="nav-item">
+                            <span class="nav-icon">⚡</span>
+                            <span>Прогрес Операцій</span>
+                        </a>
+                        <a href="verification.html" class="nav-item">
+                            <span class="nav-icon">🛡️</span>
+                            <span>Верифікація</span>
+                        </a>
+                        <a href="notifications.html" class="nav-item">
+                            <span class="nav-icon">🔔</span>
+                            <span>Сповіщення</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Налаштування</div>
+                    <nav class="nav-menu">
+                        <a href="settings.html" class="nav-item">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Загальні</span>
+                        </a>
+                        <a href="users.html" class="nav-item">
+                            <span class="nav-icon">👥</span>
+                            <span>Користувачі</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <main class="content" id="main-content">
+                <div class="page-header">
+                    <h1 class="page-title">📊 Панель Керування</h1>
+                    <p class="page-subtitle">
+                        Огляд інфраструктури резервного копіювання
+                    </p>
+                </div>
+
+                <div class="stats-grid" style="position: relative">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">💾</span>
+                        </div>
+                        <div class="stat-value" id="stat-jobs">0</div>
+                        <div class="stat-label">
+                            Завдань Резервного Копіювання
+                        </div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-jobs')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >ℹ️</span
+                        >
+                        <div
+                            id="help-stat-jobs"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>📊 Завдання Резервного Копіювання</h4>
+                            <p>
+                                Показує загальну кількість створених завдань
+                                бекапу.
+                            </p>
+                            <ul>
+                                <li>Включає всі типи: файли, БД, VM</li>
+                                <li>Активні та вимкнені завдання</li>
+                                <li>
+                                    <a
+                                        href="quick-backup.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Створити нове завдання</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📁</span>
+                        </div>
+                        <div class="stat-value" id="stat-storage">0 TB</div>
+                        <div class="stat-label">Використано Сховища</div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-storage')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >ℹ️</span
+                        >
+                        <div
+                            id="help-stat-storage"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>💾 Використання Сховища</h4>
+                            <p>Загальний обсяг даних у всіх бекапах.</p>
+                            <ul>
+                                <li>Враховує стиснені дані</li>
+                                <li>Показує ефективність дедуплікації</li>
+                                <li>
+                                    <a
+                                        href="repositories.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Керування сховищами</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">✅</span>
+                        </div>
+                        <div class="stat-value" id="stat-success">0%</div>
+                        <div class="stat-label">Успішність</div>
+                        <span
+                            class="help-icon-btn"
+                            onclick="toggleHelp('help-stat-success')"
+                            style="position: absolute; top: 10px; right: 10px"
+                            >ℹ️</span
+                        >
+                        <div
+                            id="help-stat-success"
+                            class="help-tooltip"
+                            style="right: 45px; top: 35px; width: 280px"
+                        >
+                            <h4>✅ Успішність Операцій</h4>
+                            <p>Відсоток успішно завершених бекапів.</p>
+                            <ul>
+                                <li>Рахується за останні 24 години</li>
+                                <li>
+                                    Зелений: >90%, Жовтий: 70-90%, Червоний:
+                                    <70%
+                                </li>
+                                <li>
+                                    <a
+                                        href="sessions.html"
+                                        style="color: var(--accent-blue)"
+                                        >➔ Переглянути лог помилок</a
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">📋</span>
+                        </div>
+                        <div class="stat-value" id="stat-sessions">0</div>
+                        <div class="stat-label">Сесій (24г)</div>
+                    </div>
+                    <div
+                        class="stat-card"
+                        style="
+                            border-color: var(--accent-green);
+                            background: rgba(16, 185, 129, 0.05);
+                        "
+                    >
+                        <div class="stat-header">
+                            <span class="stat-icon">🛡️</span>
+                            <span class="status-badge-sm status-success"
+                                >ACTIVE</span
+                            >
+                        </div>
+                        <div
+                            class="stat-value"
+                            id="stat-security"
+                            style="
+                                color: var(--accent-green);
+                                -webkit-text-fill-color: var(--accent-green);
+                            "
+                        >
+                            100%
+                        </div>
+                        <div class="stat-label">Захист від Ransomware</div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Calendar -->
+                <div id="heatmap-container" style="margin-bottom: 2rem"></div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Огляд Завдань</h3>
+                        <div
+                            style="
+                                display: flex;
+                                gap: 1rem;
+                                align-items: center;
+                            "
+                        >
+                            <!-- Gauge indicators -->
+                            <div class="job-gauges">
+                                <div
+                                    class="gauge-item all active"
+                                    onclick="filterJobs('all')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill"
+                                                id="gauge-all"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">📋</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-all"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">Всі</span>
+                                </div>
+                                <div
+                                    class="gauge-item database"
+                                    onclick="filterJobs('database')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill database"
+                                                id="gauge-database"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">🗄️</span>
+                                    </div>
+                                    <span
+                                        class="gauge-count"
+                                        id="count-database"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">SQL</span>
+                                </div>
+                                <div
+                                    class="gauge-item file"
+                                    onclick="filterJobs('file')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill file"
+                                                id="gauge-file"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">📁</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-file"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">Файли</span>
+                                </div>
+                                <div
+                                    class="gauge-item vm"
+                                    onclick="filterJobs('vm')"
+                                >
+                                    <div class="gauge-ring">
+                                        <svg
+                                            viewBox="0 0 36 36"
+                                            class="gauge-svg"
+                                        >
+                                            <path
+                                                class="gauge-bg"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                            <path
+                                                class="gauge-fill vm"
+                                                id="gauge-vm"
+                                                stroke-dasharray="0, 100"
+                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            />
+                                        </svg>
+                                        <span class="gauge-icon">🖥️</span>
+                                    </div>
+                                    <span class="gauge-count" id="count-vm"
+                                        >0</span
+                                    >
+                                    <span class="gauge-label">ВМ</span>
+                                </div>
+                            </div>
+                            <button
+                                class="btn btn-primary"
+                                onclick="loadDashboard()"
+                                style="padding: 0.5rem 1rem; font-size: 0.85rem"
+                            >
+                                🔄 Оновити
+                            </button>
+                            <a
+                                href="quick-backup.html"
+                                class="btn btn-success"
+                                style="
+                                    padding: 0.5rem 1rem;
+                                    font-size: 0.85rem;
+                                    text-decoration: none;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.5rem;
+                                "
+                                >➕ Нове</a
+                            >
+                            <a
+                                href="manage-jobs.html"
+                                class="btn btn-primary"
+                                style="
+                                    padding: 0.5rem 1rem;
+                                    font-size: 0.85rem;
+                                    text-decoration: none;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 0.5rem;
+                                "
+                                >📋 Всі завдання</a
+                            >
+                            <div
+                                class="help-tip"
+                                style="margin: 0; padding: 0.75rem 1rem"
+                            >
+                                <div
+                                    class="help-tip-content"
+                                    style="font-size: 0.8rem"
+                                >
+                                    💡 <strong>Порада:</strong> Використовуйте
+                                    forward slashes: D:/Documents замість
+                                    D:\Documents
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        style="
+                            padding: 1rem;
+                            text-align: center;
+                            color: var(--text-secondary);
+                        "
+                    >
+                        <p style="margin-bottom: 0.5rem">
+                            📊 Керуйте завданнями на окремих сторінках
+                        </p>
+                        <a
+                            href="manage-jobs.html"
+                            class="btn btn-primary"
+                            style="
+                                text-decoration: none;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 0.5rem;
+                            "
+                        >
+                            📋 Всі Завдання
+                        </a>
+                    </div>
+                </div>
+            </main>
         </div>
-      `,
-      setup() {
-        const toastStore = useToastStore();
-        const users = ref([
-          { username: 'alice', roles: ['admin'], scopes: ['read', 'write', 'delete', 'manage_users'] },
-          { username: 'bob', roles: ['user'], scopes: ['read', 'write'] },
-          { username: 'service', roles: ['service'], scopes: ['read', 'backup', 'restore'] },
-        ]);
 
-        return { users };
-      },
-    };
+        <script>
+            // Check authentication
+            function checkAuth() {
+                const token = localStorage.getItem("authToken");
+                const passwordChanged = localStorage.getItem("passwordChanged");
 
-    // Router configuration
-    const routes = [
-      { path: '/login', component: LoginPage },
-      { path: '/dashboard', component: DashboardPage },
-      { path: '/vms', component: VMsPage },
-      { path: '/backups', component: BackupsPage },
-      { path: '/audit', component: AuditPage },
-      { path: '/settings', component: SettingsPage },
-      { path: '/users', component: UsersPage },
-      { path: '/', redirect: '/dashboard' },
-    ];
+                if (!token) {
+                    window.location.href = "login.html";
+                    return false;
+                }
 
-    const router = createRouter({
-      history: createWebHistory(),
-      routes,
-    });
+                // Don't redirect if password not changed - let login.html handle it
+                return true;
+            }
 
-    // Navigation guard
-    router.beforeEach((to, from, next) => {
-      const authStore = useAuthStore();
-      if (to.path !== '/login' && !authStore.isAuthenticated) {
-        next('/login');
-      } else {
-        next();
-      }
-    });
+            // Run auth check
+            if (!checkAuth()) {
+                // Redirecting...
+            } else {
+                // Load user info
+                const user = JSON.parse(
+                    localStorage.getItem("user") || '{"username":"admin"}',
+                );
+                document.getElementById("username-display").textContent =
+                    "👤 " + user.username;
+            }
 
-    // Create app
-    const app = createApp({
-      template: '<router-view />',
-    });
+            // Logout function
+            function logout() {
+                if (confirm("Ви впевнені, що хочете вийти?")) {
+                    localStorage.removeItem("authToken");
+                    localStorage.removeItem("user");
+                    window.location.href = "login.html";
+                }
+            }
 
-    const pinia = createPinia();
-    app.use(pinia);
-    app.use(router);
-    app.mount('#app');
-  </script>
-</body>
+            // Load dashboard data
+            async function loadDashboard() {
+                const token = localStorage.getItem("authToken");
+                const headers = token
+                    ? { Authorization: "Bearer " + token }
+                    : {};
+
+                try {
+                    const [jobsRes, sessionsRes] = await Promise.all([
+                        fetch("/api/jobs", { headers }),
+                        fetch("/api/backup/sessions", { headers }),
+                    ]);
+
+                    const jobs = await jobsRes
+                        .json()
+                        .catch(() => ({ jobs: [] }));
+                    const sessions = await sessionsRes
+                        .json()
+                        .catch(() => ({ sessions: [] }));
+
+                    // Update stats
+                    document.getElementById("stat-jobs").textContent =
+                        jobs.jobs?.length || 0;
+                    document.getElementById("stat-sessions").textContent =
+                        sessions.sessions?.length || 0;
+                    document.getElementById("stat-security").textContent =
+                        "100%"; // Mock for now
+
+                    // Update gauge indicators
+                    const allJobs = jobs.jobs || [];
+                    const dbJobs = allJobs.filter(
+                        (j) => j.type === "database",
+                    ).length;
+                    const fileJobs = allJobs.filter(
+                        (j) => j.type === "file",
+                    ).length;
+                    const vmJobs = allJobs.filter(
+                        (j) => j.type === "vm",
+                    ).length;
+                    const total = allJobs.length || 1;
+
+                    // Update counts
+                    document.getElementById("count-all").textContent =
+                        allJobs.length;
+                    document.getElementById("count-database").textContent =
+                        dbJobs;
+                    document.getElementById("count-file").textContent =
+                        fileJobs;
+                    document.getElementById("count-vm").textContent = vmJobs;
+
+                    // Update gauge fills
+                    const dbPercent = (dbJobs / total) * 100;
+                    const filePercent = (fileJobs / total) * 100;
+                    const vmPercent = (vmJobs / total) * 100;
+                    const allPercent = 100;
+
+                    document
+                        .getElementById("gauge-all")
+                        .setAttribute("stroke-dasharray", `${allPercent}, 100`);
+                    document
+                        .getElementById("gauge-database")
+                        .setAttribute("stroke-dasharray", `${dbPercent}, 100`);
+                    document
+                        .getElementById("gauge-file")
+                        .setAttribute(
+                            "stroke-dasharray",
+                            `${filePercent}, 100`,
+                        );
+                    document
+                        .getElementById("gauge-vm")
+                        .setAttribute("stroke-dasharray", `${vmPercent}, 100`);
+
+                    // Update active gauge
+                    document.querySelectorAll(".gauge-item").forEach((item) => {
+                        item.classList.remove("active");
+                    });
+                    document
+                        .querySelector(`.gauge-item.${currentFilter || "all"}`)
+                        ?.classList.add("active");
+                } catch (error) {
+                    console.error("Error loading dashboard:", error);
+                }
+            }
+
+            // Filter by gauge click
+            let currentFilter = "all";
+            function filterJobs(type) {
+                currentFilter = type;
+                document.querySelectorAll(".gauge-item").forEach((item) => {
+                    item.classList.remove("active");
+                });
+                event.currentTarget.classList.add("active");
+            }
+
+            // Helper: escape HTML
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Run job
+            async function runJob(jobId) {
+                if (!confirm("Запустити резервне копіювання зараз?")) return;
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/run`, {
+                        method: "POST",
+                        headers: { Authorization: "Bearer " + token },
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        alert("✅ Завдання запущено!");
+                        window.location.href = "sessions.html";
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Delete job
+            async function deleteJob(jobId) {
+                if (!confirm("Ви впевнені?")) return;
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    alert("Відсутній токен авторизації");
+                    window.location.href = "login.html";
+                    return;
+                }
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`, {
+                        method: "DELETE",
+                        headers: { Authorization: "Bearer " + token },
+                    });
+                    if (response.ok) loadDashboard();
+                } catch (error) {
+                    alert("❌ Помилка: " + error.message);
+                }
+            }
+
+            // Initialize
+            const authToken = localStorage.getItem("authToken");
+            if (!authToken) {
+                window.location.href = "login.html";
+            } else {
+                const user = JSON.parse(
+                    localStorage.getItem("user") || '{"username":"admin"}',
+                );
+                document.getElementById("username-display").textContent =
+                    "👤 " + user.username;
+            }
+
+            loadDashboard();
+            setInterval(loadDashboard, 30000);
+
+            // Theme toggle
+            function toggleTheme() {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+                const themeIcon = document.getElementById("theme-icon");
+
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+
+                if (themeIcon) {
+                    themeIcon.textContent = newTheme === "light" ? "☀️" : "🌙";
+                }
+            }
+
+            // Load saved theme
+            (function () {
+                const savedTheme = localStorage.getItem("theme") || "dark";
+                document.documentElement.setAttribute("data-theme", savedTheme);
+                const themeIcon = document.getElementById("theme-icon");
+                if (themeIcon) {
+                    themeIcon.textContent =
+                        savedTheme === "light" ? "☀️" : "🌙";
+                }
+            })();
+        </script>
+        <script src="assets/toast.js"></script>
+        <script src="assets/heatmap.js"></script>
+    </body>
 </html>

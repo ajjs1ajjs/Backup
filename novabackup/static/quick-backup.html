@@ -1,0 +1,1632 @@
+<!doctype html>
+<html lang="uk">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Cache-Control"
+            content="no-cache, no-store, must-revalidate"
+        />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+        <title>Швидке Резервне Копіювання - NovaBackup</title>
+        <style>
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #334155;
+                --accent-blue: #3b82f6;
+                --accent-green: #10b981;
+                --accent-purple: #8b5cf6;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #475569;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                padding: 2rem;
+            }
+            .card {
+                background: var(--bg-card);
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            .card-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+            }
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .btn-primary {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-blue),
+                    #2563eb
+                );
+                color: white;
+            }
+            .btn-success {
+                background: linear-gradient(
+                    135deg,
+                    var(--accent-green),
+                    #059669
+                );
+                color: white;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            .loading-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(15, 23, 42, 0.85);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .loading-overlay.active {
+                display: flex;
+            }
+            .spinner {
+                width: 48px;
+                height: 48px;
+                border: 4px solid var(--border);
+                border-top-color: var(--accent-blue);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .loading-text {
+                color: var(--text-secondary);
+                font-size: 1rem;
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            .form-input,
+            .form-select {
+                width: 100%;
+                padding: 0.875rem 1rem;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 0.5rem;
+                color: var(--text-primary);
+            }
+            .form-input:focus,
+            .form-select:focus {
+                outline: none;
+                border-color: var(--accent-blue);
+            }
+            .source-selector {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+            .source-card {
+                background: var(--bg-secondary);
+                border: 2px solid var(--border);
+                border-radius: 0.75rem;
+                padding: 1.25rem;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            .source-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .source-card.selected {
+                border-color: var(--accent-blue);
+                background: rgba(59, 130, 246, 0.1);
+            }
+            .source-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin: 0.5rem 0;
+            }
+            .checkbox-group input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent-blue);
+            }
+            @media (max-width: 768px) {
+                body {
+                    padding: 1rem;
+                }
+                .source-selector {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loading-text">
+                Створення бекапу...
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">🚀 Швидке Резервне Копіювання</h2>
+
+            <!-- Help Tip -->
+            <div
+                style="
+                    background: var(--bg-secondary);
+                    border-left: 3px solid var(--accent-blue);
+                    padding: 1rem 1.25rem;
+                    border-radius: 0.5rem;
+                    margin-bottom: 1.5rem;
+                "
+            >
+                <div
+                    style="
+                        font-weight: 600;
+                        color: var(--accent-blue);
+                        margin-bottom: 0.5rem;
+                    "
+                >
+                    💡 Як створити резервну копію?
+                </div>
+                <div
+                    style="
+                        color: var(--text-secondary);
+                        font-size: 0.875rem;
+                        line-height: 1.6;
+                    "
+                >
+                    <ol style="margin: 0.5rem 0 0 1.5rem">
+                        <li>
+                            Оберіть тип джерела (Локальні файли, Мережа, Сервер
+                            або Хмара)
+                        </li>
+                        <li>
+                            Вкажіть шлях до даних (наприклад:
+                            <code
+                                style="
+                                    background: var(--bg-card);
+                                    padding: 0.2rem 0.5rem;
+                                    border-radius: 0.25rem;
+                                    color: var(--accent-green);
+                                "
+                                >C:\Documents</code
+                            >)
+                        </li>
+                        <li>Оберіть сховище призначення</li>
+                        <li>Налаштуйте опції (стиснення, шифрування)</li>
+                        <li>
+                            Натисніть
+                            <strong>"Запустити Резервне Копіювання"</strong>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">📝 Назва завдання</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="job-name"
+                    placeholder="Наприклад: Щоденний бекап документів"
+                />
+            </div>
+
+            <!-- Source Selection -->
+            <div class="form-group">
+                <label class="form-label">📂 Джерело даних</label>
+                <div class="source-selector">
+                    <div
+                        class="source-card selected"
+                        onclick="selectSource('local')"
+                    >
+                        <div class="source-icon">📁</div>
+                        <strong>Локальні файли</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Файли та папки на цьому сервері
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('network')">
+                        <div class="source-icon">🌐</div>
+                        <strong>Мережеве джерело</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            SMB/CIFS частка або NFS
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('server')">
+                        <div class="source-icon">🖥️</div>
+                        <strong>Віддалений сервер</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Інший сервер по мережі
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('cloud')">
+                        <div class="source-icon">☁️</div>
+                        <strong>Хмарне джерело</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            S3, Azure, Google Cloud
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('database')">
+                        <div class="source-icon">🗄️</div>
+                        <strong>Бази Даних</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            SQL Server, PostgreSQL, Oracle
+                        </p>
+                    </div>
+                    <div class="source-card" onclick="selectSource('vm')">
+                        <div class="source-icon">🖥️</div>
+                        <strong>Віртуальні Машини</strong>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.875rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            Hyper-V, KVM/QEMU віртуальні машини
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Local Source -->
+            <div id="local-source" class="source-fields">
+                <div class="form-group">
+                    <label class="form-label">Шлях до файлів</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="local-path"
+                        placeholder="C:\Data або D:\Documents"
+                    />
+                    <div class="form-hint">
+                        Можна вказати кілька шляхів через кому
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Source -->
+            <div
+                id="network-source"
+                class="source-fields"
+                style="display: none"
+            >
+                <div class="form-group">
+                    <label class="form-label">Мережевий шлях (UNC)</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-path"
+                        placeholder="\\server\share\folder"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label"
+                        >IP адреса сервера (опціонально)</label
+                    >
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-ip"
+                        placeholder="192.168.1.100"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Облікові дані</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="network-user"
+                        placeholder="Користувач"
+                        style="margin-bottom: 0.5rem"
+                    />
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="network-pass"
+                        placeholder="Пароль"
+                    />
+                </div>
+            </div>
+
+            <!-- Server Source -->
+            <div id="server-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">IP адреса або ім'я сервера</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="server-ip"
+                        placeholder="192.168.1.100 або server01"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Протокол</label>
+                    <select class="form-select" id="server-protocol">
+                        <option value="smb">SMB/CIFS</option>
+                        <option value="nfs">NFS</option>
+                        <option value="ssh">SSH/SFTP</option>
+                        <option value="winrm">WinRM</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Порт</label>
+                    <input
+                        type="number"
+                        class="form-input"
+                        id="server-port"
+                        placeholder="445"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Облікові дані</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="server-user"
+                        placeholder="Користувач"
+                        style="margin-bottom: 0.5rem"
+                    />
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="server-pass"
+                        placeholder="Пароль"
+                    />
+                </div>
+            </div>
+
+            <!-- Cloud Source -->
+            <div id="cloud-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">Хмарний провайдер</label>
+                    <select class="form-select" id="cloud-provider">
+                        <option value="s3">Amazon S3</option>
+                        <option value="azure">Microsoft Azure Blob</option>
+                        <option value="google">Google Cloud Storage</option>
+                        <option value="wasabi">Wasabi</option>
+                        <option value="minio">MinIO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bucket / Container</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-bucket"
+                        placeholder="my-backup-bucket"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Регіон</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-region"
+                        placeholder="us-east-1"
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Access Key / Account</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="cloud-key"
+                        placeholder="AKI..."
+                    />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Secret Key</label>
+                    <input
+                        type="password"
+                        class="form-input"
+                        id="cloud-secret"
+                        placeholder="••••••••"
+                    />
+                </div>
+            </div>
+
+            <!-- Database Source -->
+            <div
+                id="database-source"
+                class="source-fields"
+                style="display: none"
+            >
+                <div class="form-group">
+                    <label class="form-label">Тип бази даних</label>
+                    <select class="form-select" id="db-type">
+                        <option value="mssql">Microsoft SQL Server</option>
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="oracle">Oracle Database</option>
+                    </select>
+                </div>
+
+                <!-- SQL Server Settings -->
+                <div id="db-mssql-settings">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="mssql-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="mssql-port"
+                                value="1433"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Метод автентифікації</label>
+                        <select
+                            class="form-select"
+                            id="mssql-auth"
+                            onchange="toggleMssqlAuth()"
+                        >
+                            <option value="windows">
+                                Автентифікація Windows
+                            </option>
+                            <option value="sql">
+                                Автентифікація SQL Server
+                            </option>
+                        </select>
+                    </div>
+                    <div id="mssql-sql-auth" style="display: none">
+                        <div class="inline-form">
+                            <div class="form-group">
+                                <label class="form-label">Логін</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    id="mssql-login"
+                                    placeholder="sa"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Пароль</label>
+                                <input
+                                    type="password"
+                                    class="form-input"
+                                    id="mssql-password"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="mssql-databases"
+                            placeholder="AdventureWorks, YourDB"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена БД через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PostgreSQL Settings -->
+                <div id="db-postgresql-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-server"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="pg-port"
+                                value="5432"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="pg-login"
+                                placeholder="postgres"
+                                value="postgres"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="pg-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Бази даних</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="pg-databases"
+                            placeholder="mydb, testdb"
+                        />
+                    </div>
+                </div>
+
+                <!-- Oracle Settings -->
+                <div id="db-oracle-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Сервер</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-server"
+                                placeholder="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="ora-port"
+                                value="1521"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service Name</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="ora-service"
+                            placeholder="ORCL"
+                        />
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="ora-login"
+                                placeholder="SYS AS SYSDBA"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="ora-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VM Source -->
+            <div id="vm-source" class="source-fields" style="display: none">
+                <div class="form-group">
+                    <label class="form-label">Тип віртуалізації</label>
+                    <select class="form-select" id="vm-type">
+                        <option value="hyper-v">Microsoft Hyper-V</option>
+                        <option value="kvm">KVM/QEMU (Linux)</option>
+                    </select>
+                </div>
+
+                <!-- Hyper-V Settings -->
+                <div id="vm-hyperv-settings">
+                    <div class="form-group">
+                        <label class="form-label">Hyper-V хост</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-host"
+                            placeholder="localhost"
+                            value="localhost"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="hyperv-vms"
+                            placeholder="VM-WEB-01, VM-DB-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KVM Settings -->
+                <div id="vm-kvm-settings" style="display: none">
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">KVM хост</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-host"
+                                placeholder="localhost"
+                                value="localhost"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Порт SSH</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="kvm-port"
+                                value="22"
+                            />
+                        </div>
+                    </div>
+                    <div class="inline-form">
+                        <div class="form-group">
+                            <label class="form-label">Логін</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                id="kvm-login"
+                                placeholder="root"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input
+                                type="password"
+                                class="form-input"
+                                id="kvm-password"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Віртуальні машини</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="kvm-vms"
+                            placeholder="vm-ubuntu-01, vm-centos-01"
+                        />
+                        <div class="form-hint">
+                            Вкажіть імена ВМ через кому або залиште пустим для
+                            всіх
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Destination -->
+            <div class="form-group">
+                <label class="form-label">💾 Сховище призначення</label>
+                <select class="form-select" id="destination">
+                    <option value="local">
+                        Локальне сховище (C:\ProgramData\NovaBackup\Backups)
+                    </option>
+                    <option value="custom">📁 Власна папка</option>
+                    <option value="nas">NAS / Мережеве сховище</option>
+                    <option value="cloud">Хмарне сховище</option>
+                </select>
+            </div>
+
+            <!-- Custom Destination Path -->
+            <div id="custom-dest-path" class="form-group" style="display: none">
+                <label class="form-label">Шлях до папки</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    id="custom-path"
+                    placeholder="D:\Backup або \\Server\Share"
+                />
+                <div class="form-hint">
+                    Вкажіть повний шлях до папки для збереження резервних копій
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div class="form-group">
+                <label class="form-label">⚙️ Опції</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="compression" checked />
+                    <label for="compression">🗜️ Стиснення даних</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="encryption" />
+                    <label for="encryption">🔐 Шифрування (AES-256)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="dedup" />
+                    <label for="dedup">💾 Дедуплікація</label>
+                </div>
+
+                <!-- Advanced Options Toggle -->
+                <div style="margin-top: 1rem">
+                    <button
+                        class="btn btn-primary"
+                        onclick="toggleAdvanced()"
+                        style="font-size: 0.875rem; padding: 0.5rem 1rem"
+                    >
+                        <span id="advanced-icon">▶️</span> Розширені
+                        налаштування
+                    </button>
+                </div>
+
+                <!-- Advanced Options Panel -->
+                <div
+                    id="advanced-panel"
+                    style="
+                        display: none;
+                        margin-top: 1rem;
+                        padding: 1rem;
+                        background: var(--bg-primary);
+                        border-radius: 0.5rem;
+                    "
+                >
+                    <!-- Compression Level -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🗜️ Рівень стиснення</label
+                        >
+                        <select
+                            id="compression-level"
+                            class="form-input"
+                            style="font-size: 0.875rem"
+                        >
+                            <option value="0">Без стиснення</option>
+                            <option value="1">Швидке (Fast)</option>
+                            <option value="5" selected>
+                                Нормальне (Normal)
+                            </option>
+                            <option value="9">Максимальне (Maximum)</option>
+                        </select>
+                    </div>
+
+                    <!-- Encryption Key -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🔐 Ключ шифрування</label
+                        >
+                        <input
+                            type="password"
+                            id="encryption-key"
+                            class="form-input"
+                            placeholder="Введіть ключ для шифрування"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            Потрібен для відновлення зашифрованого архіву
+                        </div>
+                    </div>
+
+                    <!-- Block Size -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >📦 Розмір блоку (для дедуплікації)</label
+                        >
+                        <select
+                            id="block-size"
+                            class="form-input"
+                            style="font-size: 0.875rem"
+                        >
+                            <option value="262144">256 KB</option>
+                            <option value="524288">512 KB</option>
+                            <option value="1048576" selected>1 MB</option>
+                            <option value="2097152">2 MB</option>
+                            <option value="4194304">4 MB</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Threads -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🔢 Кількість потоків</label
+                        >
+                        <input
+                            type="number"
+                            id="max-threads"
+                            class="form-input"
+                            value="4"
+                            min="1"
+                            max="32"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            1-32 потоків (рекомендується: 4-8)
+                        </div>
+                    </div>
+
+                    <!-- Exclusion Patterns -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >🚫 Виключення (файли/папки)</label
+                        >
+                        <input
+                            type="text"
+                            id="exclude-patterns"
+                            class="form-input"
+                            placeholder="*.tmp, *.log, ~$*, AppData\Local\Temp"
+                            style="font-size: 0.875rem"
+                        />
+                        <div class="form-hint">
+                            Розділяйте комами, використовуйте * як wildcard
+                        </div>
+                    </div>
+
+                    <!-- Pre/Post Scripts -->
+                    <div class="form-group" style="margin-bottom: 1rem">
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >📜 Скрипти</label
+                        >
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 0.5rem;
+                            "
+                        >
+                            <div>
+                                <label
+                                    style="
+                                        font-size: 0.75rem;
+                                        color: var(--text-secondary);
+                                    "
+                                    >Перед бекапом:</label
+                                >
+                                <input
+                                    type="text"
+                                    id="pre-script"
+                                    class="form-input"
+                                    placeholder="C:\Scripts\pre-backup.bat"
+                                    style="font-size: 0.75rem"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    style="
+                                        font-size: 0.75rem;
+                                        color: var(--text-secondary);
+                                    "
+                                    >Після бекапу:</label
+                                >
+                                <input
+                                    type="text"
+                                    id="post-script"
+                                    class="form-input"
+                                    placeholder="C:\Scripts\post-backup.bat"
+                                    style="font-size: 0.75rem"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Incremental Backup -->
+                    <div class="checkbox-group" style="margin-top: 0.5rem">
+                        <input type="checkbox" id="incremental" />
+                        <label for="incremental"
+                            >🔄 Інкрементальне бекапування</label
+                        >
+                    </div>
+
+                    <!-- Full Backup Every -->
+                    <div
+                        class="form-group"
+                        style="margin-top: 0.5rem; margin-left: 1.5rem"
+                        id="full-backup-every-div"
+                        style="display: none"
+                    >
+                        <label class="form-label" style="font-size: 0.75rem"
+                            >📅 Повний бекап кожні</label
+                        >
+                        <input
+                            type="number"
+                            id="full-backup-every"
+                            class="form-input"
+                            value="7"
+                            min="1"
+                            max="30"
+                            style="font-size: 0.75rem"
+                        />
+                        <div class="form-hint">днів (1-30)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retention Policy -->
+            <div class="form-group">
+                <label class="form-label"
+                    >📅 Політика зберігання для цього завдання</label
+                >
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr 1fr;
+                        gap: 1rem;
+                    "
+                >
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Розклад</label
+                        >
+                        <select
+                            class="form-input"
+                            id="schedule-type"
+                            value="manual"
+                        >
+                            <option value="manual">🔸 Ручний</option>
+                            <option value="daily">📅 Щодня</option>
+                            <option value="weekly">📅 Щотижня</option>
+                            <option value="monthly">📅 Щомісяця</option>
+                            <option value="hourly">⏰ Щогодини</option>
+                        </select>
+                        <div class="form-hint">Частота бекапу</div>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Зберігати (днів)</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-days"
+                            value="30"
+                            min="1"
+                            max="365"
+                            placeholder="30"
+                        />
+                        <div class="form-hint">1-365 днів</div>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.875rem"
+                            >Макс. копій</label
+                        >
+                        <input
+                            type="number"
+                            class="form-input"
+                            id="retention-copies"
+                            value="10"
+                            min="1"
+                            max="100"
+                            placeholder="10"
+                        />
+                        <div class="form-hint">1-100 копій</div>
+                    </div>
+                </div>
+                <div
+                    style="
+                        background: var(--bg-secondary);
+                        border-left: 3px solid var(--accent-blue);
+                        padding: 0.75rem 1rem;
+                        border-radius: 0.5rem;
+                        margin-top: 1rem;
+                    "
+                >
+                    <div
+                        style="color: var(--text-secondary); font-size: 0.8rem"
+                    >
+                        💡 <strong>Порада:</strong> Політика зберігання
+                        застосовується індивідуально до кожного завдання. Старі
+                        бекапи будуть автоматично видалені.
+                    </div>
+                </div>
+            </div>
+
+            <button
+                class="btn btn-success"
+                onclick="startBackup()"
+                style="padding: 1rem 2rem; font-size: 1.1rem"
+            >
+                <span>▶️</span> Запустити Резервне Копіювання
+            </button>
+        </div>
+
+        <script>
+            const API_BASE = "/api";
+            const DEFAULT_DESTINATION =
+                "C:\\\\ProgramData\\\\NovaBackup\\\\Backups";
+            let selectedSourceType = "local";
+
+            // Toggle advanced options panel
+            function toggleAdvanced() {
+                const panel = document.getElementById("advanced-panel");
+                const icon = document.getElementById("advanced-icon");
+                if (panel && icon) {
+                    if (
+                        panel.style.display === "none" ||
+                        !panel.style.display
+                    ) {
+                        panel.style.display = "block";
+                        icon.textContent = "▼";
+                    } else {
+                        panel.style.display = "none";
+                        icon.textContent = "▶️";
+                    }
+                }
+            }
+
+            // Toggle full backup every based on incremental checkbox
+            const incrementalCheckbox = document.getElementById("incremental");
+            const fullBackupDiv = document.getElementById(
+                "full-backup-every-div",
+            );
+            if (incrementalCheckbox && fullBackupDiv) {
+                incrementalCheckbox.addEventListener("change", function () {
+                    fullBackupDiv.style.display = this.checked
+                        ? "block"
+                        : "none";
+                });
+            }
+
+            // Show/hide custom destination path field
+            document
+                .getElementById("destination")
+                .addEventListener("change", function () {
+                    const customPathDiv =
+                        document.getElementById("custom-dest-path");
+                    if (this.value === "custom") {
+                        customPathDiv.style.display = "block";
+                        document.getElementById("custom-path").focus();
+                    } else {
+                        customPathDiv.style.display = "none";
+                    }
+                });
+
+            function selectSource(type) {
+                selectedSourceType = type;
+                document
+                    .querySelectorAll(".source-card")
+                    .forEach((c) => c.classList.remove("selected"));
+                document
+                    .querySelectorAll(".source-fields")
+                    .forEach((f) => (f.style.display = "none"));
+                event.currentTarget.classList.add("selected");
+                document.getElementById(`${type}-source`).style.display =
+                    "block";
+            }
+
+            function getAuthHeaders() {
+                const token = localStorage.getItem("authToken");
+                const headers = { "Content-Type": "application/json" };
+                if (token) {
+                    headers.Authorization = token;
+                }
+                return headers;
+            }
+
+            function buildSources() {
+                switch (selectedSourceType) {
+                    case "local": {
+                        const raw = document
+                            .getElementById("local-path")
+                            .value.trim();
+                        const list = raw
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                            .map((s) => normalizePath(s)); // Normalize paths
+                        return list;
+                    }
+                    case "network": {
+                        const path = document
+                            .getElementById("network-path")
+                            .value.trim();
+                        return path ? [normalizePath(path)] : [];
+                    }
+                    case "server":
+                    case "cloud":
+                        return [];
+                    case "vm": {
+                        // Return VM configuration
+                        const vmType = document.getElementById("vm-type").value;
+                        const vms =
+                            vmType === "hyper-v"
+                                ? document.getElementById("hyperv-vms").value
+                                : document.getElementById("kvm-vms").value;
+                        return vms
+                            ? vms
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
+                    case "database": {
+                        // Return database configuration
+                        const dbType = document.getElementById("db-type").value;
+                        let databases = [];
+
+                        if (dbType === "mssql") {
+                            databases =
+                                document.getElementById(
+                                    "mssql-databases",
+                                ).value;
+                        } else if (dbType === "postgresql") {
+                            databases =
+                                document.getElementById("pg-databases").value;
+                        } else if (dbType === "oracle") {
+                            databases =
+                                document.getElementById("ora-service").value;
+                        }
+
+                        return databases
+                            ? databases
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
+                    }
+                    default:
+                        return [];
+                }
+            }
+
+            // Normalize Windows paths - convert forward slashes to backslashes
+            function normalizePath(path) {
+                if (!path) return path;
+
+                // Remove BOM and other invisible Unicode characters
+                // This fixes issues when copying paths from Windows
+                path = path.replace(/[\uFEFF\u200B-\u200D\u2060]/g, "").trim();
+
+                // Remove any leading/trailing quotes
+                path = path.replace(/^["']|["']$/g, "");
+
+                // Replace forward slashes with backslashes for Windows
+                return path.replace(/\//g, "\\");
+            }
+
+            function getDestination() {
+                const dest = document.getElementById("destination").value;
+
+                if (dest === "custom") {
+                    // Custom path
+                    const customPath = document
+                        .getElementById("custom-path")
+                        .value.trim();
+                    if (!customPath) {
+                        alert("Будь ласка, вкажіть шлях до папки");
+                        return null;
+                    }
+                    return normalizePath(customPath);
+                }
+
+                if (dest === "nas") {
+                    // Network path
+                    const networkPath = document
+                        .getElementById("network-path")
+                        .value.trim();
+                    if (!networkPath) {
+                        alert("Будь ласка, вкажіть мережевий шлях");
+                        return null;
+                    }
+                    return normalizePath(networkPath);
+                }
+
+                if (dest === "cloud") {
+                    // Cloud - would need additional configuration
+                    alert(
+                        "Хмарне сховище потребує додаткової налаштування в розділі 'Сховища'",
+                    );
+                    return null;
+                }
+
+                // Local (default)
+                return DEFAULT_DESTINATION;
+            }
+
+            function defaultJobName() {
+                const now = new Date();
+                const stamp = now
+                    .toISOString()
+                    .replace("T", "_")
+                    .replace(/[:.]/g, "-")
+                    .slice(0, 19);
+                return `QuickBackup_${stamp}`;
+            }
+
+            async function startBackup() {
+                // Check for unsupported sources
+                if (
+                    selectedSourceType === "server" ||
+                    selectedSourceType === "cloud"
+                ) {
+                    alert("Цей тип джерела поки не підтримується.");
+                    return;
+                }
+
+                const sources = buildSources();
+
+                // VM backup validation
+                if (selectedSourceType === "vm") {
+                    if (sources.length === 0) {
+                        alert("Вкажіть імена ВМ для резервного копіювання.");
+                        return;
+                    }
+                } else if (selectedSourceType === "database") {
+                    if (sources.length === 0) {
+                        alert(
+                            "Вкажіть імена баз даних для резервного копіювання.",
+                        );
+                        return;
+                    }
+                } else if (sources.length === 0) {
+                    alert("Вкажіть шлях до даних для резервного копіювання.");
+                    return;
+                }
+
+                const destination = getDestination();
+                if (!destination) {
+                    alert("Наразі підтримується лише локальне сховище.");
+                    return;
+                }
+
+                if (!confirm("Запустити резервне копіювання?")) return;
+
+                const jobName =
+                    document.getElementById("job-name").value.trim() ||
+                    defaultJobName();
+
+                const encryptionEnabled =
+                    document.getElementById("encryption").checked;
+                const encryptionKey =
+                    document.getElementById("encryption-key")?.value || "";
+                if (encryptionEnabled && !encryptionKey) {
+                    alert("Вкажіть ключ шифрування або вимкніть шифрування.");
+                    return;
+                }
+
+                // Build job configuration
+                const job = {
+                    name: jobName,
+                    type:
+                        selectedSourceType === "vm"
+                            ? "vm"
+                            : selectedSourceType === "database"
+                              ? "database"
+                              : "file",
+                    sources: sources,
+                    destination: destination,
+                    compression: document.getElementById("compression").checked,
+                    compression_level: parseInt(
+                        document.getElementById("compression-level")?.value ||
+                            "5",
+                    ),
+                    encryption: encryptionEnabled,
+                    encryption_key: encryptionEnabled ? encryptionKey : "",
+                    deduplication: document.getElementById("dedup").checked,
+                    block_size: parseInt(
+                        document.getElementById("block-size")?.value ||
+                            "1048576",
+                    ),
+                    max_threads: parseInt(
+                        document.getElementById("max-threads")?.value || "4",
+                    ),
+                    incremental:
+                        document.getElementById("incremental")?.checked ||
+                        false,
+                    full_backup_every: parseInt(
+                        document.getElementById("full-backup-every")?.value ||
+                            "7",
+                    ),
+                    exclude_patterns: (
+                        document.getElementById("exclude-patterns")?.value || ""
+                    )
+                        .split(",")
+                        .map((p) => p.trim())
+                        .filter(Boolean),
+                    pre_backup_script:
+                        document.getElementById("pre-script")?.value || "",
+                    post_backup_script:
+                        document.getElementById("post-script")?.value || "",
+                    schedule:
+                        document.getElementById("schedule-type")?.value ||
+                        "manual",
+                    enabled: true,
+                    retention_days: parseInt(
+                        document.getElementById("retention-days").value,
+                    ),
+                    retention_copies: parseInt(
+                        document.getElementById("retention-copies").value,
+                    ),
+                };
+
+                // Add VM-specific fields
+                if (selectedSourceType === "vm") {
+                    const vmType = document.getElementById("vm-type").value;
+                    job.vm_type = vmType;
+
+                    if (vmType === "hyper-v") {
+                        job.hyperv_host =
+                            document.getElementById("hyperv-host").value;
+                    } else {
+                        job.kvm_host =
+                            document.getElementById("kvm-host").value;
+                        job.kvm_port = parseInt(
+                            document.getElementById("kvm-port").value,
+                        );
+                        job.kvm_login =
+                            document.getElementById("kvm-login").value;
+                        job.kvm_password =
+                            document.getElementById("kvm-password").value;
+                    }
+                }
+
+                // Add database-specific fields
+                if (selectedSourceType === "database") {
+                    const dbType = document.getElementById("db-type").value;
+                    job.database_type = dbType;
+                    job.database_conn = "";
+
+                    if (dbType === "mssql") {
+                        job.server =
+                            document.getElementById("mssql-server").value;
+                        job.port = parseInt(
+                            document.getElementById("mssql-port").value,
+                        );
+                        job.auth_type =
+                            document.getElementById("mssql-auth").value;
+                        if (job.auth_type === "sql") {
+                            job.login =
+                                document.getElementById("mssql-login").value;
+                            job.password =
+                                document.getElementById("mssql-password").value;
+                        }
+                        job.sources = document
+                            .getElementById("mssql-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                    } else if (dbType === "postgresql") {
+                        job.server = document.getElementById("pg-server").value;
+                        job.port = parseInt(
+                            document.getElementById("pg-port").value,
+                        );
+                        job.login = document.getElementById("pg-login").value;
+                        job.password =
+                            document.getElementById("pg-password").value;
+                        job.sources = document
+                            .getElementById("pg-databases")
+                            .value.split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                    } else if (dbType === "oracle") {
+                        job.server =
+                            document.getElementById("ora-server").value;
+                        job.port = parseInt(
+                            document.getElementById("ora-port").value,
+                        );
+                        job.service =
+                            document.getElementById("ora-service").value;
+                        job.login = document.getElementById("ora-login").value;
+                        job.password =
+                            document.getElementById("ora-password").value;
+                        job.sources = [
+                            document.getElementById("ora-service").value,
+                        ];
+                    }
+                }
+
+                document.getElementById("loading").classList.add("active");
+
+                try {
+                    const createRes = await fetch(`${API_BASE}/jobs`, {
+                        method: "POST",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(job),
+                    });
+                    const createData = await createRes.json();
+                    if (!createRes.ok) {
+                        alert(
+                            "Помилка створення: " +
+                                (createData.error || createRes.statusText),
+                        );
+                        return;
+                    }
+
+                    const jobId = createData.job?.id;
+                    if (jobId) {
+                        document.getElementById("loading-text").textContent =
+                            "Запуск завдання...";
+                        const runRes = await fetch(
+                            `${API_BASE}/jobs/${jobId}/run`,
+                            { method: "POST", headers: getAuthHeaders() },
+                        );
+                        if (runRes.ok) {
+                            alert("Завдання створено та запущено.");
+                        } else {
+                            const runData = await runRes
+                                .json()
+                                .catch(() => ({}));
+                            alert(
+                                "Завдання створено, але запуск не вдався: " +
+                                    (runData.error || runRes.statusText),
+                            );
+                        }
+                    } else {
+                        alert("Завдання створено.");
+                    }
+                } catch (error) {
+                    alert("Помилка: " + error.message);
+                } finally {
+                    document
+                        .getElementById("loading")
+                        .classList.remove("active");
+                }
+            }
+
+            // Check authentication on page load
+            window.addEventListener("load", function () {
+                const token = localStorage.getItem("authToken");
+                if (!token) {
+                    // Redirect to login if not authenticated
+                    window.location.href = "login.html";
+                    return;
+                }
+
+                // Load repositories for destination selection
+                loadRepositories();
+            });
+
+            async function loadRepositories() {
+                try {
+                    const res = await fetch(`${API_BASE}/storage/repos`, {
+                        headers: getAuthHeaders(),
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Could populate destination dropdown here
+                        console.log("Loaded repositories:", data.repos);
+                    }
+                } catch (error) {
+                    console.log("Could not load repositories:", error);
+                }
+            }
+            // VM type toggle
+            document
+                .getElementById("vm-type")
+                .addEventListener("change", function () {
+                    const hypervSettings =
+                        document.getElementById("vm-hyperv-settings");
+                    const kvmSettings =
+                        document.getElementById("vm-kvm-settings");
+
+                    if (this.value === "hyper-v") {
+                        hypervSettings.style.display = "block";
+                        kvmSettings.style.display = "none";
+                    } else {
+                        hypervSettings.style.display = "none";
+                        kvmSettings.style.display = "block";
+                    }
+                });
+
+            // Database type toggle
+            document
+                .getElementById("db-type")
+                .addEventListener("change", function () {
+                    const dbType = this.value;
+
+                    // Hide all DB settings
+                    document.getElementById("db-mssql-settings").style.display =
+                        "none";
+                    document.getElementById(
+                        "db-postgresql-settings",
+                    ).style.display = "none";
+                    document.getElementById(
+                        "db-oracle-settings",
+                    ).style.display = "none";
+
+                    // Show selected
+                    document.getElementById(
+                        "db-" + dbType + "-settings",
+                    ).style.display = "block";
+                });
+
+            // MSSQL auth toggle
+            function toggleMssqlAuth() {
+                const authType = document.getElementById("mssql-auth").value;
+                document.getElementById("mssql-sql-auth").style.display =
+                    authType === "sql" ? "block" : "none";
+            }
+        </script>
+    </body>
+</html>
