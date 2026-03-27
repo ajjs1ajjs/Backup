@@ -23,8 +23,9 @@ wheels/
 *.out
 vendor/
 
-# Go binaries
+# Go binaries (built artifacts - install via scripts)
 *.exe
+novabackup-linux-amd64
 
 # Virtual environments
 venv/
