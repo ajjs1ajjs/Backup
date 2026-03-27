@@ -45,7 +45,8 @@
 | **Stage 6** | Розширений функціонал (Security+, Audit, Scopes) | ✅ Завершено |
 | **Stage 7** | Повні хмарні інтеграції (AWS/Azure/GCP) | ✅ Завершено |
 | **Stage 8** | Сучасний веб-інтерфейс (Vue.js 3) | ✅ Завершено |
-| **Stage 9+** | Розширений моніторинг та сповіщення | 🚧 В розробці |
+| **Stage 9** | Моніторинг та сповіщення | ✅ Завершено |
+| **Stage 10+** | Розширений UI та автоматизація | 🚧 В розробці |
 
 ### ✨ Нові можливості Stage 6
 
@@ -120,6 +121,56 @@
   - WebSocket підтримка
   - Real-time оновлення статусу
   - Моніторинг активних клієнтів
+
+### 🔔 Нові можливості Stage 9
+
+- **Система сповіщень (Notification Manager)**
+  - Email сповіщення через SMTP
+  - Telegram бот сповіщення
+  - Webhook сповіщення (Slack, Teams, custom)
+  - Console сповіщення (development)
+  - Історія сповіщень
+
+- **Планувальник бекапів (Scheduler)**
+  - Cron-like розклад (хвилина година день місяць день тижня)
+  - Interval-based розклад (кожен N секунд)
+  - One-time заплановані бекапи
+  - Persistent збереження розкладу
+  - Автоматичне виконання бекапів
+  - Статистика виконань (успішні/помилки)
+
+- **Нові API ендпоінти**
+  - `POST /notifications/test` - тестове сповіщення
+  - `GET /notifications/history` - історія сповіщень
+  - `GET /notifications/channels` - активні канали
+  - `GET /scheduler/jobs` - список запланованих jobs
+  - `POST /scheduler/jobs` - створити job
+  - `DELETE /scheduler/jobs/{id}` - видалити job
+  - `POST /scheduler/jobs/{id}/enable` - увімкнути job
+  - `POST /scheduler/jobs/{id}/disable` - вимкнути job
+  - `GET /scheduler/status` - статус планувальника
+
+- **Змінні оточення для сповіщень**
+  ```ini
+  # Email
+  NOVABACKUP_SMTP_HOST=smtp.gmail.com
+  NOVABACKUP_SMTP_PORT=587
+  NOVABACKUP_SMTP_USER=user@gmail.com
+  NOVABACKUP_SMTP_PASSWORD=password
+  NOVABACKUP_SMTP_FROM=user@gmail.com
+  NOVABACKUP_SMTP_TO=admin@example.com,manager@example.com
+  
+  # Telegram
+  NOVABACKUP_TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+  NOVABACKUP_TELEGRAM_CHAT_IDS=-1001234567890,-1009876543210
+  
+  # Webhook
+  NOVABACKUP_WEBHOOK_URL=https://hooks.slack.com/services/xxx
+  NOVABACKUP_WEBHOOK_AUTH_TOKEN=secret-token
+  
+  # Debug mode
+  NOVABACKUP_DEBUG=true
+  ```
 
 > ⚠️ **Важливо**: Починаючи з версії 8.0.0, основна реалізація — **Python**. Go версія застаріла та видалена.
 
