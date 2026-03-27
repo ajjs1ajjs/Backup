@@ -44,7 +44,8 @@
 | **Stage 5** | Міграція на Python (повна) | ✅ Завершено |
 | **Stage 6** | Розширений функціонал (Security+, Audit, Scopes) | ✅ Завершено |
 | **Stage 7** | Повні хмарні інтеграції (AWS/Azure/GCP) | ✅ Завершено |
-| **Stage 8+** | Розширений веб-інтерфейс | 🚧 В розробці |
+| **Stage 8** | Сучасний веб-інтерфейс (Vue.js 3) | ✅ Завершено |
+| **Stage 9+** | Розширений моніторинг та сповіщення | 🚧 В розробці |
 
 ### ✨ Нові можливості Stage 6
 
@@ -86,6 +87,39 @@
   - Cross-zone backup support
   - Restore з snapshot
   - Delete backup (cleanup snapshots)
+
+### 🎨 Нові можливості Stage 8
+
+- **Сучасний веб-інтерфейс на Vue.js 3**
+  - SPA (Single Page Application)
+  - Vue Router для навігації
+  - Pinia для управління станом
+  - Axios для API запитів
+
+- **Компоненти**
+  - Dashboard з метриками та статистикою
+  - Сторінка віртуальних машин
+  - Сторінка резервних копій
+  - Audit логи (admin only)
+  - Модальні вікна для створення бекапів
+
+- **UI/UX**
+  - Адаптивний дизайн (mobile-friendly)
+  - Toast сповіщення
+  - Іконки Bootstrap Icons
+  - Статус бейджі
+  - Spinner завантаження
+
+- **Безпека**
+  - JWT автентифікація
+  - Auto-refresh токенів
+  - Logout з відкликанням токену
+  - RBAC на рівні сторінок
+
+- **Real-time**
+  - WebSocket підтримка
+  - Real-time оновлення статусу
+  - Моніторинг активних клієнтів
 
 > ⚠️ **Важливо**: Починаючи з версії 8.0.0, основна реалізація — **Python**. Go версія застаріла та видалена.
 
@@ -323,8 +357,25 @@ novabackup metrics
 ### Доступ до веб-інтерфейсу
 
 1. Відкрийте браузер
-2. Перейдіть на `http://localhost:8000/docs`
-3. Або на `http://localhost:8080` для Dashboard
+2. Перейдіть на `http://localhost:8000` (або `http://localhost:8000/static/index.html`)
+3. Увійдіть з credentials:
+   - **Користувач:** `alice`
+   - **Пароль:** `secret`
+
+**Test users:**
+| User | Password | Roles | Scopes |
+|------|----------|-------|--------|
+| alice | secret | admin | read, write, delete, manage_users |
+| bob | secret | user | read, write |
+| service | service-secret | service | read, backup, restore |
+
+**Веб-інтерфейс включає:**
+- 📊 Dashboard з метриками та статистикою
+- 💻 Сторінка віртуальних машин
+- 🗄️ Сторінка резервних копій
+- 🛡️ Audit логи (admin only)
+- 🔔 Toast сповіщення
+- 📱 Адаптивний дизайн
 
 ---
 

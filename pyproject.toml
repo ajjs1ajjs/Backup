@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "novabackup"
-version = "8.2.0"
+version = "8.3.0"
 description = "Production-ready backup/restore system with multi-cloud support and RBAC security"
 readme = "README.md"
 requires-python = ">=3.9"

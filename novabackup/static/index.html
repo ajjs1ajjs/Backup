@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NovaBackup Dashboard</title>
+  
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  
+  <!-- Vue Router -->
+  <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+  
+  <!-- Pinia (State Management) -->
+  <script src="https://unpkg.com/pinia@2/dist/pinia.iife.js"></script>
+  
+  <!-- Axios -->
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  
+  <!-- Chart.js для графіків -->
+  <script src="https://unpkg.com/chart.js/dist/chart.umd.js"></script>
+  
+  <!-- Іконки -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --secondary: #64748b;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --background: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* Login Page */
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    }
+
+    .login-card {
+      background: var(--surface);
+      padding: 2.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-title {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    /* Dashboard Layout */
+    .dashboard-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 2rem;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+    }
+
+    .sidebar-nav-item {
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .sidebar-nav-link:hover,
+    .sidebar-nav-link.router-link-active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 2rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .header-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .user-info {
+      text-align: right;
+    }
+
+    .user-name {
+      font-weight: 600;
+    }
+
+    .user-role {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .stat-icon.primary { background: #e0e7ff; color: var(--primary); }
+    .stat-icon.success { background: #dcfce7; color: var(--success); }
+    .stat-icon.warning { background: #fef3c7; color: var(--warning); }
+    .stat-icon.danger { background: #fee2e2; color: var(--danger); }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    /* Tables */
+    .card {
+      background: var(--surface);
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table th {
+      background: var(--background);
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table tr:hover {
+      background: var(--background);
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: var(--surface);
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 300px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.warning { border-left: 4px solid var(--warning); }
+    .toast.info { border-left: 4px solid var(--primary); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 0.75rem;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+      }
+      
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <router-view></router-view>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, reactive } = Vue;
+    const { createRouter, createWebHistory } = VueRouter;
+    const { createPinia, defineStore } = Pinia;
+
+    // API Base URL
+    const API_BASE = '';
+    
+    // Axios instance
+    const api = axios.create({
+      baseURL: API_BASE,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Request interceptor for auth
+    api.interceptors.request.use(config => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
+    // Response interceptor for token refresh
+    api.interceptors.response.use(
+      response => response,
+      async error => {
+        if (error.response?.status === 401) {
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            try {
+              const response = await axios.post(`${API_BASE}/token/refresh`, {
+                refresh_token: refreshToken
+              });
+              localStorage.setItem('access_token', response.data.access_token);
+              localStorage.setItem('refresh_token', response.data.refresh_token);
+              error.config.headers.Authorization = `Bearer ${response.data.access_token}`;
+              return api(error.config);
+            } catch (e) {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              window.location.href = '/login';
+            }
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Auth Store
+    const useAuthStore = defineStore('auth', {
+      state: () => ({
+        user: JSON.parse(localStorage.getItem('user') || 'null'),
+        accessToken: localStorage.getItem('access_token'),
+        refreshToken: localStorage.getItem('refresh_token'),
+      }),
+      getters: {
+        isAuthenticated: (state) => !!state.accessToken,
+        isAdmin: (state) => state.user?.roles?.includes('admin'),
+      },
+      actions: {
+        async login(username, password) {
+          const response = await api.post('/token', 
+            new URLSearchParams({ username, password }),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+          );
+          this.accessToken = response.data.access_token;
+          this.refreshToken = response.data.refresh_token;
+          localStorage.setItem('access_token', response.data.access_token);
+          localStorage.setItem('refresh_token', response.data.refresh_token);
+          
+          // Get user info
+          const userResponse = await api.get('/auth/me');
+          this.user = userResponse.data;
+          localStorage.setItem('user', JSON.stringify(userResponse.data));
+          
+          return response.data;
+        },
+        logout() {
+          api.post('/auth/logout').catch(() => {});
+          this.user = null;
+          this.accessToken = null;
+          this.refreshToken = null;
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+        },
+      },
+    });
+
+    // Toast Store
+    const useToastStore = defineStore('toast', {
+      state: () => ({
+        toasts: [],
+      }),
+      actions: {
+        addToast(message, type = 'info') {
+          const id = Date.now();
+          this.toasts.push({ id, message, type });
+          setTimeout(() => this.removeToast(id), 5000);
+        },
+        removeToast(id) {
+          this.toasts = this.toasts.filter(t => t.id !== id);
+        },
+        success(message) { this.addToast(message, 'success'); },
+        error(message) { this.addToast(message, 'error'); },
+        warning(message) { this.addToast(message, 'warning'); },
+        info(message) { this.addToast(message, 'info'); },
+      },
+    });
+
+    // Login Page Component
+    const LoginPage = {
+      template: `
+        <div class="login-container">
+          <div class="login-card">
+            <h1 class="login-title">
+              <i class="bi bi-cloud-check"></i> NovaBackup
+            </h1>
+            <form @submit.prevent="handleLogin">
+              <div class="form-group">
+                <label class="form-label">Користувач</label>
+                <input 
+                  type="text" 
+                  class="form-input" 
+                  v-model="username"
+                  placeholder="admin"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Пароль</label>
+                <input 
+                  type="password" 
+                  class="form-input" 
+                  v-model="password"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                <span v-if="loading" class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span>
+                <span v-else><i class="bi bi-box-arrow-in-right"></i> Увійти</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      `,
+      setup() {
+        const authStore = useAuthStore();
+        const toastStore = useToastStore();
+        const router = useRouter();
+        
+        const username = ref('alice');
+        const password = ref('secret');
+        const loading = ref(false);
+
+        const handleLogin = async () => {
+          loading.value = true;
+          try {
+            await authStore.login(username.value, password.value);
+            toastStore.success('Успішний вхід!');
+            router.push('/dashboard');
+          } catch (error) {
+            toastStore.error('Помилка автентифікації');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        return { username, password, loading, handleLogin };
+      },
+    };
+
+    // Dashboard Component
+    const DashboardPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Dashboard</h1>
+              <UserMenu />
+            </header>
+
+            <div class="stats-grid">
+              <StatCard 
+                title="Всього VM" 
+                :value="stats.totalVms" 
+                icon="bi-pc-display"
+                color="primary"
+              />
+              <StatCard 
+                title="Бекапи" 
+                :value="stats.totalBackups" 
+                icon="bi-database-check"
+                color="success"
+              />
+              <StatCard 
+                title="Активні задачі" 
+                :value="stats.activeJobs" 
+                icon="bi-activity"
+                color="warning"
+              />
+              <StatCard 
+                title="Помилки" 
+                :value="stats.errors" 
+                icon="bi-exclamation-triangle"
+                color="danger"
+              />
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Останні бекапи</h2>
+                <button class="btn btn-primary btn-sm" @click="showBackupModal = true">
+                  <i class="bi bi-plus-lg"></i> Новий бекап
+                </button>
+              </div>
+              <div class="card-body">
+                <div v-if="loading" class="loading-container">
+                  <div class="spinner"></div>
+                </div>
+                <div v-else-if="backups.length === 0" class="empty-state">
+                  <i class="bi bi-inbox empty-state-icon"></i>
+                  <p>Бекапи відсутні</p>
+                </div>
+                <table v-else class="table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>VM ID</th>
+                      <th>Тип</th>
+                      <th>Статус</th>
+                      <th>Створено</th>
+                      <th>Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="backup in backups" :key="backup.backup_id">
+                      <td>{{ backup.backup_id }}</td>
+                      <td>{{ backup.vm_id }}</td>
+                      <td>{{ backup.backup_type || 'full' }}</td>
+                      <td>
+                        <span class="badge" :class="getBadgeClass(backup.status)">
+                          {{ backup.status }}
+                        </span>
+                      </td>
+                      <td>{{ formatDate(backup.created_at) }}</td>
+                      <td>
+                        <button class="btn btn-success btn-sm" @click="restoreBackup(backup)" title="Відновити">
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+
+          <!-- New Backup Modal -->
+          <div v-if="showBackupModal" class="modal-overlay" @click.self="showBackupModal = false">
+            <div class="modal">
+              <div class="modal-header">
+                <h3 class="modal-title">Створити новий бекап</h3>
+                <button class="btn btn-sm" @click="showBackupModal = false"><i class="bi bi-x-lg"></i></button>
+              </div>
+              <div class="modal-body">
+                <form @submit.prevent="createBackup">
+                  <div class="form-group">
+                    <label class="form-label">VM ID</label>
+                    <select class="form-input" v-model="newBackup.vmId" required>
+                      <option value="">Оберіть VM</option>
+                      <option v-for="vm in vms" :key="vm.id" :value="vm.id">{{ vm.name }} ({{ vm.id }})</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Тип бекапу</label>
+                    <select class="form-input" v-model="newBackup.type">
+                      <option value="full">Повний</option>
+                      <option value="incremental">Інкрементальний</option>
+                      <option value="differential">Диференціальний</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Призначення</label>
+                    <select class="form-input" v-model="newBackup.destinationType">
+                      <option value="local">Локально</option>
+                      <option value="cloud">Хмара</option>
+                    </select>
+                  </div>
+                  <div v-if="newBackup.destinationType === 'cloud'" class="form-group">
+                    <label class="form-label">Хмарний провайдер</label>
+                    <select class="form-input" v-model="newBackup.cloudProvider">
+                      <option value="AWS">AWS</option>
+                      <option value="Azure">Azure</option>
+                      <option value="GCP">Google Cloud</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Назва snapshot (опціонально)</label>
+                    <input type="text" class="form-input" v-model="newBackup.name" />
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-secondary" @click="showBackupModal = false">Скасувати</button>
+                <button class="btn btn-primary" @click="createBackup" :disabled="creatingBackup">
+                  <span v-if="creatingBackup" class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span>
+                  <span v-else>Створити</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const authStore = useAuthStore();
+        const toastStore = useToastStore();
+        
+        const loading = ref(true);
+        const vms = ref([]);
+        const backups = ref([]);
+        const showBackupModal = ref(false);
+        const creatingBackup = ref(false);
+        
+        const newBackup = reactive({
+          vmId: '',
+          type: 'full',
+          destinationType: 'local',
+          cloudProvider: 'AWS',
+          name: '',
+        });
+
+        const stats = computed(() => ({
+          totalVms: vms.value.length,
+          totalBackups: backups.value.length,
+          activeJobs: backups.value.filter(b => b.status === 'running').length,
+          errors: backups.value.filter(b => b.status === 'failed').length,
+        }));
+
+        const loadVms = async () => {
+          try {
+            const response = await api.get('/vms');
+            vms.value = response.data;
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити VM');
+          }
+        };
+
+        const loadBackups = async () => {
+          try {
+            const response = await api.get('/backups');
+            backups.value = response.data.backups || [];
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити бекапи');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        const createBackup = async () => {
+          if (!newBackup.vmId) {
+            toastStore.warning('Оберіть VM');
+            return;
+          }
+          
+          creatingBackup.value = true;
+          try {
+            const payload = {
+              vm_id: newBackup.vmId,
+              type: newBackup.type,
+              destination_type: newBackup.destinationType,
+              cloud_provider: newBackup.destinationType === 'cloud' ? newBackup.cloudProvider : undefined,
+              name: newBackup.name || undefined,
+            };
+            
+            await api.post('/backups', payload);
+            toastStore.success('Бекап створено');
+            showBackupModal.value = false;
+            loadBackups();
+          } catch (error) {
+            toastStore.error('Помилка створення бекапу');
+          } finally {
+            creatingBackup.value = false;
+          }
+        };
+
+        const restoreBackup = async (backup) => {
+          if (!confirm(`Відновити бекап ${backup.backup_id}?`)) return;
+          
+          try {
+            await api.post(`/backups/${backup.backup_id}/restore`, { dest: './restore' });
+            toastStore.success('Відновлення запущено');
+          } catch (error) {
+            toastStore.error('Помилка відновлення');
+          }
+        };
+
+        const getBadgeClass = (status) => {
+          const map = {
+            'completed': 'badge-success',
+            'running': 'badge-info',
+            'failed': 'badge-danger',
+            'pending': 'badge-warning',
+          };
+          return map[status] || 'badge-info';
+        };
+
+        const formatDate = (dateString) => {
+          if (!dateString) return '-';
+          return new Date(dateString).toLocaleString('uk-UA');
+        };
+
+        onMounted(() => {
+          loadVms();
+          loadBackups();
+        });
+
+        return {
+          loading, vms, backups, stats, showBackupModal, newBackup, creatingBackup,
+          createBackup, restoreBackup, getBadgeClass, formatDate,
+        };
+      },
+    };
+
+    // Sidebar Component
+    const Sidebar = {
+      template: `
+        <aside class="sidebar">
+          <div class="sidebar-brand">
+            <i class="bi bi-cloud-check"></i>
+            <span>NovaBackup</span>
+          </div>
+          <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+              <router-link to="/dashboard" class="sidebar-nav-link">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+              </router-link>
+            </li>
+            <li class="sidebar-nav-item">
+              <router-link to="/vms" class="sidebar-nav-link">
+                <i class="bi bi-pc-display"></i>
+                <span>Віртуальні машини</span>
+              </router-link>
+            </li>
+            <li class="sidebar-nav-item">
+              <router-link to="/backups" class="sidebar-nav-link">
+                <i class="bi bi-database-check"></i>
+                <span>Бекапи</span>
+              </router-link>
+            </li>
+            <li class="sidebar-nav-item" v-if="authStore.isAdmin">
+              <router-link to="/audit" class="sidebar-nav-link">
+                <i class="bi bi-shield-check"></i>
+                <span>Audit логи</span>
+              </router-link>
+            </li>
+          </ul>
+        </aside>
+      `,
+      setup() {
+        const authStore = useAuthStore();
+        return { authStore };
+      },
+    };
+
+    // User Menu Component
+    const UserMenu = {
+      template: `
+        <div class="user-menu">
+          <div class="user-info">
+            <div class="user-name">{{ authStore.user?.username || 'User' }}</div>
+            <div class="user-role">{{ authStore.user?.roles?.join(', ') || '' }}</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" @click="handleLogout">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </div>
+      `,
+      setup() {
+        const authStore = useAuthStore();
+        const toastStore = useToastStore();
+        const router = useRouter();
+
+        const handleLogout = () => {
+          authStore.logout();
+          toastStore.info('Ви вийшли з системи');
+          router.push('/login');
+        };
+
+        return { authStore, handleLogout };
+      },
+    };
+
+    // Stat Card Component
+    const StatCard = {
+      props: ['title', 'value', 'icon', 'color'],
+      template: `
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon" :class="color">
+              <i :class="icon"></i>
+            </div>
+          </div>
+          <div class="stat-value">{{ value }}</div>
+          <div class="stat-label">{{ title }}</div>
+        </div>
+      `,
+    };
+
+    // Toast Container Component
+    const ToastContainer = {
+      template: `
+        <div class="toast-container">
+          <div 
+            v-for="toast in toastStore.toasts" 
+            :key="toast.id" 
+            class="toast" 
+            :class="toast.type"
+          >
+            <i :class="getIcon(toast.type)"></i>
+            <span>{{ toast.message }}</span>
+          </div>
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const getIcon = (type) => {
+          const map = {
+            success: 'bi-check-circle-fill',
+            error: 'bi-x-circle-fill',
+            warning: 'bi-exclamation-triangle-fill',
+            info: 'bi-info-circle-fill',
+          };
+          return `bi ${map[type] || map.info}`;
+        };
+        return { toastStore, getIcon };
+      },
+    };
+
+    // VMs Page Component
+    const VMsPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Віртуальні машини</h1>
+              <UserMenu />
+            </header>
+            <div class="card">
+              <div class="card-body">
+                <table class="table" v-if="vms.length > 0">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Назва</th>
+                      <th>Тип</th>
+                      <th>Статус</th>
+                      <th>Деталі</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="vm in vms" :key="vm.id">
+                      <td>{{ vm.id }}</td>
+                      <td>{{ vm.name }}</td>
+                      <td>{{ vm.type }}</td>
+                      <td><span class="badge badge-info">{{ vm.status }}</span></td>
+                      <td>{{ JSON.stringify(vm.provider_details || {}) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-else class="empty-state">
+                  <i class="bi bi-inbox empty-state-icon"></i>
+                  <p>VM не знайдено</p>
+                </div>
+              </div>
+            </div>
+          </main>
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const vms = ref([]);
+        const loading = ref(true);
+
+        onMounted(async () => {
+          try {
+            const response = await api.get('/vms');
+            vms.value = response.data;
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити VM');
+          } finally {
+            loading.value = false;
+          }
+        });
+
+        return { vms };
+      },
+    };
+
+    // Backups Page Component
+    const BackupsPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Резервні копії</h1>
+              <UserMenu />
+            </header>
+            <div class="card">
+              <div class="card-body">
+                <table class="table" v-if="backups.length > 0">
+                  <thead>
+                    <tr>
+                      <th>Backup ID</th>
+                      <th>VM ID</th>
+                      <th>Тип</th>
+                      <th>Провайдер</th>
+                      <th>Статус</th>
+                      <th>Створено</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="backup in backups" :key="backup.backup_id">
+                      <td>{{ backup.backup_id }}</td>
+                      <td>{{ backup.vm_id }}</td>
+                      <td>{{ backup.backup_type }}</td>
+                      <td>{{ backup.provider || 'local' }}</td>
+                      <td><span class="badge" :class="getBadgeClass(backup.status)">{{ backup.status }}</span></td>
+                      <td>{{ formatDate(backup.created_at) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-else class="empty-state">
+                  <i class="bi bi-inbox empty-state-icon"></i>
+                  <p>Бекапи відсутні</p>
+                </div>
+              </div>
+            </div>
+          </main>
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const backups = ref([]);
+
+        onMounted(async () => {
+          try {
+            const response = await api.get('/backups');
+            backups.value = response.data.backups || [];
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити бекапи');
+          }
+        });
+
+        const getBadgeClass = (status) => {
+          const map = {
+            'completed': 'badge-success',
+            'running': 'badge-info',
+            'failed': 'badge-danger',
+            'pending': 'badge-warning',
+          };
+          return map[status] || 'badge-info';
+        };
+
+        const formatDate = (dateString) => {
+          if (!dateString) return '-';
+          return new Date(dateString).toLocaleString('uk-UA');
+        };
+
+        return { backups, getBadgeClass, formatDate };
+      },
+    };
+
+    // Audit Logs Page Component (admin only)
+    const AuditPage = {
+      template: `
+        <div class="dashboard-container">
+          <Sidebar />
+          <main class="main-content">
+            <header class="header">
+              <h1 class="header-title">Audit логи</h1>
+              <UserMenu />
+            </header>
+            <div class="card">
+              <div class="card-body">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Час</th>
+                      <th>Дія</th>
+                      <th>Користувач</th>
+                      <th>Деталі</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="log in logs" :key="log.timestamp + log.action">
+                      <td>{{ formatDate(log.timestamp) }}</td>
+                      <td><code>{{ log.action }}</code></td>
+                      <td>{{ log.user }}</td>
+                      <td><code>{{ log.details }}</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+          <ToastContainer />
+        </div>
+      `,
+      setup() {
+        const toastStore = useToastStore();
+        const logs = ref([]);
+
+        onMounted(async () => {
+          try {
+            const response = await api.get('/audit/logs?limit=100');
+            logs.value = response.data.logs || [];
+          } catch (error) {
+            toastStore.error('Не вдалося завантажити audit логи');
+          }
+        });
+
+        const formatDate = (dateString) => {
+          return new Date(dateString).toLocaleString('uk-UA');
+        };
+
+        return { logs, formatDate };
+      },
+    };
+
+    // Router configuration
+    const routes = [
+      { path: '/login', component: LoginPage },
+      { path: '/dashboard', component: DashboardPage },
+      { path: '/vms', component: VMsPage },
+      { path: '/backups', component: BackupsPage },
+      { path: '/audit', component: AuditPage },
+      { path: '/', redirect: '/dashboard' },
+    ];
+
+    const router = createRouter({
+      history: createWebHistory(),
+      routes,
+    });
+
+    // Navigation guard
+    router.beforeEach((to, from, next) => {
+      const authStore = useAuthStore();
+      if (to.path !== '/login' && !authStore.isAuthenticated) {
+        next('/login');
+      } else {
+        next();
+      }
+    });
+
+    // Create app
+    const app = createApp({
+      template: '<router-view />',
+    });
+
+    const pinia = createPinia();
+    app.use(pinia);
+    app.use(router);
+    app.mount('#app');
+  </script>
+</body>
+</html>
