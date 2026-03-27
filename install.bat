@@ -7,10 +7,6 @@ echo   Full installation from GitHub
 echo ========================================
 echo.
 
-REM Get the directory where this script is located
-set "SCRIPT_DIR=%~dp0"
-echo [INFO] Script directory: %SCRIPT_DIR%
-
 REM Set installation directories
 set "INSTALL_DIR=%USERPROFILE%\.novabackup"
 set "VENV=%INSTALL_DIR%\venv"
@@ -94,11 +90,14 @@ REM Upgrade pip
 echo [INFO] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM Install NovaBackup from PROJECT_DIR (change to project directory first!)
-echo [INFO] Installing NovaBackup from: %PROJECT_DIR%
+REM Install ALL dependencies
+echo [INFO] Installing ALL dependencies...
+pip install aiohttp fastapi uvicorn prometheus_client --quiet
+
+REM Install NovaBackup
+echo [INFO] Installing NovaBackup...
 cd /d "%PROJECT_DIR%"
 if exist "%PROJECT_DIR%\pyproject.toml" (
-    echo [OK] Found pyproject.toml in %PROJECT_DIR%
     pip install -e ".[api,dev]" --quiet
     if %errorlevel% equ 0 (
         echo [OK] NovaBackup installed successfully
@@ -107,8 +106,6 @@ if exist "%PROJECT_DIR%\pyproject.toml" (
     )
 ) else (
     echo [ERROR] pyproject.toml not found in %PROJECT_DIR%
-    echo [ERROR] Directory contents:
-    dir "%PROJECT_DIR%" 2>&1
     exit /b 1
 )
 
@@ -126,43 +123,46 @@ echo ========================================
 echo   Installation Complete!
 echo ========================================
 echo.
-echo To use NovaBackup:
+
+REM Generate secrets if script exists
+if exist "%PROJECT_DIR%\generate-secrets.ps1" (
+    echo [INFO] Generating secrets...
+    call "%VENV%\Scripts\activate.bat"
+    cd /d "%PROJECT_DIR%"
+    powershell -ExecutionPolicy Bypass -File generate-secrets.ps1 -All
+    echo [OK] Secrets generated
+)
+
 echo.
-echo 1. Activate virtual environment:
-echo    ^& "$env:USERPROFILE\.novabackup\venv\Scripts\Activate.ps1"
+echo ========================================
+echo   Starting NovaBackup Server...
+echo ========================================
 echo.
-echo 2. Navigate to project directory:
-echo    cd %PROJECT_DIR%
+
+REM Start the server
+echo [INFO] Starting server on http://localhost:8000
+echo [INFO] Opening browser in 5 seconds...
 echo.
-echo 3. Run the server:
-echo    python -m uvicorn novabackup.api:get_app --reload --host 0.0.0.0 --port 8000
+
+timeout /t 5 /nobreak >nul
+
+REM Open browser
+start http://localhost:8000
+echo [OK] Browser opened
+
 echo.
-echo 4. Open in browser:
-echo    http://localhost:8000
+echo ========================================
+echo   Server is Running!
+echo ========================================
 echo.
 echo Login credentials:
 echo    Username: alice
 echo    Password: secret
 echo.
-
-REM Test installation
-echo [INFO] Testing installation...
-novabackup --version 2>&1 | findstr "novabackup"
-if %errorlevel% equ 0 (
-    echo [OK] NovaBackup CLI is working
-) else (
-    echo [INFO] NovaBackup version: 8.5.0
-)
-
+echo Press CTRL+C to stop the server
 echo.
-echo [INFO] Testing VM list...
-novabackup list-vms 2>&1 | findstr "id" >nul
-if %errorlevel% equ 0 (
-    echo [OK] VM listing is working
-) else (
-    echo [INFO] VM list may require Hyper-V enabled
-)
 
-echo.
-echo Done!
+cd /d "%PROJECT_DIR%"
+python -m uvicorn novabackup.api:get_app --host 0.0.0.0 --port 8000
+
 endlocal
