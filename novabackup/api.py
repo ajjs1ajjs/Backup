@@ -483,7 +483,7 @@ def get_app():
             "enabled_jobs": len([j for j in scheduler.jobs.values() if j.enabled]),
         }
 
-    @app.get("/api/database/list")
+    @app.post("/api/database/list")
     async def list_databases():
         """List available databases."""
         return {
@@ -574,6 +574,26 @@ def get_app():
     async def stop_service():
         """Stop the service."""
         return {"message": "Service stopped"}
+
+    @app.post("/api/vm/list")
+    async def list_vms():
+        """List available virtual machines."""
+        return {
+            "vms": [
+                {
+                    "id": "vm1",
+                    "name": "Web Server",
+                    "type": "Hyper-V",
+                    "status": "running",
+                },
+                {
+                    "id": "vm2",
+                    "name": "Database Server",
+                    "type": "VMware",
+                    "status": "stopped",
+                },
+            ]
+        }
 
     # Catch-all for unknown API endpoints (must be last)
     @app.get("/api/{path:path}")
