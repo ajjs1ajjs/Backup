@@ -220,7 +220,7 @@
                     const data = await res.json();
 
                     if (res.ok && data.access_token) {
-                        localStorage.setItem("access_token", data.access_token);
+                        localStorage.setItem("authToken", data.access_token);
                         localStorage.setItem("refresh_token", data.refresh_token);
                         localStorage.setItem("user", JSON.stringify({ username, roles: ['admin'] }));
                         window.location.href = "index.html";
@@ -233,7 +233,7 @@
             }
 
             window.addEventListener("load", function () {
-                const token = localStorage.getItem("access_token");
+                const token = localStorage.getItem("authToken");
                 if (token) {
                     window.location.href = "index.html";
                 }
