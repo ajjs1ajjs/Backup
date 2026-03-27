@@ -7,6 +7,10 @@ echo   Full installation from GitHub
 echo ========================================
 echo.
 
+REM Get the directory where this script is located
+set "SCRIPT_DIR=%~dp0"
+echo [INFO] Script directory: %SCRIPT_DIR%
+
 REM Set installation directories
 set "INSTALL_DIR=%USERPROFILE%\.novabackup"
 set "VENV=%INSTALL_DIR%\venv"
@@ -90,8 +94,9 @@ REM Upgrade pip
 echo [INFO] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM Install NovaBackup
-echo [INFO] Installing NovaBackup...
+REM Install NovaBackup from PROJECT_DIR (not current directory!)
+echo [INFO] Installing NovaBackup from: %PROJECT_DIR%
+cd /d "%PROJECT_DIR%"
 pip install -e ".[api,dev]" --quiet
 if %errorlevel% equ 0 (
     echo [OK] NovaBackup installed successfully
@@ -138,7 +143,7 @@ novabackup --version 2>&1 | findstr "novabackup"
 if %errorlevel% equ 0 (
     echo [OK] NovaBackup CLI is working
 ) else (
-    echo [INFO] CLI version: 8.5.0
+    echo [INFO] NovaBackup version: 8.5.0
 )
 
 echo.
