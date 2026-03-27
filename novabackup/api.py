@@ -132,10 +132,6 @@ def get_app():
         async def favicon():
             return FileResponse(os.path.join(static_dir, "index.html"))
 
-        @app.get("/api/{path:path}")
-        async def api_not_found(path):
-            return {"detail": f"Endpoint /api/{path} not found"}
-
         for page in html_pages:
 
             @app.get(f"/{page}")
@@ -578,5 +574,10 @@ def get_app():
     async def stop_service():
         """Stop the service."""
         return {"message": "Service stopped"}
+
+    # Catch-all for unknown API endpoints (must be last)
+    @app.get("/api/{path:path}")
+    async def api_not_found(path):
+        return {"detail": f"Endpoint /api/{path} not found"}
 
     return app
