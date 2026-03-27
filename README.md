@@ -43,7 +43,8 @@
 | **Stage 4** | Production Docker/CI pipelines | ✅ Завершено |
 | **Stage 5** | Міграція на Python (повна) | ✅ Завершено |
 | **Stage 6** | Розширений функціонал (Security+, Audit, Scopes) | ✅ Завершено |
-| **Stage 7+** | Розширені хмарні інтеграції | 🚧 В розробці |
+| **Stage 7** | Повні хмарні інтеграції (AWS/Azure/GCP) | ✅ Завершено |
+| **Stage 8+** | Розширений веб-інтерфейс | 🚧 В розробці |
 
 ### ✨ Нові можливості Stage 6
 
@@ -62,6 +63,29 @@
   - Access + Refresh токени
   - Автоматичне оновлення токенів
   - Відстеження активних сесій
+
+### 🌩️ Нові можливості Stage 7
+
+- **AWS Integration**
+  - EC2 instance listing з деталями (type, AZ, platform)
+  - EBS snapshot creation для всіх дисків VM
+  - Snapshot tagging (Name, BackupType, InstanceId, ManagedBy)
+  - Restore з snapshot
+  - Delete backup (cleanup snapshots)
+
+- **Azure Integration**
+  - Azure VM listing з resource group та location
+  - OS disk + Data disk snapshot creation
+  - VM power state monitoring
+  - Restore з snapshot
+  - Delete backup (cleanup snapshots)
+
+- **GCP Integration**
+  - Compute Engine VM listing з zone та machine type
+  - Persistent disk snapshot creation
+  - Cross-zone backup support
+  - Restore з snapshot
+  - Delete backup (cleanup snapshots)
 
 > ⚠️ **Важливо**: Починаючи з версії 8.0.0, основна реалізація — **Python**. Go версія застаріла та видалена.
 
@@ -406,6 +430,18 @@ NOVABACKUP_CLOUD_PROVIDERS=AWS
 AWS_ACCESS_KEY_ID=ваш-access-key
 AWS_SECRET_ACCESS_KEY=ваш-secret-key
 AWS_DEFAULT_REGION=us-east-1
+
+# Або через profile
+# AWS_PROFILE=your-profile-name
+```
+
+**Приклад використання CLI:**
+```bash
+novabackup create-backup --vm-id i-1234567890abcdef0 \
+  --destination-type cloud \
+  --cloud-provider AWS \
+  --cloud-region us-east-1 \
+  --cloud-dest s3://my-backup-bucket/
 ```
 
 ### Налаштування Azure
@@ -416,6 +452,18 @@ AZURE_TENANT_ID=ваш-tenant-id
 AZURE_CLIENT_ID=ваш-client-id
 AZURE_CLIENT_SECRET=ваш-client-secret
 AZURE_SUBSCRIPTION_ID=ваш-subscription-id
+
+# Або через DefaultAzureCredential (рекомендовано для AKS/VM)
+# Використовує managed identity або Azure CLI credentials
+```
+
+**Приклад використання CLI:**
+```bash
+novabackup create-backup --vm-id /subscriptions/xxx/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1 \
+  --destination-type cloud \
+  --cloud-provider Azure \
+  --cloud-region eastus \
+  --cloud-dest azure://my-backup-rg/
 ```
 
 ### Налаштування Google Cloud
@@ -424,6 +472,15 @@ AZURE_SUBSCRIPTION_ID=ваш-subscription-id
 NOVABACKUP_CLOUD_PROVIDERS=GCP
 GOOGLE_APPLICATION_CREDENTIALS=/шлях/до/service-account.json
 GOOGLE_CLOUD_PROJECT=ваш-project-id
+```
+
+**Приклад використання CLI:**
+```bash
+novabackup create-backup --vm-id my-instance-1 \
+  --destination-type cloud \
+  --cloud-provider GCP \
+  --cloud-region us-central1-a \
+  --cloud-dest gcp://my-project/backups/
 ```
 
 ---
