@@ -6,6 +6,32 @@ echo   NovaBackup Installer for Windows
 echo ========================================
 echo.
 
+REM Get the directory where this script is located
+set "SCRIPT_DIR=%~dp0"
+echo [INFO] Script directory: %SCRIPT_DIR%
+
+REM Check if we're running from the Backup directory
+if exist "%SCRIPT_DIR%pyproject.toml" (
+    set "WORK_DIR=%SCRIPT_DIR%"
+    echo [OK] Found pyproject.toml in script directory
+) else (
+    REM Try current directory
+    if exist "%CD%\pyproject.toml" (
+        set "WORK_DIR=%CD%"
+        echo [OK] Found pyproject.toml in current directory
+    ) else (
+        echo [ERROR] pyproject.toml not found!
+        echo Please run this script from the Backup directory
+        echo or download it to the Backup directory.
+        exit /b 1
+    )
+)
+
+REM Change to working directory
+cd /d "%WORK_DIR%"
+echo [INFO] Working directory: %CD%
+echo.
+
 REM Check Python
 where python >nul 2>&1
 if %errorlevel% neq 0 (
@@ -44,19 +70,13 @@ REM Upgrade pip
 echo [INFO] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM Install novabackup from current directory
-echo [INFO] Installing NovaBackup...
-if exist "pyproject.toml" (
-    pip install -e ".[api,dev]" --quiet
-    if %errorlevel% equ 0 (
-        echo [OK] NovaBackup installed successfully
-    ) else (
-        echo [WARNING] Installation completed with warnings
-    )
+REM Install novabackup from working directory
+echo [INFO] Installing NovaBackup from: %WORK_DIR%
+pip install -e ".[api,dev]" --quiet
+if %errorlevel% equ 0 (
+    echo [OK] NovaBackup installed successfully
 ) else (
-    echo [ERROR] pyproject.toml not found in current directory
-    echo Please run this script from the Backup directory
-    exit /b 1
+    echo [WARNING] Installation completed with warnings
 )
 
 echo.
@@ -70,17 +90,18 @@ echo.
 echo Or from Command Prompt:
 echo   call "%VENV%\Scripts\activate.bat"
 echo.
-echo Then run:
-echo   novabackup --help
+echo Then navigate to Backup directory and run:
+echo   cd %WORK_DIR%
+echo   python -m uvicorn novabackup.api:get_app --reload
 echo.
 
 REM Test installation
 echo [INFO] Testing installation...
-novabackup list-vms 2>&1 | findstr "id"
+novabackup --version 2>&1 | findstr "novabackup"
 if %errorlevel% equ 0 (
-    echo [OK] NovaBackup is working
+    echo [OK] NovaBackup CLI is working
 ) else (
-    echo [INFO] VM list may require Hyper-V enabled
+    echo [INFO] CLI test skipped
 )
 
 echo.
