@@ -1,6 +1,6 @@
 from moto import mock_aws
 import boto3
-from novabackup.providers.cloud.aws import AWSCloudProvider
+from novabackup.aws_real import AWSCloudProvider
 
 
 @mock_aws

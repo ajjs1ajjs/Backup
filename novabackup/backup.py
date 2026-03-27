@@ -82,7 +82,7 @@ class BackupManager:
             return self._cloud_orchestrator
         providers = []
         try:
-            from novabackup.providers.cloud.aws import AWSCloudProvider  # type: ignore
+            from novabackup.aws_real import AWSCloudProvider  # type: ignore
 
             providers.append(AWSCloudProvider())  # type: ignore
         except Exception:

@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import timedelta
 import asyncio
 import json
+import time
 
 from fastapi import (
     FastAPI,
@@ -12,12 +13,17 @@ from fastapi import (
     Response,
     WebSocket,
     WebSocketDisconnect,
+    Request,
 )
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from novabackup.core import list_vms, normalize_vm_type
 from novabackup.models import (
@@ -70,11 +76,49 @@ class Token(BaseModel):
     refresh_token: Optional[str] = None
 
 
+# Rate limiter setup
+def get_rate_limit_key():
+    """Get rate limit key from request."""
+    return "global"
+
+
+limiter = Limiter(key_func=get_rate_limit_key, default_limits=["100/minute", "1000/hour"])
+
+
 def get_app():
     app = FastAPI(title="Novabackup API")
 
+    # Add rate limiter middleware
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     # Setup notifications from environment
     setup_notifications_from_env()
+
+    # Security Headers Middleware
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        return response
+
+    # HTTPS Redirect Middleware (optional, enabled via env variable)
+    @app.middleware("http")
+    async def https_redirect(request: Request, call_next):
+        https_enabled = os.environ.get("NOVABACKUP_HTTPS", "false").lower() == "true"
+        if https_enabled and not request.url.scheme == "https":
+            # Don't redirect health checks and local requests
+            if request.client and request.client.host not in ["127.0.0.1", "localhost"]:
+                url = request.url.replace(scheme="https")
+                return Response(status_code=301, headers={"Location": str(url)})
+        return await call_next(request)
 
     # CORS middleware
     app.add_middleware(
@@ -120,16 +164,6 @@ def get_app():
 
         @app.get("/")
         async def root():
-            return FileResponse(os.path.join(static_dir, "index.html"))
-
-        for page in html_pages:
-
-            @app.get(f"/{page}")
-            async def serve_html(path=page):
-                return FileResponse(os.path.join(static_dir, path))
-
-        @app.get("/favicon.ico")
-        async def favicon():
             return FileResponse(os.path.join(static_dir, "index.html"))
 
         for page in html_pages:
@@ -574,26 +608,6 @@ def get_app():
     async def stop_service():
         """Stop the service."""
         return {"message": "Service stopped"}
-
-    @app.post("/api/vm/list")
-    async def list_vms():
-        """List available virtual machines."""
-        return {
-            "vms": [
-                {
-                    "id": "vm1",
-                    "name": "Web Server",
-                    "type": "Hyper-V",
-                    "status": "running",
-                },
-                {
-                    "id": "vm2",
-                    "name": "Database Server",
-                    "type": "VMware",
-                    "status": "stopped",
-                },
-            ]
-        }
 
     # Catch-all for unknown API endpoints (must be last)
     @app.get("/api/{path:path}")

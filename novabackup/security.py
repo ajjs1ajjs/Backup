@@ -4,6 +4,8 @@ import os
 import secrets
 import json
 import logging
+import hashlib
+import hmac
 
 import jwt  # PyJWT
 from fastapi import HTTPException, Depends
@@ -13,27 +15,67 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 audit_logger = logging.getLogger("novabackup.audit")
 audit_logger.setLevel(logging.INFO)
 
-# Simple in‑memory store for MVP (replace with DB in production)
-USERS = {
+
+def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
+    """
+    Hash a password using HMAC-SHA256 with salt.
+    Returns (hashed_password, salt).
+    """
+    if salt is None:
+        salt = secrets.token_hex(16)
+    # Use HMAC-SHA256 for password hashing
+    hashed = hmac.new(
+        salt.encode('utf-8'),
+        password.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    return hashed, salt
+
+
+def verify_password(plain: str, hashed: str, salt: str) -> bool:
+    """Verify a password against its hash."""
+    computed_hash, _ = hash_password(plain, salt)
+    return hmac.compare_digest(computed_hash, hashed)
+
+
+# Pre-hash default passwords with salt
+# In production, load these from a database with properly hashed passwords
+_default_users = {
     "alice": {
-        "password": "secret",
+        "password_plain": "secret",
         "roles": ["admin"],
         "scopes": ["read", "write", "delete", "manage_users"]
     },
     "bob": {
-        "password": "secret",
+        "password_plain": "secret",
         "roles": ["user"],
         "scopes": ["read", "write"]
     },
-    # New test user with no privileges to validate RBAC boundaries in tests
-    "charlie": {"password": "secret", "roles": [], "scopes": []},
-    # Service account for automated tasks
+    "charlie": {
+        "password_plain": "secret",
+        "roles": [],
+        "scopes": []
+    },
     "service": {
-        "password": "service-secret",
+        "password_plain": "service-secret",
         "roles": ["service"],
         "scopes": ["read", "backup", "restore"]
     },
 }
+
+# Hash passwords and store with salt
+USERS: Dict[str, Dict[str, Any]] = {}
+for username, user_data in _default_users.items():
+    hashed_pwd, salt = hash_password(user_data["password_plain"])
+    USERS[username] = {
+        "password": hashed_pwd,
+        "salt": salt,
+        "roles": user_data["roles"],
+        "scopes": user_data["scopes"]
+    }
+
+# Clear plain text passwords from memory
+_default_users = None  # type: ignore
 
 # JWT secret from environment variable or generate secure random fallback
 # IMPORTANT: Set NOVABACKUP_JWT_SECRET environment variable in production!
@@ -55,16 +97,12 @@ AUDIT_LOGS: List[Dict[str, Any]] = []  # Recent audit logs
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
-def verify_password(plain: str, password: str) -> bool:
-    return plain == password
-
-
 def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     user = USERS.get(username)
     if not user:
         audit_log("login_failed", username, "user_not_found")
         return None
-    if not verify_password(password, user["password"]):
+    if not verify_password(password, user["password"], user["salt"]):
         audit_log("login_failed", username, "invalid_password")
         return None
     audit_log("login_success", username, f"roles={user['roles']}")
