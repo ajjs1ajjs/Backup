@@ -79,29 +79,24 @@ function New-ApiKey {
     return $key
 }
 
-# Generate secure password
+# Generate secure password (with special chars)
 function New-SecurePassword {
     param(
         [int]$Length = 20,
         [switch]$IncludeSpecial
     )
-
     $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    if ($IncludeSpecial) {
+    if ($IncludeSpecial.IsPresent) {
         $chars += '!@#$%^&*()_+-=[]{}|;:,.<>?'
     }
-
-    $password = Get-SecureRandomString -Length $Length -CharacterSet $chars
-    return $password
+    return Get-SecureRandomString -Length $Length -CharacterSet $chars
 }
 
-# Generate PostgreSQL password
+# Generate PostgreSQL password (safe chars only)
 function New-PostgresPassword {
     param([int]$Length = 24)
-    # PostgreSQL passwords shouldn't contain certain special chars
     $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-'
-    $password = Get-SecureRandomString -Length $Length -CharacterSet $chars
-    return $password
+    return Get-SecureRandomString -Length $Length -CharacterSet $chars
 }
 
 # Update .env file with new secrets
@@ -159,52 +154,58 @@ Write-Host ""
 
 $generatedSomething = $false
 
+$genMasterKey = $null
+$genJwtSecret = $null
+$genApiKey = $null
+$genPassword = $null
+$genPostgresPassword = $null
+
 if ($All -or $MasterKey) {
-    $masterKey = New-MasterKey
+    $genMasterKey = New-MasterKey
     Write-Host "Master Key (64 chars):" -ForegroundColor Cyan
-    Write-Host $masterKey -ForegroundColor Green
+    Write-Host $genMasterKey -ForegroundColor Green
     Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $JwtSecret) {
-    $jwtSecret = New-JwtSecret
+    $genJwtSecret = New-JwtSecret
     Write-Host "JWT Secret (64 chars):" -ForegroundColor Cyan
-    Write-Host $jwtSecret -ForegroundColor Green
+    Write-Host $genJwtSecret -ForegroundColor Green
     Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $ApiKey) {
-    $apiKey = New-ApiKey
+    $genApiKey = New-ApiKey
     Write-Host "API Key (32 chars):" -ForegroundColor Cyan
-    Write-Host $apiKey -ForegroundColor Green
+    Write-Host $genApiKey -ForegroundColor Green
     Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $Password) {
-    $password = New-SecurePassword -Length 20 -IncludeSpecial
+    $genPassword = New-SecurePassword -Length 20 -IncludeSpecial:$true
     Write-Host "Secure Password (20 chars):" -ForegroundColor Cyan
-    Write-Host $password -ForegroundColor Green
+    Write-Host $genPassword -ForegroundColor Green
     Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $PostgresPassword) {
-    $postgresPassword = New-PostgresPassword
+    $genPostgresPassword = New-PostgresPassword
     Write-Host "PostgreSQL Password (24 chars):" -ForegroundColor Cyan
-    Write-Host $postgresPassword -ForegroundColor Green
+    Write-Host $genPostgresPassword -ForegroundColor Green
     Write-Host ""
     $generatedSomething = $true
 }
 
 if ($UpdateEnv) {
     Update-EnvFile `
-        -MasterKey $masterKey `
-        -JwtSecret $jwtSecret `
-        -ApiKey $apiKey `
-        -PostgresPassword $postgresPassword
+        -MasterKey $genMasterKey `
+        -JwtSecret $genJwtSecret `
+        -ApiKey $genApiKey `
+        -PostgresPassword $genPostgresPassword
 }
 
 if (-not $generatedSomething) {
