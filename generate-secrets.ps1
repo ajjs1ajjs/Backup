@@ -160,7 +160,7 @@ Write-Host ""
 $generatedSomething = $false
 
 if ($All -or $MasterKey) {
-    $masterKey = $(New-MasterKey)
+    $masterKey = New-MasterKey
     Write-Host "Master Key (64 chars):" -ForegroundColor Cyan
     Write-Host $masterKey -ForegroundColor Green
     Write-Host ""
@@ -168,7 +168,7 @@ if ($All -or $MasterKey) {
 }
 
 if ($All -or $JwtSecret) {
-    $jwtSecret = $(New-JwtSecret)
+    $jwtSecret = New-JwtSecret
     Write-Host "JWT Secret (64 chars):" -ForegroundColor Cyan
     Write-Host $jwtSecret -ForegroundColor Green
     Write-Host ""
@@ -176,7 +176,7 @@ if ($All -or $JwtSecret) {
 }
 
 if ($All -or $ApiKey) {
-    $apiKey = $(New-ApiKey)
+    $apiKey = New-ApiKey
     Write-Host "API Key (32 chars):" -ForegroundColor Cyan
     Write-Host $apiKey -ForegroundColor Green
     Write-Host ""
@@ -184,7 +184,7 @@ if ($All -or $ApiKey) {
 }
 
 if ($All -or $Password) {
-    $password = $(New-SecurePassword -Length 20 -IncludeSpecial)
+    $password = New-SecurePassword -Length 20 -IncludeSpecial
     Write-Host "Secure Password (20 chars):" -ForegroundColor Cyan
     Write-Host $password -ForegroundColor Green
     Write-Host ""
@@ -192,7 +192,7 @@ if ($All -or $Password) {
 }
 
 if ($All -or $PostgresPassword) {
-    $postgresPassword = $(New-PostgresPassword)
+    $postgresPassword = New-PostgresPassword
     Write-Host "PostgreSQL Password (24 chars):" -ForegroundColor Cyan
     Write-Host $postgresPassword -ForegroundColor Green
     Write-Host ""
