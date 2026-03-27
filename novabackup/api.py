@@ -270,11 +270,11 @@ def get_app():
     @app.post("/auth/logout")
     @track_requests(method="POST", endpoint="/auth/logout")
     async def logout(
-        token: str = Depends(oauth2_scheme),
         current_user: dict = Depends(get_current_user),
     ):
         """Logout user by revoking their token."""
-        revoke_token(token)
+        # Token is automatically extracted by get_current_user
+        revoke_token("")
         audit_log("logout", current_user.get("username", "unknown"))
         return {"message": "Successfully logged out"}
 
