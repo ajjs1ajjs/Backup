@@ -64,10 +64,7 @@ function New-MasterKey {
         [int]$Length = 64,
         [switch]$NoNewline
     )
-    Write-Host "Master Key ($Length chars):" -ForegroundColor Cyan
     $key = Get-SecureHexKey -Length $Length
-    Write-Host $key -ForegroundColor Green
-    if (-not $NoNewline) { Write-Host "" }
     return $key
 }
 
@@ -77,10 +74,7 @@ function New-JwtSecret {
         [int]$Length = 64,
         [switch]$NoNewline
     )
-    Write-Host "JWT Secret ($Length chars):" -ForegroundColor Cyan
     $secret = Get-SecureRandomString -Length $Length
-    Write-Host $secret -ForegroundColor Green
-    if (-not $NoNewline) { Write-Host "" }
     return $secret
 }
 
@@ -90,10 +84,7 @@ function New-ApiKey {
         [int]$Length = 32,
         [switch]$NoNewline
     )
-    Write-Host "API Key ($Length chars):" -ForegroundColor Cyan
     $key = Get-SecureRandomString -Length $Length
-    Write-Host $key -ForegroundColor Green
-    if (-not $NoNewline) { Write-Host "" }
     return $key
 }
 
@@ -189,26 +180,41 @@ $generatedSomething = $false
 
 if ($All -or $MasterKey) {
     $masterKey = New-MasterKey
+    Write-Host "Master Key (64 chars):" -ForegroundColor Cyan
+    Write-Host $masterKey -ForegroundColor Green
+    Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $JwtSecret) {
     $jwtSecret = New-JwtSecret
+    Write-Host "JWT Secret (64 chars):" -ForegroundColor Cyan
+    Write-Host $jwtSecret -ForegroundColor Green
+    Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $ApiKey) {
     $apiKey = New-ApiKey
+    Write-Host "API Key (32 chars):" -ForegroundColor Cyan
+    Write-Host $apiKey -ForegroundColor Green
+    Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $Password) {
     $password = New-SecurePassword -Length 20 -IncludeSpecial
+    Write-Host "Secure Password (20 chars):" -ForegroundColor Cyan
+    Write-Host $password -ForegroundColor Green
+    Write-Host ""
     $generatedSomething = $true
 }
 
 if ($All -or $PostgresPassword) {
     $postgresPassword = New-PostgresPassword
+    Write-Host "PostgreSQL Password (24 chars):" -ForegroundColor Cyan
+    Write-Host $postgresPassword -ForegroundColor Green
+    Write-Host ""
     $generatedSomething = $true
 }
 
