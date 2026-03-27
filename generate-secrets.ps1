@@ -60,31 +60,40 @@ function Get-SecureHexKey {
 
 # Generate master key (32 bytes = 64 hex chars)
 function New-MasterKey {
-    param([int]$Length = 64)
+    param(
+        [int]$Length = 64,
+        [switch]$NoNewline
+    )
     Write-Host "Master Key ($Length chars):" -ForegroundColor Cyan
     $key = Get-SecureHexKey -Length $Length
     Write-Host $key -ForegroundColor Green
-    Write-Host ""
+    if (-not $NoNewline) { Write-Host "" }
     return $key
 }
 
 # Generate JWT secret (base64 encoded random bytes)
 function New-JwtSecret {
-    param([int]$Length = 64)
+    param(
+        [int]$Length = 64,
+        [switch]$NoNewline
+    )
     Write-Host "JWT Secret ($Length chars):" -ForegroundColor Cyan
     $secret = Get-SecureRandomString -Length $Length
     Write-Host $secret -ForegroundColor Green
-    Write-Host ""
+    if (-not $NoNewline) { Write-Host "" }
     return $secret
 }
 
 # Generate API key
 function New-ApiKey {
-    param([int]$Length = 32)
+    param(
+        [int]$Length = 32,
+        [switch]$NoNewline
+    )
     Write-Host "API Key ($Length chars):" -ForegroundColor Cyan
     $key = Get-SecureRandomString -Length $Length
     Write-Host $key -ForegroundColor Green
-    Write-Host ""
+    if (-not $NoNewline) { Write-Host "" }
     return $key
 }
 
@@ -92,30 +101,34 @@ function New-ApiKey {
 function New-SecurePassword {
     param(
         [int]$Length = 20,
-        [switch]$IncludeSpecial
+        [switch]$IncludeSpecial,
+        [switch]$NoNewline
     )
-    
+
     $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     if ($IncludeSpecial) {
         $chars += '!@#$%^&*()_+-=[]{}|;:,.<>?'
     }
-    
+
     Write-Host "Secure Password ($Length chars):" -ForegroundColor Cyan
     $password = Get-SecureRandomString -Length $Length -CharacterSet $chars
     Write-Host $password -ForegroundColor Green
-    Write-Host ""
+    if (-not $NoNewline) { Write-Host "" }
     return $password
 }
 
 # Generate PostgreSQL password
 function New-PostgresPassword {
-    param([int]$Length = 24)
+    param(
+        [int]$Length = 24,
+        [switch]$NoNewline
+    )
     Write-Host "PostgreSQL Password ($Length chars):" -ForegroundColor Cyan
     # PostgreSQL passwords shouldn't contain certain special chars
     $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-'
     $password = Get-SecureRandomString -Length $Length -CharacterSet $chars
     Write-Host $password -ForegroundColor Green
-    Write-Host ""
+    if (-not $NoNewline) { Write-Host "" }
     return $password
 }
 
