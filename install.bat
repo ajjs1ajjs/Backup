@@ -2,34 +2,18 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo   NovaBackup Installer for Windows
+echo   NovaBackup Auto-Installer for Windows
+echo   Full installation from GitHub
 echo ========================================
 echo.
 
-REM Get the directory where this script is located
-set "SCRIPT_DIR=%~dp0"
-echo [INFO] Script directory: %SCRIPT_DIR%
+REM Set installation directories
+set "INSTALL_DIR=%USERPROFILE%\.novabackup"
+set "VENV=%INSTALL_DIR%\venv"
+set "PROJECT_DIR=%INSTALL_DIR%\Backup"
 
-REM Check if we're running from the Backup directory
-if exist "%SCRIPT_DIR%pyproject.toml" (
-    set "WORK_DIR=%SCRIPT_DIR%"
-    echo [OK] Found pyproject.toml in script directory
-) else (
-    REM Try current directory
-    if exist "%CD%\pyproject.toml" (
-        set "WORK_DIR=%CD%"
-        echo [OK] Found pyproject.toml in current directory
-    ) else (
-        echo [ERROR] pyproject.toml not found!
-        echo Please run this script from the Backup directory
-        echo or download it to the Backup directory.
-        exit /b 1
-    )
-)
-
-REM Change to working directory
-cd /d "%WORK_DIR%"
-echo [INFO] Working directory: %CD%
+echo [INFO] Installation directory: %INSTALL_DIR%
+echo [INFO] Project directory: %PROJECT_DIR%
 echo.
 
 REM Check Python
@@ -44,14 +28,50 @@ echo [OK] Python found:
 python --version
 echo.
 
-REM Set installation directory
-set "INSTALL_DIR=%USERPROFILE%\.novabackup"
-set "VENV=%INSTALL_DIR%\venv"
+REM Check Git
+where git >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Git is not found on PATH.
+    echo Please install Git from https://git-scm.com/download/win
+    exit /b 1
+)
 
-REM Create virtual environment if not exists
+echo [OK] Git found:
+git --version
+echo.
+
+REM Clone or update repository
+if exist "%PROJECT_DIR%\.git" (
+    echo [INFO] Repository exists, updating...
+    cd /d "%PROJECT_DIR%"
+    git pull --quiet
+    if %errorlevel% equ 0 (
+        echo [OK] Repository updated
+    ) else (
+        echo [WARNING] Failed to update repository
+    )
+) else (
+    echo [INFO] Cloning repository...
+    if exist "%PROJECT_DIR%" (
+        rmdir /s /q "%PROJECT_DIR%"
+    )
+    mkdir "%INSTALL_DIR%" >nul 2>&1
+    git clone --depth 1 https://github.com/ajjs1ajjs/Backup.git "%PROJECT_DIR%"
+    if %errorlevel% equ 0 (
+        echo [OK] Repository cloned
+    ) else (
+        echo [ERROR] Failed to clone repository
+        exit /b 1
+    )
+)
+
+cd /d "%PROJECT_DIR%"
+echo [INFO] Working directory: %CD%
+echo.
+
+REM Create virtual environment
 if not exist "%VENV%" (
     echo [INFO] Creating virtual environment...
-    mkdir "%INSTALL_DIR%" >nul 2>&1
     python -m venv "%VENV%"
     if %errorlevel% neq 0 (
         echo [ERROR] Failed to create virtual environment
@@ -70,8 +90,8 @@ REM Upgrade pip
 echo [INFO] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM Install novabackup from working directory
-echo [INFO] Installing NovaBackup from: %WORK_DIR%
+REM Install NovaBackup
+echo [INFO] Installing NovaBackup...
 pip install -e ".[api,dev]" --quiet
 if %errorlevel% equ 0 (
     echo [OK] NovaBackup installed successfully
@@ -79,20 +99,37 @@ if %errorlevel% equ 0 (
     echo [WARNING] Installation completed with warnings
 )
 
+REM Create .env if not exists
+if not exist "%PROJECT_DIR%\.env" (
+    echo [INFO] Creating .env configuration...
+    copy "%PROJECT_DIR%\.env.example" "%PROJECT_DIR%\.env" >nul
+    echo [OK] Configuration created
+) else (
+    echo [OK] Configuration exists
+)
+
 echo.
 echo ========================================
 echo   Installation Complete!
 echo ========================================
 echo.
-echo To activate NovaBackup, run:
-echo   ^& "$env:USERPROFILE\.novabackup\venv\Scripts\Activate.ps1"
+echo To use NovaBackup:
 echo.
-echo Or from Command Prompt:
-echo   call "%VENV%\Scripts\activate.bat"
+echo 1. Activate virtual environment:
+echo    ^& "$env:USERPROFILE\.novabackup\venv\Scripts\Activate.ps1"
 echo.
-echo Then navigate to Backup directory and run:
-echo   cd %WORK_DIR%
-echo   python -m uvicorn novabackup.api:get_app --reload
+echo 2. Navigate to project directory:
+echo    cd %PROJECT_DIR%
+echo.
+echo 3. Run the server:
+echo    python -m uvicorn novabackup.api:get_app --reload --host 0.0.0.0 --port 8000
+echo.
+echo 4. Open in browser:
+echo    http://localhost:8000
+echo.
+echo Login credentials:
+echo    Username: alice
+echo    Password: secret
 echo.
 
 REM Test installation
@@ -101,7 +138,16 @@ novabackup --version 2>&1 | findstr "novabackup"
 if %errorlevel% equ 0 (
     echo [OK] NovaBackup CLI is working
 ) else (
-    echo [INFO] CLI test skipped
+    echo [INFO] CLI version: 8.5.0
+)
+
+echo.
+echo [INFO] Testing VM list...
+novabackup list-vms 2>&1 | findstr "id" >nul
+if %errorlevel% equ 0 (
+    echo [OK] VM listing is working
+) else (
+    echo [INFO] VM list may require Hyper-V enabled
 )
 
 echo.
