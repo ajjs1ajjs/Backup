@@ -7,6 +7,8 @@ import json
 from fastapi import FastAPI, Depends, HTTPException, status, Response, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from novabackup.core import list_vms, normalize_vm_type
@@ -74,6 +76,16 @@ def get_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Mount static files for web UI
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+        
+        # Serve index.html at root
+        @app.get("/")
+        async def root():
+            return FileResponse(os.path.join(static_dir, "index.html"))
 
     # WebSocket connection manager for real-time updates
     class ConnectionManager:
