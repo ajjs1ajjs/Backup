@@ -7,7 +7,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using AspNetCoreRateLimit;
 using System.Text;
 
 Log.Logger = new LoggerConfiguration()
@@ -97,22 +96,6 @@ try
     builder.Services.AddHostedService<AgentHealthCheckService>();
     builder.Services.AddHostedService<RetentionPolicyService>();
 
-    builder.Services.Configure<IpRateLimitOptions>(options =>
-    {
-        options.GeneralRules = new List<RateLimitRule>
-        {
-            new() { Endpoint = "*", Period = "1m", Limit = 100 },
-            new() { Endpoint = "*/api/auth/*", Period = "1m", Limit = 100 },
-            new() { Endpoint = "*/api/*", Period = "1m", Limit = 200 }
-        };
-        options.IpWhitelist = new List<string> { "127.0.0.1", "::1" };
-    });
-    builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
-    builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-    builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
-    builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
-    builder.Services.AddInMemoryRateLimiting();
-
     var app = builder.Build();
 
     app.UseSwagger();
@@ -142,7 +125,6 @@ try
     app.UseStaticFiles();
     app.UseAuthentication();
     app.UseAuthorization();
-    // app.UseIpRateLimiting();
 
     app.MapGrpcService<AgentServiceImpl>();
     app.MapGrpcService<JobServiceImpl>();
