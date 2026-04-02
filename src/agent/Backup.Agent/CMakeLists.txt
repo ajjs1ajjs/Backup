@@ -13,7 +13,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Threads REQUIRED)
-find_package(Zstd REQUIRED)
+find_package(Zstd QUIET)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -39,8 +39,11 @@ add_executable(backup-agent ${AGENT_SOURCES})
 
 target_link_libraries(backup-agent PRIVATE
     Threads::Threads
-    Zstd::libzstd
 )
+
+if(Zstd_FOUND)
+    target_link_libraries(backup-agent PRIVATE Zstd::libzstd)
+endif()
 
 target_compile_options(backup-agent PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /EHsc>
