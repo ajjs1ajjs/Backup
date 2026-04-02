@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for integration tests
+  postgres-test:
+    image: postgres:14
+    container_name: backup-integration-test-db
+    environment:
+      POSTGRES_DB: backup_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./database/init-test.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backup-test-network
+
+  # Backup Server for integration tests
+  backup-server-test:
+    build:
+      context: ../../
+      dockerfile: src/server/Dockerfile
+    container_name: backup-integration-test-server
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres-test;Database=backup_test;Username=postgres;Password=postgres
+      - POSTGRES_HOST=postgres-test
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=backup_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - SERVER_PORT=8050
+      - UI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "8050:8050"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - backup-test-network
+    volumes:
+      - backup_test_storage:/data/backups
+
+  # Mock Agent for integration testing
+  mock-agent:
+    build:
+      context: ../../
+      dockerfile: src/agent/Dockerfile
+    container_name: backup-integration-test-agent
+    environment:
+      - SERVER_ADDR=backup-server-test:8050
+      - AGENT_TOKEN=test-token-123
+      - AGENT_TYPE=hyperv
+      - LOG_LEVEL=Debug
+    depends_on:
+      - backup-server-test
+    networks:
+      - backup-test-network
+    volumes:
+      - backup_test_storage:/backup-data
+
+  # Redis for caching and distributed locking (optional)
+  redis-test:
+    image: redis:7-alpine
+    container_name: backup-integration-test-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - backup-test-network
+
+  # Test runner for automated integration tests
+  test-runner:
+    build:
+      context: ../../
+      dockerfile: src/server/Backup.Server.IntegrationTests/Dockerfile.test
+    container_name: backup-integration-test-runner
+    environment:
+      - TEST_PostgresHost=postgres-test
+      - TEST_PostgresPort=5432
+      - TEST_PostgresDb=backup_test
+      - TEST_PostgresUser=postgres
+      - TEST_PostgresPassword=postgres
+      - TEST_ServerUrl=http://backup-server-test:8080
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      backup-server-test:
+        condition: service_started
+    networks:
+      - backup-test-network
+    volumes:
+      - ../../test-results:/app/TestResults
+
+volumes:
+  postgres_test_data:
+  backup_test_storage:
+
+networks:
+  backup-test-network:
+    driver: bridge

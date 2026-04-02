@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 
 namespace Backup.Server.Services;
 
@@ -31,9 +33,9 @@ public class NetworkResilienceService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Transfer attempt {Attempt} failed for {TransferId}", 
+                _logger.LogWarning(ex, "Transfer attempt {Attempt} failed for {TransferId}",
                     attempt, transferId);
-                
+
                 await Task.Delay(CalculateBackoff(attempt));
             }
         }
@@ -82,7 +84,7 @@ public class NetworkResilienceService
                 await connectTask;
                 return client.Connected;
             }
-            
+
             return false;
         }
         catch
@@ -125,6 +127,8 @@ public class StressTestService
 {
     private readonly ILogger<StressTestService> _logger;
     private readonly int _maxConcurrentBackups;
+    private readonly ConcurrentDictionary<string, StressTestSession> _activeSessions = new();
+    private static readonly SemaphoreSlim _globalSemaphore = new(100); // Max 100 concurrent
 
     public StressTestService(ILogger<StressTestService> logger)
     {
@@ -132,14 +136,28 @@ public class StressTestService
         _maxConcurrentBackups = 100;
     }
 
+    /// <summary>
+    /// Runs stress test with configurable parallelism for 100+ VMs
+    /// </summary>
     public async Task<StressTestResult> RunParallelBackupTestAsync(
         List<string> vmIds,
         int concurrentCount)
     {
-        var result = new StressTestResult { Success = false };
+        var sessionId = $"stress-{Guid.NewGuid():N}";
+        var session = new StressTestSession
+        {
+            SessionId = sessionId,
+            StartTime = DateTime.UtcNow,
+            TotalVMs = vmIds.Count,
+            TargetConcurrency = concurrentCount
+        };
+
+        _activeSessions[sessionId] = session;
+        var result = new StressTestResult { Success = false, SessionId = sessionId };
         var actualConcurrent = Math.Min(concurrentCount, _maxConcurrentBackups);
 
-        _logger.LogInformation("Starting stress test with {Count} parallel backups", actualConcurrent);
+        _logger.LogInformation("Starting stress test {SessionId} with {Count} VMs, {Concurrency} concurrent",
+            sessionId, vmIds.Count, actualConcurrent);
 
         try
         {
@@ -149,11 +167,98 @@ public class StressTestService
             foreach (var vmId in vmIds)
             {
                 await semaphore.WaitAsync();
-                
+                session.ActiveTasks++;
+
                 var task = Task.Run(async () =>
                 {
                     try
                     {
+                        var backupResult = await SimulateBackupAsync(vmId);
+                        session.CompletedTasks++;
+                        session.SuccessfulBackups += backupResult.Success ? 1 : 0;
+                        session.FailedBackups += backupResult.Success ? 0 : 1;
+                        return backupResult;
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                        session.ActiveTasks--;
+                    }
+                });
+
+                tasks.Add(task);
+            }
+
+            var results = await Task.WhenAll(tasks);
+
+            result.TotalBackups = results.Length;
+            result.SuccessfulBackups = results.Count(r => r.Success);
+            result.FailedBackups = results.Count(r => !r.Success);
+            result.AverageDuration = results.Any() ? results.Average(r => r.DurationMs) : 0;
+            result.MaxDuration = results.Any() ? results.Max(r => r.DurationMs) : 0;
+            result.MinDuration = results.Any() ? results.Min(r => r.DurationMs) : 0;
+            result.Percentile95Duration = GetPercentile(results.Select(r => r.DurationMs).OrderBy(x => x).ToList(), 95);
+            result.Success = result.FailedBackups == 0;
+            result.EndTime = DateTime.UtcNow;
+            result.TotalDuration = (result.EndTime - result.StartTime).TotalSeconds;
+
+            _logger.LogInformation("Stress test {SessionId} completed: {Success}/{Total} successful, Avg: {Avg}ms, P95: {P95}ms",
+                sessionId, result.SuccessfulBackups, result.TotalBackups, result.AverageDuration, result.Percentile95Duration);
+        }
+        catch (Exception ex)
+        {
+            result.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "Stress test {SessionId} failed", sessionId);
+        }
+        finally
+        {
+            session.EndTime = DateTime.UtcNow;
+            session.Status = "Completed";
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Enhanced stress test with network failure simulation
+    /// </summary>
+    public async Task<StressTestResult> RunStressTestWithNetworkFailuresAsync(
+        List<string> vmIds,
+        int concurrentCount,
+        int failureRatePercent = 10,
+        int failureDurationMs = 5000)
+    {
+        var sessionId = $"stress-net-{Guid.NewGuid():N}";
+        var result = new StressTestResult { Success = false, SessionId = sessionId };
+        var actualConcurrent = Math.Min(concurrentCount, _maxConcurrentBackups);
+
+        _logger.LogInformation("Starting stress test with network failures: {Count} VMs, {FailureRate}% failure rate",
+            vmIds.Count, failureRatePercent);
+
+        try
+        {
+            var tasks = new List<Task<BackupTestResult>>();
+            var semaphore = new SemaphoreSlim(actualConcurrent);
+            var random = new Random();
+
+            foreach (var vmId in vmIds)
+            {
+                await semaphore.WaitAsync();
+
+                var shouldFail = random.Next(0, 100) < failureRatePercent;
+
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (shouldFail)
+                        {
+                            // Simulate network failure
+                            await Task.Delay(failureDurationMs);
+                            // Retry after failure
+                            return await SimulateBackupAsync(vmId);
+                        }
+
                         return await SimulateBackupAsync(vmId);
                     }
                     finally
@@ -161,28 +266,121 @@ public class StressTestService
                         semaphore.Release();
                     }
                 });
-                
+
                 tasks.Add(task);
             }
 
             var results = await Task.WhenAll(tasks);
 
-            result.TotalBackups = results.Count;
+            result.TotalBackups = results.Length;
             result.SuccessfulBackups = results.Count(r => r.Success);
             result.FailedBackups = results.Count(r => !r.Success);
             result.AverageDuration = results.Average(r => r.DurationMs);
-            result.MaxDuration = results.Max(r => r.DurationMs);
             result.Success = result.FailedBackups == 0;
-
-            _logger.LogInformation("Stress test completed: {Success}/{Total} successful",
-                result.SuccessfulBackups, result.TotalBackups);
         }
         catch (Exception ex)
         {
             result.ErrorMessage = ex.Message;
-            _logger.LogError(ex, "Stress test failed");
+            _logger.LogError(ex, "Stress test with network failures failed");
         }
 
+        return result;
+    }
+
+    /// <summary>
+    /// Long-running endurance test (8+ hours)
+    /// </summary>
+    public async IAsyncEnumerable<EnduranceTestMetrics> RunEnduranceTestAsync(
+        List<string> vmIds,
+        int concurrentCount,
+        TimeSpan duration,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var sessionId = $"endurance-{Guid.NewGuid():N}";
+        var startTime = DateTime.UtcNow;
+        var totalRuns = 0;
+        var totalSuccess = 0;
+        var totalFailures = 0;
+        var allDurations = new ConcurrentBag<double>();
+
+        _logger.LogInformation("Starting endurance test {SessionId} for {Duration}", sessionId, duration);
+
+        while (DateTime.UtcNow - startTime < duration && !cancellationToken.IsCancellationRequested)
+        {
+            var runResult = await RunParallelBackupTestAsync(vmIds, concurrentCount);
+
+            totalRuns++;
+            totalSuccess += runResult.SuccessfulBackups;
+            totalFailures += runResult.FailedBackups;
+
+            foreach (var durationMs in runResult.Durations)
+            {
+                allDurations.Add(durationMs);
+            }
+
+            var metrics = new EnduranceTestMetrics
+            {
+                SessionId = sessionId,
+                ElapsedTime = DateTime.UtcNow - startTime,
+                TotalRuns = totalRuns,
+                TotalSuccess = totalSuccess,
+                TotalFailures = totalFailures,
+                SuccessRate = totalRuns > 0 ? (double)totalSuccess / (totalSuccess + totalFailures) * 100 : 0,
+                AverageDuration = allDurations.Any() ? allDurations.Average() : 0,
+                MemoryUsageMB = GC.GetTotalMemory(false) / 1024 / 1024,
+                ActiveThreads = System.Diagnostics.Process.GetCurrentProcess().Threads.Count
+            };
+
+            yield return metrics;
+
+            // Wait between runs
+            await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+
+        _logger.LogInformation("Endurance test {SessionId} completed: {SuccessRate}% success rate",
+            sessionId, totalRuns > 0 ? (double)totalSuccess / (totalSuccess + totalFailures) * 100 : 0);
+    }
+
+    /// <summary>
+    /// Scalability test - gradually increase concurrent VMs
+    /// </summary>
+    public async Task<ScalabilityTestResult> RunScalabilityTestAsync(
+        List<string> vmIds,
+        int startConcurrency,
+        int maxConcurrency,
+        int stepSize)
+    {
+        var result = new ScalabilityTestResult();
+        var currentConcurrency = startConcurrency;
+
+        _logger.LogInformation("Starting scalability test: {Start} -> {Max} (step {Step})",
+            startConcurrency, maxConcurrency, stepSize);
+
+        while (currentConcurrency <= maxConcurrency && currentConcurrency <= _maxConcurrentBackups)
+        {
+            var runResult = await RunParallelBackupTestAsync(vmIds, currentConcurrency);
+
+            result.Metrics.Add(new ScalabilityMetric
+            {
+                Concurrency = currentConcurrency,
+                TotalBackups = runResult.TotalBackups,
+                SuccessfulBackups = runResult.SuccessfulBackups,
+                AverageDuration = runResult.AverageDuration,
+                Percentile95Duration = runResult.Percentile95Duration,
+                ThroughputPerSecond = runResult.TotalDuration > 0
+                    ? runResult.TotalBackups / runResult.TotalDuration
+                    : 0
+            });
+
+            _logger.LogInformation("Scalability test at {Concurrency}: Avg={Avg}ms, P95={P95}ms, Throughput={Throughput}/s",
+                currentConcurrency, runResult.AverageDuration, runResult.Percentile95Duration,
+                runResult.TotalDuration > 0 ? runResult.TotalBackups / runResult.TotalDuration : 0);
+
+            currentConcurrency += stepSize;
+            await Task.Delay(TimeSpan.FromSeconds(5)); // Cool-down between runs
+        }
+
+        result.Success = true;
         return result;
     }
 
@@ -196,8 +394,10 @@ public class StressTestService
 
         try
         {
+            // Simulate realistic backup duration (1-10 seconds)
             await Task.Delay(Random.Shared.Next(1000, 10000));
-            
+
+            // 95% success rate simulation
             result.Success = Random.Shared.NextDouble() > 0.05;
             result.EndTime = DateTime.UtcNow;
             result.DurationMs = (int)(result.EndTime - result.StartTime).TotalMilliseconds;
@@ -278,13 +478,20 @@ public class StressTestService
 
 public class StressTestResult
 {
+    public string SessionId { get; set; } = string.Empty;
     public bool Success { get; set; }
     public int TotalBackups { get; set; }
     public int SuccessfulBackups { get; set; }
     public int FailedBackups { get; set; }
     public double AverageDuration { get; set; }
     public double MaxDuration { get; set; }
+    public double MinDuration { get; set; }
+    public double Percentile95Duration { get; set; }
+    public List<double> Durations { get; set; } = new();
     public string ErrorMessage { get; set; } = string.Empty;
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public double TotalDuration { get; set; }
 }
 
 public class BackupTestResult
@@ -325,4 +532,81 @@ public class PerformanceSample
     public double MemoryMb { get; set; }
     public double NetworkMbps { get; set; }
     public double DiskMbps { get; set; }
+}
+
+public class StressTestSession
+{
+    public string SessionId { get; set; } = string.Empty;
+    public DateTime StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+    public int TotalVMs { get; set; }
+    public int TargetConcurrency { get; set; }
+    public int ActiveTasks { get; set; }
+    public int CompletedTasks { get; set; }
+    public int SuccessfulBackups { get; set; }
+    public int FailedBackups { get; set; }
+    public string Status { get; set; } = "Running";
+}
+
+public class EnduranceTestMetrics
+{
+    public string SessionId { get; set; } = string.Empty;
+    public TimeSpan ElapsedTime { get; set; }
+    public int TotalRuns { get; set; }
+    public int TotalSuccess { get; set; }
+    public int TotalFailures { get; set; }
+    public double SuccessRate { get; set; }
+    public double AverageDuration { get; set; }
+    public double MemoryUsageMB { get; set; }
+    public int ActiveThreads { get; set; }
+}
+
+public class ScalabilityTestResult
+{
+    public bool Success { get; set; }
+    public List<ScalabilityMetric> Metrics { get; set; } = new();
+}
+
+public class ScalabilityMetric
+{
+    public int Concurrency { get; set; }
+    public int TotalBackups { get; set; }
+    public int SuccessfulBackups { get; set; }
+    public double AverageDuration { get; set; }
+    public double Percentile95Duration { get; set; }
+    public double ThroughputPerSecond { get; set; }
+}
+
+public class StressTestConfiguration
+{
+    public int MaxConcurrentBackups { get; set; } = 100;
+    public int TestDurationMinutes { get; set; } = 60;
+    public int FailureRatePercent { get; set; } = 5;
+    public bool EnableNetworkFailureSimulation { get; set; } = true;
+    public bool EnableResourceMonitoring { get; set; } = true;
+    public int MonitoringIntervalSeconds { get; set; } = 30;
+}
+
+public class ResourceMetrics
+{
+    public DateTime Timestamp { get; set; }
+    public double CpuUsagePercent { get; set; }
+    public double MemoryUsageMB { get; set; }
+    public double NetworkThroughputMbps { get; set; }
+    public double DiskThroughputMbps { get; set; }
+    public int ActiveConnections { get; set; }
+    public int ThreadPoolThreads { get; set; }
+    public int PendingRequests { get; set; }
+}
+
+public static class StressTestExtensions
+{
+    public static double GetPercentile(List<double> values, int percentile)
+    {
+        if (!values.Any()) return 0;
+
+        var sorted = values.OrderBy(x => x).ToList();
+        var index = (int)Math.Ceiling(percentile / 100.0 * sorted.Count) - 1;
+        return sorted[Math.Max(0, index)];
+    }
 }

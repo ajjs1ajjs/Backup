@@ -1,0 +1,32 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy test project
+COPY src/server/Backup.Server.IntegrationTests/ ./Backup.Server.IntegrationTests/
+COPY src/server/Backup.Server/ ./Backup.Server/
+COPY src/protos/ ./protos/
+
+# Restore and build
+WORKDIR /app/Backup.Server.IntegrationTests
+RUN dotnet restore
+RUN dotnet build --no-restore
+
+# Set environment variables
+ENV DOTNET_ENVIRONMENT=Development
+ENV TEST_PostgresHost=postgres-test
+ENV TEST_PostgresPort=5432
+ENV TEST_PostgresDb=backup_test
+ENV TEST_PostgresUser=postgres
+ENV TEST_PostgresPassword=postgres
+
+# Create results directory
+RUN mkdir -p /app/TestResults
+
+# Run tests
+ENTRYPOINT ["dotnet", "test", "--logger", "trx;LogFileName=/app/TestResults/test-results.trx", "--results-directory", "/app/TestResults"]
