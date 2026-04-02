@@ -88,12 +88,26 @@ dotnet run
 
 **Linux:**
 ```bash
+# Standard installation
 curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash
+
+# Skip SSL verification (if certificate issues)
+curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash
+
+# With parameters
+curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 ```
 
 **Windows (PowerShell):**
 ```powershell
+# Standard installation
 iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex
+
+# Skip SSL verification
+iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex
+
+# With parameters
+.\install.ps1 -Server "10.0.0.1:50051" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 ```
 
 ### 3. Access UI
