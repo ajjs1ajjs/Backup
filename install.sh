@@ -212,15 +212,22 @@ download_source() {
     
     log "Compiling agent..."
     mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" 2>/dev/null || {
-        log "CMake failed - trying alternative build..."
-        cd ..
-        mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release 2>/dev/null || {
-            error "Build failed. Please provide source with --local-source or install cmake"
-        }
-    }
-    make -j$(nproc)
+    
+    if cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" 2>&1 | tee cmake.log; then
+        log "CMake configuration successful"
+    else
+        log "CMake failed - checking log..."
+        cat cmake.log
+        error "Build failed. Please provide source with --local-source"
+    fi
+    
+    if make -j$(nproc) 2>&1 | tee make.log; then
+        log "Make successful"
+    else
+        log "Make failed - checking log..."
+        cat make.log
+        error "Build failed"
+    fi
     
     mkdir -p "$BIN_DIR"
     cp backup-agent "$BIN_DIR/" 2>/dev/null || cp *backup-agent* "$BIN_DIR/" 2>/dev/null || {
