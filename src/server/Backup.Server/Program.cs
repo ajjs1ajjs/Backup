@@ -102,9 +102,10 @@ try
         options.GeneralRules = new List<RateLimitRule>
         {
             new() { Endpoint = "*", Period = "1m", Limit = 100 },
-            new() { Endpoint = "*/api/auth/*", Period = "1m", Limit = 20 },
-            new() { Endpoint = "*/api/*", Period = "1m", Limit = 100 }
+            new() { Endpoint = "*/api/auth/*", Period = "1m", Limit = 100 },
+            new() { Endpoint = "*/api/*", Period = "1m", Limit = 200 }
         };
+        options.IpWhitelist = new List<string> { "127.0.0.1", "::1" };
     });
     builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
     builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
@@ -141,7 +142,7 @@ try
     app.UseStaticFiles();
     app.UseAuthentication();
     app.UseAuthorization();
-    app.UseIpRateLimiting();
+    // app.UseIpRateLimiting();
 
     app.MapGrpcService<AgentServiceImpl>();
     app.MapGrpcService<JobServiceImpl>();
