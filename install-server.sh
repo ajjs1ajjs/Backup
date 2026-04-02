@@ -23,7 +23,7 @@ cd /tmp
 rm -rf Backup server.zip 2>/dev/null
 
 curl -fsSL -o server.zip https://github.com/ajjs1ajjs/Backup/archive/refs/heads/main.zip
-unzip -q server.zip
+unzip -o -q server.zip
 
 cd Backup-main/src/server
 
