@@ -4,6 +4,8 @@
 #include <vector>
 #include <fstream>
 #include <cstring>
+#include <thread>
+#include <chrono>
 
 namespace backup {
 
@@ -26,16 +28,30 @@ public:
 }
 
 std::string config_file;
+std::string command;
+
+void print_help() {
+    std::cout << "Backup Agent v1.0.0" << std::endl;
+    std::cout << "Usage: backup-agent <command> [options]" << std::endl;
+    std::cout << "Commands:" << std::endl;
+    std::cout << "  daemon    - Run as daemon (default)" << std::endl;
+    std::cout << "  backup    - Start backup operation" << std::endl;
+    std::cout << "  restore   - Start restore operation" << std::endl;
+    std::cout << "  list      - List backups" << std::endl;
+    std::cout << "  version   - Show version" << std::endl;
+    std::cout << "  help      - Show help" << std::endl;
+}
 
 void parse_args(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg == "--config" && i + 1 < argc) {
-            config_file = argv[i + 1];
-            i++;
-        } else if (arg == "-c" && i + 1 < argc) {
-            config_file = argv[i + 1];
-            i++;
+        if (arg == "--config" || arg == "-c") {
+            if (i + 1 < argc) {
+                config_file = argv[i + 1];
+                i++;
+            }
+        } else if (command.empty()) {
+            command = arg;
         }
     }
 }
@@ -43,19 +59,17 @@ void parse_args(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     parse_args(argc, argv);
     
-    if (argc < 2) {
-        std::cout << "Backup Agent v1.0.0" << std::endl;
-        std::cout << "Usage: backup-agent <command> [options]" << std::endl;
-        std::cout << "Commands:" << std::endl;
-        std::cout << "  backup    - Start backup operation" << std::endl;
-        std::cout << "  restore   - Start restore operation" << std::endl;
-        std::cout << "  list      - List backups" << std::endl;
-        std::cout << "  version   - Show version" << std::endl;
-        std::cout << "  help      - Show help" << std::endl;
+    if (command.empty() || command == "daemon") {
+        if (!config_file.empty()) {
+            std::cout << "Config file: " << config_file << std::endl;
+        }
+        std::cout << "Agent running in daemon mode..." << std::endl;
+        std::cout << "Agent started successfully" << std::endl;
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+        }
         return 0;
     }
-
-    std::string command = argv[1];
 
     if (command == "version" || command == "--version" || command == "-v") {
         std::cout << "Backup Agent v1.0.0" << std::endl;
@@ -63,14 +77,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (command == "help" || command == "--help" || command == "-h") {
-        std::cout << "Backup Agent v1.0.0" << std::endl;
-        std::cout << "Usage: backup-agent <command> [options]" << std::endl;
-        std::cout << "Commands:" << std::endl;
-        std::cout << "  backup    - Start backup operation" << std::endl;
-        std::cout << "  restore   - Start restore operation" << std::endl;
-        std::cout << "  list      - List backups" << std::endl;
-        std::cout << "  version   - Show version" << std::endl;
-        std::cout << "  help      - Show help" << std::endl;
+        print_help();
         return 0;
     }
 
@@ -78,12 +85,11 @@ int main(int argc, char* argv[]) {
         if (!config_file.empty()) {
             std::cout << "Config file: " << config_file << std::endl;
         }
-        std::cout << "Agent running in daemon mode..." << std::endl;
-        std::cout << "Agent started successfully" << std::endl;
+        std::cout << "Agent command: " << command << std::endl;
         return 0;
     }
 
     std::cout << "Unknown command: " << command << std::endl;
-    std::cout << "Run 'backup-agent help' for usage information" << std::endl;
+    print_help();
     return 1;
 }

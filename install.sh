@@ -318,13 +318,27 @@ start_agent() {
     if systemctl is-active --quiet backup-agent; then
         log "Agent started successfully"
         systemctl status backup-agent --no-pager
+        return 0
     else
         log "Warning: Failed to start agent via systemd, trying direct start..."
         log "Checking service status..."
         systemctl status backup-agent --no-pager || true
+        
         log "Trying to start agent directly..."
-        $BIN_DIR/backup-agent version || log "Direct start failed"
-        error "Failed to start agent"
+        if $BIN_DIR/backup-agent --config "$CONFIG_DIR/agent.conf"; then
+            log "Agent started successfully (direct mode)"
+            return 0
+        fi
+        
+        log "Agent returned non-zero but may still be running. Checking..."
+        sleep 1
+        if pgrep -x "backup-agent" > /dev/null; then
+            log "Agent is running"
+            return 0
+        fi
+        
+        log "Agent failed to start"
+        return 1
     fi
 }
 
