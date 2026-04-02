@@ -62,21 +62,21 @@ dotnet run
 **Linux:**
 ```bash
 # One-line installation (recommended)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server localhost:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 
 # Download script first, then run
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server localhost:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # One-line installation (recommended)
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "localhost:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 
 # Download script first, then run
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+.\install.ps1 -Server "localhost:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 ```
 
 ### 3. Access UI
@@ -150,7 +150,7 @@ Create `appsettings.json`:
     "Audience": "BackupClients"
   },
   "Server": {
-    "PublicUrl": "http://10.0.0.10:8000"
+    "PublicUrl": "http://localhost:8000"
   },
   "BootstrapAdmin": {
     "Username": "admin",

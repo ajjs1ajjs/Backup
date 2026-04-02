@@ -14,12 +14,12 @@
 
 ### Linux
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server localhost:8000 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
 ```
 
 ### Windows
 ```powershell
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "localhost:8000" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
 ```
 
 ## Альтернативний спосіб (зберегти скрипт)
@@ -27,22 +27,13 @@ irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -S
 ### Linux
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server localhost:8000 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
 ```
 
 ### Windows
 ```powershell
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
-```
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AutoStart
-
-# Windows - пропустити SSL
-iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AutoStart
-
-# Windows - зберегти скрипт і виконати
-irm -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AutoStart
+.\install.ps1 -Server "localhost:8000" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
 ```
 
 ## Серверна інсталяція (одною командою)
@@ -60,12 +51,12 @@ sudo ./install.sh --mode server --install-dir /opt/backup-server
 ### Повна інсталяція (Server + Agent)
 ```bash
 # Linux
-sudo ./install.sh --mode all --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+sudo ./install.sh --mode all --server localhost:8000 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
 ```
 
 ```powershell
 # Windows
-.\install.ps1 -Mode all -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+.\install.ps1 -Mode all -Server "localhost:8000" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
 ```
 
 ## Параметри інсталяції
@@ -73,7 +64,7 @@ sudo ./install.sh --mode all --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --
 ```bash
 # Повна інсталяція агента з параметрами
 ./install.sh \
-  --server 10.0.0.1:8000 \
+  --server localhost:8000 \
   --token "AAA-BBB-CCC-DDD" \
   --agent-type "hyperv" \
   --auto-start
@@ -81,14 +72,14 @@ sudo ./install.sh --mode all --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --
 
 ```powershell
 # Windows з параметрами
-.\install.ps1 -Server "10.0.0.1:8000" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+.\install.ps1 -Server "localhost:8000" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
 ```
 
 ## Параметри
 
 | Параметр | Опис | Приклад |
 |----------|------|---------|
-| `--server` | Адреса Management Server | `10.0.0.1:8000` |
+| `--server` | Адреса Management Server | `localhost:8000` |
 | `--token` | Токен реєстрації агента | `AAA-BBB-CCC-DDD` |
 | `--agent-type` | Тип агента | `hyperv`, `vmware`, `kvm`, `mssql`, `postgres`, `oracle` |
 | `--install-dir` | Директорія інсталяції | `/opt/backup-agent` |
@@ -117,7 +108,7 @@ sudo ./install.sh --mode all --server 10.0.0.1:8000 --token "AAA-BBB-CCC-DDD" --
 ```bash
 docker run -d \
   --name backup-agent \
-  -e SERVER_ADDR=10.0.0.1:8000 \
+  -e SERVER_ADDR=localhost:8000 \
   -e AGENT_TOKEN=AAA-BBB-CCC-DDD \
   -e AGENT_TYPE=hyperv \
   -v /var/lib/backup-agent:/data \
@@ -131,7 +122,7 @@ docker run -d \
   --name backup-server \
   -p 8000:8000 \
   -e Jwt__Key="CHANGE_ME_TO_A_STRONG_SECRET" \
-  -e Server__PublicUrl="http://10.0.0.10:8000" \
+  -e Server__PublicUrl="http://localhost:8000" \
   -v /backup/data:/data \
   -e DB_CONNECTION="Server=db;Database=backup;User=sa;Password=P@ssw0rd" \
   backupsystem/server:latest
