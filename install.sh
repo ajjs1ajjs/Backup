@@ -104,7 +104,7 @@ check_deps() {
     
     log "Checking dependencies..."
     
-    for cmd in cmake make g++ git pkg-config; do
+    for cmd in cmake make g++ git pkg-config unzip; do
         if ! command -v $cmd &> /dev/null; then
             missing+=($cmd)
         fi
@@ -124,6 +124,7 @@ check_deps() {
             build-essential \
             git \
             pkg-config \
+            unzip \
             libssl-dev \
             libcurl4-openssl-dev \
             libxml2-dev \
@@ -197,16 +198,16 @@ download_source() {
         fi
         
         unzip -q source.zip
-        mv Backup-main/src/agent/* . 2>/dev/null || mv Backup-main/* . 2>/dev/null || true
-        rm -rf source.zip Backup-main
         
-        if [[ ! -f "CMakeLists.txt" && ! -f "Makefile" ]]; then
-            log "Warning: CMakeLists.txt not found, trying alternative location..."
-            if [[ -d "src/agent/Backup.Agent" ]]; then
-                mv src/agent/Backup.Agent/* .
-                rm -rf src
-            fi
+        if [[ -d "Backup-main/src/agent/Backup.Agent" ]]; then
+            cp -r Backup-main/src/agent/Backup.Agent/* .
+            log "Agent source extracted to $(pwd)"
+        elif [[ -d "Backup-main/src/agent" ]]; then
+            cp -r Backup-main/src/agent/* .
+        else
+            cp -r Backup-main/* .
         fi
+        rm -rf source.zip Backup-main
     fi
     
     log "Compiling agent..."
