@@ -3,7 +3,7 @@
 > Enterprise-grade backup solution for virtual machines and databases
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![ .NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
 [![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
 [![C++](https://img.shields.io/badge/C++-20-yellow.svg)](https://isocpp.org/)
 
@@ -34,38 +34,11 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Web UI (React + MUI)                     │
-│              https://github.com/.../src/ui                  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Management Server (.NET 8 + gRPC)               │
-│              https://github.com/.../src/server               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐ │
-│  │  Jobs    │  │ Scheduler│  │  REST    │  │   Cloud     │ │
-│  │ Service  │  │ (Quartz)│  │   API    │  │  Storage    │ │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-          ┌───────────────────┼───────────────────┐
-          ▼                   ▼                   ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│   Hyper-V Agent   │ │  VMware Agent    │ │    KVM Agent     │
-│   (C++)           │ │    (C++)         │ │    (C++)         │
-│ https://.../     │ │ https://.../     │ │ https://.../     │
-│ hyperv/           │ │   vmware/        │ │     kvm/         │
-└──────────────────┘ └──────────────────┘ └──────────────────┘
-          │                   │                   │
-          └───────────────────┼───────────────────┘
-                              ▼
-              ┌───────────────────────────────┐
-              │     Storage Repository        │
-              │  Local | NFS | S3 | Azure    │
-              └───────────────────────────────┘
-```
+- **Web UI**: `src/ui` (React + Material UI)
+- **Management Server**: `src/server/Backup.Server` (.NET 8, REST + gRPC)
+- **Agent Runtime**: `src/agent/Backup.Agent` (C++20)
+- **Shared Contracts**: `src/protos` (Protocol Buffers)
+- **Storage Targets**: Local, NFS/SMB, S3-compatible, Azure Blob, GCS
 
 ## 🚀 Quick Start
 
@@ -75,8 +48,8 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 # Using Docker
 docker run -d \
   -p 8050:8050 \
-  -p 8080:8080 \
   -e POSTGRES_HOST=localhost \
+  -e Jwt__Key="CHANGE_ME_TO_A_STRONG_SECRET" \
   backupsystem/server:latest
 
 # Or from source
@@ -108,7 +81,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/
 
 ### 3. Access UI
 
-Open http://localhost:8080 in your browser.
+Open `http://localhost:8050/swagger` for API and configure UI API URL (see Configuration section).
 
 ## 📁 Project Structure
 
@@ -155,8 +128,12 @@ src/
 | `POSTGRES_DB` | Database name | backup |
 | `POSTGRES_USER` | Database user | postgres |
 | `POSTGRES_PASSWORD` | Database password | postgres |
-| `SERVER_PORT` | gRPC server port | 8050 |
-| `UI_PORT` | Web UI port | 8080 |
+| `SERVER_PORT` | Server port | 8050 |
+| `Server__PublicUrl` | Public URL for agents/install scripts | auto-detected as `http://<local-ip>:8050` |
+| `Jwt__Key` | JWT signing key (required) | no default, server won't start without it |
+| `BootstrapAdmin__Username` | First admin username | admin |
+| `BootstrapAdmin__Email` | First admin email | admin@backupsystem.com |
+| `BootstrapAdmin__Password` | First admin temporary password | admin123 |
 
 ### Configuration File
 
@@ -166,6 +143,19 @@ Create `appsettings.json`:
 {
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Database=backup;Username=postgres;Password=postgres"
+  },
+  "Jwt": {
+    "Key": "CHANGE_ME_TO_A_STRONG_SECRET",
+    "Issuer": "BackupServer",
+    "Audience": "BackupClients"
+  },
+  "Server": {
+    "PublicUrl": "http://10.0.0.10:8050"
+  },
+  "BootstrapAdmin": {
+    "Username": "admin",
+    "Email": "admin@backupsystem.com",
+    "Password": "admin123"
   },
   "Smtp": {
     "Host": "smtp.example.com",
@@ -182,6 +172,13 @@ Create `appsettings.json`:
   }
 }
 ```
+
+## 🔐 Security Defaults
+
+- `Jwt:Key` is mandatory and must be set before server startup.
+- On first installation, bootstrap admin credentials are created from `BootstrapAdmin:*`.
+- First login with bootstrap admin enforces password change before issuing a token.
+- Update `server.public_url` (Settings API) after installation if external/public endpoint changes.
 
 ## 📚 Documentation
 
