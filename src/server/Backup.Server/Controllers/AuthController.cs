@@ -38,12 +38,41 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var token = await _authService.LoginAsync(request.Username, request.Password);
-            return Ok(new { token });
+            var result = await _authService.LoginAsync(request.Username, request.Password);
+            if (result.MustChangePassword)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = "Password change required",
+                    code = "PASSWORD_CHANGE_REQUIRED",
+                    mustChangePassword = true
+                });
+            }
+
+            return Ok(new { token = result.Token });
         }
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("change-password-first-login")]
+    public async Task<IActionResult> ChangePasswordFirstLogin([FromBody] ChangePasswordFirstLoginRequest request)
+    {
+        try
+        {
+            await _authService.ChangePasswordAsync(request.Username, request.CurrentPassword, request.NewPassword);
+            var loginResult = await _authService.LoginAsync(request.Username, request.NewPassword);
+            return Ok(new { token = loginResult.Token });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -97,4 +126,11 @@ public class LoginRequest
 {
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+}
+
+public class ChangePasswordFirstLoginRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }

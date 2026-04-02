@@ -102,14 +102,17 @@ public class AgentCommunicationService : BackgroundService
 {
     private readonly IServiceProvider _services;
     private readonly ILogger<AgentCommunicationService> _logger;
+    private readonly IConfiguration _configuration;
     private readonly ConcurrentDictionary<long, GrpcAgentClient> _agentClients = new();
 
     public AgentCommunicationService(
         IServiceProvider services,
-        ILogger<AgentCommunicationService> logger)
+        ILogger<AgentCommunicationService> logger,
+        IConfiguration configuration)
     {
         _services = services;
         _logger = logger;
+        _configuration = configuration;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -129,7 +132,7 @@ public class AgentCommunicationService : BackgroundService
                 {
                     if (!_agentClients.TryGetValue(agent.Id, out var client))
                     {
-                        client = new GrpcAgentClient("http://localhost:8050", 
+                        client = new GrpcAgentClient(_configuration["AgentCommunication:ServerAddress"] ?? "http://localhost:8050", 
                             _services.GetRequiredService<ILogger<GrpcAgentClient>>());
                         _agentClients[agent.Id] = client;
                     }

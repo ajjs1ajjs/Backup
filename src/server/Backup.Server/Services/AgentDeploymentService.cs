@@ -13,15 +13,18 @@ public class AgentDeploymentService
     private readonly BackupDbContext _db;
     private readonly ILogger<AgentDeploymentService> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
 
     public AgentDeploymentService(
         BackupDbContext db, 
         ILogger<AgentDeploymentService> logger,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IConfiguration configuration)
     {
         _db = db;
         _logger = logger;
         _env = env;
+        _configuration = configuration;
     }
 
     public async Task<DeploymentResult> DeployAgentAsync(DeploymentRequest request)
@@ -41,7 +44,7 @@ public class AgentDeploymentService
                 return result;
             }
 
-            var deployScript = GenerateDeployScript(request);
+            var deployScript = await GenerateDeployScriptAsync(request);
             
             if (request.DeployMethod == "ssh")
             {
@@ -53,7 +56,7 @@ public class AgentDeploymentService
             }
             else if (request.DeployMethod == "manual")
             {
-                result = GenerateManualInstructions(request);
+                result = await GenerateManualInstructionsAsync(request);
             }
 
             _logger.LogInformation("Deployed agent {AgentId} to {Host}", request.AgentId, request.TargetHost);
@@ -67,9 +70,9 @@ public class AgentDeploymentService
         return result;
     }
 
-    private string GenerateDeployScript(DeploymentRequest request)
+    private async Task<string> GenerateDeployScriptAsync(DeploymentRequest request)
     {
-        var serverUrl = "http://localhost:8050";
+        var serverUrl = await GetConfiguredServerUrlAsync();
         
         if (request.AgentType == "hyperv" || request.AgentType == "mssql")
         {
@@ -159,9 +162,9 @@ curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --ser
         return result;
     }
 
-    private DeploymentResult GenerateManualInstructions(DeploymentRequest request)
+    private async Task<DeploymentResult> GenerateManualInstructionsAsync(DeploymentRequest request)
     {
-        var serverUrl = "http://localhost:8050";
+        var serverUrl = await GetConfiguredServerUrlAsync();
         
         return new DeploymentResult
         {
@@ -202,6 +205,19 @@ Linux Agent Installation:
     public async Task<List<AgentMetrics>> GetAgentMetricsAsync(long agentId)
     {
         return new List<AgentMetrics>();
+    }
+
+    private async Task<string> GetConfiguredServerUrlAsync()
+    {
+        var settingValue = await _db.Settings
+            .Where(s => s.Key == "server.public_url")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync();
+
+        if (!string.IsNullOrWhiteSpace(settingValue))
+            return settingValue;
+
+        return _configuration["Server:PublicUrl"] ?? "http://localhost:8050";
     }
 }
 

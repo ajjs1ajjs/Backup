@@ -12,7 +12,8 @@ namespace Backup.Server.Services;
 public interface IAuthService
 {
     Task<string> RegisterAsync(string username, string email, string password, string role = "Viewer");
-    Task<string> LoginAsync(string username, string password);
+    Task<LoginResult> LoginAsync(string username, string password);
+    Task ChangePasswordAsync(string username, string currentPassword, string newPassword);
     Task<User?> GetUserByIdAsync(string userId);
     Task<User?> GetUserByUsernameAsync(string username);
     Task<bool> ValidatePasswordAsync(string userId, string password);
@@ -60,7 +61,7 @@ public class AuthService : IAuthService
         return GenerateJwtToken(user);
     }
 
-    public async Task<string> LoginAsync(string username, string password)
+    public async Task<LoginResult> LoginAsync(string username, string password)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
         
@@ -73,7 +74,32 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return GenerateJwtToken(user);
+        return new LoginResult
+        {
+            MustChangePassword = user.MustChangePassword,
+            Token = user.MustChangePassword ? null : GenerateJwtToken(user)
+        };
+    }
+
+    public async Task ChangePasswordAsync(string username, string currentPassword, string newPassword)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        if (user == null || !user.IsActive)
+            throw new UnauthorizedAccessException("Invalid credentials");
+
+        if (!VerifyPassword(currentPassword, user.PasswordHash))
+            throw new UnauthorizedAccessException("Invalid credentials");
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            throw new InvalidOperationException("New password must be at least 8 characters");
+
+        if (VerifyPassword(newPassword, user.PasswordHash))
+            throw new InvalidOperationException("New password must be different from current password");
+
+        user.PasswordHash = HashPassword(newPassword);
+        user.MustChangePassword = false;
+        user.LastLoginAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
     }
 
     public async Task<User?> GetUserByIdAsync(string userId)
@@ -115,8 +141,11 @@ public class AuthService : IAuthService
 
     private string GenerateJwtToken(User user)
     {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "BackupServerSecretKey2024!@#$%^&*()"));
+        var jwtKey = _configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            throw new InvalidOperationException("Jwt:Key is not configured");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -150,4 +179,10 @@ public class AuthService : IAuthService
     {
         return HashPassword(password) == hash;
     }
+}
+
+public class LoginResult
+{
+    public string? Token { get; set; }
+    public bool MustChangePassword { get; set; }
 }

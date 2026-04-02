@@ -342,6 +342,8 @@ public class User
 
     public DateTime? LastLoginAt { get; set; }
 
+    public bool MustChangePassword { get; set; } = false;
+
     [MaxLength(64)]
     public string? TwoFactorSecret { get; set; }
 }

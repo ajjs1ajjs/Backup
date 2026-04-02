@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL =
+  window.localStorage.getItem('apiUrl') ||
+  process.env.REACT_APP_API_URL ||
+  'http://localhost:8050';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -18,10 +21,10 @@ api.interceptors.response.use(
   }
 );
 
-export const useApi = (url: string) => {
-  const [data, setData] = useState<any>(null);
+export const useApi = (url) => {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   const refetch = async () => {
     setLoading(true);
@@ -29,7 +32,7 @@ export const useApi = (url: string) => {
       const response = await api.get(url);
       setData(response.data);
       setError(null);
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -43,10 +46,10 @@ export const useApi = (url: string) => {
   return { data, loading, error, refetch };
 };
 
-export const useApiMutation = (url: string, method: string = 'POST') => {
+export const useApiMutation = (url, method = 'POST') => {
   const [loading, setLoading] = useState(false);
 
-  const mutate = async (body?: any) => {
+  const mutate = async (body) => {
     setLoading(true);
     try {
       const response = await api({ url, method, data: body });
@@ -65,7 +68,7 @@ export const ApiContext = createContext({
   useApiMutation
 });
 
-export const ApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ApiProvider = ({ children }) => {
   return (
     <ApiContext.Provider value={{ api, useApi, useApiMutation }}>
       {children}

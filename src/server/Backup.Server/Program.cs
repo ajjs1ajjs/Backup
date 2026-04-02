@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Backup.Server.Database.Entities;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Text;
+using System.Net;
+using System.Net.Sockets;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -27,7 +30,11 @@ try
     builder.Services.AddDbContext<BackupDbContext>(options =>
         options.UseNpgsql(connectionString));
 
-    var jwtKey = builder.Configuration["Jwt:Key"] ?? "BackupServerSecretKey2024!@#$%^&*()";
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrWhiteSpace(jwtKey))
+    {
+        throw new InvalidOperationException("Missing required configuration: Jwt:Key");
+    }
     var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
     var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
 
@@ -112,11 +119,45 @@ try
         Log.Information("Database initialized");
         
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
-        var adminUser = await authService.GetUserByUsernameAsync("admin");
+        var bootstrapAdminUsername = builder.Configuration["BootstrapAdmin:Username"] ?? "admin";
+        var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
+        var bootstrapAdminPassword = builder.Configuration["BootstrapAdmin:Password"] ?? "admin123";
+        var configuredPublicServerUrl = builder.Configuration["Server:PublicUrl"];
+        var publicServerUrl = configuredPublicServerUrl;
+        if (string.IsNullOrWhiteSpace(publicServerUrl))
+        {
+            var hostAddress = Dns.GetHostAddresses(Dns.GetHostName())
+                .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                ?.ToString() ?? "localhost";
+            publicServerUrl = $"http://{hostAddress}:8050";
+        }
+
+        var adminUser = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
         if (adminUser == null)
         {
-            await authService.RegisterAsync("admin", "admin@backupsystem.com", "admin123", "Admin");
-            Log.Information("Default admin user created (admin/admin123)");
+            await authService.RegisterAsync(bootstrapAdminUsername, bootstrapAdminEmail, bootstrapAdminPassword, "Admin");
+            var createdAdmin = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
+            if (createdAdmin != null)
+            {
+                createdAdmin.MustChangePassword = true;
+                await db.SaveChangesAsync();
+            }
+
+            Log.Information("Bootstrap admin user created and marked for first-login password change");
+        }
+
+        var publicUrlSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "server.public_url");
+        if (publicUrlSetting == null)
+        {
+            db.Settings.Add(new Setting
+            {
+                Key = "server.public_url",
+                Value = publicServerUrl,
+                Type = "string",
+                Description = "Public server URL used by agents and installers",
+                UpdatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
         }
     }
 

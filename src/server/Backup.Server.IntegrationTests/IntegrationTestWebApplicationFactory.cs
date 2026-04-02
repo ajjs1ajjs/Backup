@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Grpc.Net.Client;
 using Backup.Server.Database;
 using Testcontainers.PostgreSql;
 
@@ -70,7 +71,11 @@ public class GrpcIntegrationTestFixture : IAsyncLifetime
 
     public GrpcChannel CreateGrpcChannel()
     {
-        return GrpcChannel.ForAddress("http://localhost:5000", new GrpcChannelOptions
+        var serverUrl = Environment.GetEnvironmentVariable("TEST_ServerUrl")
+            ?? _httpClient.BaseAddress?.ToString()
+            ?? "http://localhost:5000";
+
+        return GrpcChannel.ForAddress(serverUrl, new GrpcChannelOptions
         {
             HttpHandler = _handler
         });

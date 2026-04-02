@@ -6,21 +6,36 @@ import { useAuthStore } from '../store/authStore';
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuthStore();
+  const { login, changePasswordFirstLogin, authError } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (username && password) {
       const success = await login(username, password);
       if (success) {
         navigate('/dashboard');
+      } else if (authError === 'PASSWORD_CHANGE_REQUIRED') {
+        setShowChangePassword(true);
+        setError('Потрібно змінити пароль при першому вході');
       } else {
         setError('Invalid credentials');
       }
     } else {
       setError('Please enter username and password');
+    }
+  };
+
+  const handleFirstLoginPasswordChange = async (e) => {
+    e.preventDefault();
+    try {
+      await changePasswordFirstLogin(username, password, newPassword);
+      navigate('/dashboard');
+    } catch (changeError) {
+      setError(changeError.message);
     }
   };
 
@@ -33,7 +48,7 @@ export default function Login() {
           
           {error && <Alert severity="error" mb={2}>{error}</Alert>}
           
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={showChangePassword ? handleFirstLoginPasswordChange : handleSubmit}>
             <TextField
               fullWidth
               label="Username"
@@ -43,14 +58,24 @@ export default function Login() {
             />
             <TextField
               fullWidth
-              label="Password"
+              label={showChangePassword ? 'Current Password' : 'Password'}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               margin="normal"
             />
+            {showChangePassword && (
+              <TextField
+                fullWidth
+                label="New Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                margin="normal"
+              />
+            )}
             <Button fullWidth variant="contained" type="submit" size="large" sx={{ mt: 2 }}>
-              Sign In
+              {showChangePassword ? 'Change Password' : 'Sign In'}
             </Button>
           </form>
         </CardContent>
