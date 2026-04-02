@@ -1,33 +1,30 @@
 # Інсталяція агента (Agent Installation)
 
-## Швидка установка
+## Швидка установка (oneliner)
 
-### Linux (Bash)
+### Linux
 ```bash
-chmod +x install.sh
-sudo ./install.sh --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
 ```
 
-### Windows (PowerShell)
+### Windows
 ```powershell
-.\install.ps1 -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
 ```
 
-### Універсальна установка (curl/iwr)
+## Альтернативний спосіб (зберегти скрипт)
+
+### Linux
 ```bash
-# Linux - з GitHub (рекомендовано)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
-
-# Linux - пропустити SSL (якщо проблеми з сертифікатами)
-curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
-
-# Linux - зберегти скрипт і виконати
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --agent-type hyperv --auto-start
 ```
 
+### Windows
 ```powershell
-# Windows - з GitHub (рекомендовано)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
+.\install.ps1 -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType hyperv -AutoStart
+```
 irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AutoStart
 
 # Windows - пропустити SSL

@@ -88,26 +88,20 @@ dotnet run
 
 **Linux:**
 ```bash
-# Option 1: Direct from GitHub (recommended)
+# One-line installation (recommended)
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 
-# Option 2: Skip SSL verification (if certificate issues)
-curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
-
-# Option 3: Download script first, then run
+# Download script first, then run
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
 sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 ```
 
 **Windows (PowerShell):**
 ```powershell
-# Option 1: Direct from GitHub (recommended)
+# One-line installation (recommended)
 irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 
-# Option 2: Skip SSL verification
-iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AutoStart
-
-# Option 3: Download script first, then run
+# Download script first, then run
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
 .\install.ps1 -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 ```
