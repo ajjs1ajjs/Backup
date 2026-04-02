@@ -102,7 +102,8 @@ try
         options.GeneralRules = new List<RateLimitRule>
         {
             new() { Endpoint = "*", Period = "1m", Limit = 100 },
-            new() { Endpoint = "*/api/*", Period = "1s", Limit = 10 }
+            new() { Endpoint = "*/api/auth/*", Period = "1m", Limit = 20 },
+            new() { Endpoint = "*/api/*", Period = "1m", Limit = 100 }
         };
     });
     builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
@@ -137,6 +138,7 @@ try
 
     app.UseSerilogRequestLogging();
     app.UseCors();
+    app.UseStaticFiles();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseIpRateLimiting();
