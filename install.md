@@ -2,14 +2,26 @@
 
 ## Швидка установка
 
-### Windows (PowerShell)
-```powershell
-iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex
-```
-
 ### Linux (Bash)
 ```bash
-curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash
+chmod +x install.sh
+sudo ./install.sh --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+```
+
+### Windows (PowerShell)
+```powershell
+.\install.ps1 -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+```
+
+### Універсальна установка (curl/iwr)
+```bash
+# Linux
+curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+```
+
+```powershell
+# Windows
+iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
 ```
 
 ## Параметри інсталяції
