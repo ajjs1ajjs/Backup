@@ -15,6 +15,9 @@ AGENT_TYPE="hyperv"
 AUTO_START=false
 FORCE=false
 INSTALL_MODE="agent"
+SKIP_SSL=false
+SOURCE_URL=""
+LOCAL_SOURCE=""
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 error() { echo "[ERROR] $1" >&2; exit 1; }
@@ -34,14 +37,40 @@ Options:
     --auto-start         Start agent after installation
     --force              Force reinstallation
     --uninstall          Uninstall agent
+    --skip-ssl           Skip SSL certificate verification (insecure)
+    --source-url URL     Alternative URL for install script
+    --local-source PATH  Use local source code instead of downloading
     -h, --help           Show this help
 
 Examples:
     $0 --server 10.0.0.1:50051 --token ABCD-1234 --agent-type hyperv --auto-start
     $0 --mode server --install-dir /opt/backup-server
+    $0 --skip-ssl --server 10.0.0.1:50051 --token ABCD --auto-start
+    $0 --local-source /path/to/source --server 10.0.0.1:50051 --token ABCD
     curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token ABCD --auto-start
+    curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:50051 --token ABCD
 
 EOF
+}
+
+download_script() {
+    local url="${SOURCE_URL:-https://get.backupsystem.com/agent/install.sh}"
+    local tmp_script="/tmp/backup-install.sh"
+    
+    log "Downloading install script from $url..."
+    
+    local curl_opts="-fsSL"
+    if [[ "$SKIP_SSL" == "true" ]]; then
+        log "WARNING: SSL verification disabled"
+        curl_opts="-kfsSL"
+    fi
+    
+    if ! curl $curl_opts -o "$tmp_script" "$url"; then
+        error "Failed to download install script. Use --source-url to specify alternative location"
+    fi
+    
+    chmod +x "$tmp_script"
+    exec sudo bash "$tmp_script" "$@"
 }
 
 parse_args() {
@@ -55,6 +84,9 @@ parse_args() {
             --auto-start) AUTO_START=true; shift ;;
             --force) FORCE=true; shift ;;
             --uninstall) UNINSTALL=true; shift ;;
+            --skip-ssl) SKIP_SSL=true; shift ;;
+            --source-url) SOURCE_URL="$2"; shift 2 ;;
+            --local-source) LOCAL_SOURCE="$2"; shift 2 ;;
             -h|--help) show_help; exit 0 ;;
             *) error "Unknown option: $1" ;;
         esac
@@ -149,10 +181,13 @@ download_source() {
     mkdir -p "$src_dir"
     cd "$src_dir"
     
-    if [[ -d ".git" ]]; then
+    if [[ -n "$LOCAL_SOURCE" && -d "$LOCAL_SOURCE" ]]; then
+        log "Using local source: $LOCAL_SOURCE"
+        cp -r "$LOCAL_SOURCE/"* .
+    elif [[ -d ".git" ]]; then
         log "Using existing source"
     else
-        log "Source not found. Please provide source in $src_dir"
+        log "Source not found. Please provide source in $src_dir or use --local-source"
         error "Please ensure source code is available"
     fi
     

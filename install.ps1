@@ -9,7 +9,10 @@ param(
     [string]$Mode = "agent",
     [switch]$AutoStart,
     [switch]$Force,
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [switch]$SkipSSL,
+    [string]$SourceUrl = "",
+    [string]$LocalSource = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,11 +49,18 @@ Options:
     -Mode MODE           Installation mode: agent, server, all (default: agent)
     -AutoStart           Start agent after installation
     -Force              Force reinstallation
+    -SkipSSL            Skip SSL certificate verification (insecure)
+    -SourceUrl URL      Alternative URL for install script
+    -LocalSource PATH   Use local source code instead of downloading
+    -Uninstall          Uninstall agent
 
 Examples:
     .\install.ps1 -Server "10.0.0.1:50051" -Token "ABCD-1234" -AgentType "hyperv" -AutoStart
     .\install.ps1 -Mode server -InstallDir "C:\BackupServer"
+    .\install.ps1 -SkipSSL -Server "10.0.0.1:50051" -Token "ABCD"
+    .\install.ps1 -LocalSource "C:\Projects\Backup\src\agent" -Server "10.0.0.1:50051" -Token "ABCD"
     iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "ABCD"
+    iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:50051" -Token "ABCD"
 
 "@
     exit 0
