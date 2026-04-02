@@ -27,6 +27,9 @@ unzip -q server.zip
 
 cd Backup-main/src/server
 
+# Copy protos into server directory (Docker can't access parent dirs)
+cp -r ../../protos ./protos
+
 # Stop and remove old container
 sudo docker stop backup-server 2>/dev/null || true
 sudo docker rm backup-server 2>/dev/null || true
