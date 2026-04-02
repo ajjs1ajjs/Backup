@@ -73,7 +73,7 @@ public class GrpcIntegrationTestFixture : IAsyncLifetime
     {
         var serverUrl = Environment.GetEnvironmentVariable("TEST_ServerUrl")
             ?? _httpClient.BaseAddress?.ToString()
-            ?? "http://localhost:5000";
+            ?? "http://localhost:8000";
 
         return GrpcChannel.ForAddress(serverUrl, new GrpcChannelOptions
         {

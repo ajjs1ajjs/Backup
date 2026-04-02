@@ -30,18 +30,16 @@ services:
     container_name: backup-integration-test-server
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_URLS=http://+:8000
       - ConnectionStrings__DefaultConnection=Host=postgres-test;Database=backup_test;Username=postgres;Password=postgres
       - POSTGRES_HOST=postgres-test
       - POSTGRES_PORT=5432
       - POSTGRES_DB=backup_test
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - SERVER_PORT=8050
-      - UI_PORT=8080
+      - SERVER_PORT=8000
     ports:
-      - "8080:8080"
-      - "8050:8050"
+      - "8000:8000"
     depends_on:
       postgres-test:
         condition: service_healthy
@@ -57,7 +55,7 @@ services:
       dockerfile: src/agent/Dockerfile
     container_name: backup-integration-test-agent
     environment:
-      - SERVER_ADDR=backup-server-test:8050
+      - SERVER_ADDR=backup-server-test:8000
       - AGENT_TOKEN=test-token-123
       - AGENT_TYPE=hyperv
       - LOG_LEVEL=Debug
@@ -89,7 +87,7 @@ services:
       - TEST_PostgresDb=backup_test
       - TEST_PostgresUser=postgres
       - TEST_PostgresPassword=postgres
-      - TEST_ServerUrl=http://backup-server-test:8080
+      - TEST_ServerUrl=http://backup-server-test:8000
     depends_on:
       postgres-test:
         condition: service_healthy

@@ -55,12 +55,12 @@ Options:
     -Uninstall          Uninstall agent
 
 Examples:
-    .\install.ps1 -Server "10.0.0.1:8050" -Token "ABCD-1234" -AgentType "hyperv" -AutoStart
+    .\install.ps1 -Server "10.0.0.1:8000" -Token "ABCD-1234" -AgentType "hyperv" -AutoStart
     .\install.ps1 -Mode server -InstallDir "C:\BackupServer"
-    .\install.ps1 -SkipSSL -Server "10.0.0.1:8050" -Token "ABCD"
-    .\install.ps1 -LocalSource "C:\Projects\Backup\src\agent" -Server "10.0.0.1:8050" -Token "ABCD"
-    iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:8050" -Token "ABCD"
-    iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:8050" -Token "ABCD"
+    .\install.ps1 -SkipSSL -Server "10.0.0.1:8000" -Token "ABCD"
+    .\install.ps1 -LocalSource "C:\Projects\Backup\src\agent" -Server "10.0.0.1:8000" -Token "ABCD"
+    iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:8000" -Token "ABCD"
+    iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:8000" -Token "ABCD"
 
 "@
     exit 0

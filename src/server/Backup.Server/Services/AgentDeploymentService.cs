@@ -217,7 +217,7 @@ Linux Agent Installation:
         if (!string.IsNullOrWhiteSpace(settingValue))
             return settingValue;
 
-        return _configuration["Server:PublicUrl"] ?? "http://localhost:8050";
+        return _configuration["Server:PublicUrl"] ?? "http://localhost:8000";
     }
 }
 

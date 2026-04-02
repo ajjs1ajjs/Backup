@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # Integration Test Runner Script for Backup System
 # Usage: .\run-integration-tests.ps1 [-TestType <All|Unit|Integration|Stress>] [-Verbose]
 
@@ -163,7 +163,7 @@ if ($TestType -eq "All" -or $TestType -eq "Stress") {
     
     # Check if server is running
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "http://localhost:8000/health" -TimeoutSec 5 -ErrorAction Stop
         Write-Success "Backup server is running"
     } catch {
         Write-Host "⚠ Backup server not running. Starting..." -ForegroundColor Orange
@@ -182,7 +182,7 @@ if ($TestType -eq "All" -or $TestType -eq "Stress") {
         
         try {
             $result = Invoke-RestMethod `
-                -Uri "http://localhost:8080/api/stresstest/run" `
+                -Uri "http://localhost:8000/api/stresstest/run" `
                 -Method POST `
                 -ContentType "application/json" `
                 -Body $stressBody

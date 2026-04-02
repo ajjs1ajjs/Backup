@@ -38,7 +38,7 @@
 
 ## Запуск тестів
 
-> Для серверних/API тестів використовуйте порт `8050`.
+> Для серверних/API тестів використовуйте порт `8000`.
 > Для першого входу після інсталяції використовується bootstrap-користувач (за замовчуванням `admin/admin123`) з обов'язковою зміною пароля.
 
 ### Вимоги
@@ -114,17 +114,17 @@ cd src/server/Backup.Server
 dotnet run
 
 # Run stress test for 100 VMs
-curl -X POST http://localhost:8050/api/stresstest/run \
+curl -X POST http://localhost:8000/api/stresstest/run \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"concurrentCount":50}'
 
 # Scalability test
-curl -X POST http://localhost:8050/api/stresstest/scalability \
+curl -X POST http://localhost:8000/api/stresstest/scalability \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"startConcurrency":10,"maxConcurrency":100,"stepSize":10}'
 
 # Endurance test (8 hours)
-curl -X POST http://localhost:8050/api/stresstest/endurance \
+curl -X POST http://localhost:8000/api/stresstest/endurance \
   -H "Content-Type: application/json" \
   -d '{"vmCount":50,"concurrentCount":25,"durationMinutes":480}'
 ```
@@ -143,7 +143,7 @@ cd src/ui
 npm start
 
 # 4. Run stress tests
-curl -X POST http://localhost:8050/api/stresstest/run \
+curl -X POST http://localhost:8000/api/stresstest/run \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"concurrentCount":100}'
 ```
@@ -227,7 +227,7 @@ start coveragereport/index.html
 ### Stress Test Results
 
 Access stress test results via:
-- REST API: `GET http://localhost:8050/api/stresstest/results/{sessionId}`
+- REST API: `GET http://localhost:8000/api/stresstest/results/{sessionId}`
 - Database: `SELECT * FROM stress_test_sessions ORDER BY started_at DESC`
 
 ## CI/CD Integration
@@ -258,7 +258,7 @@ Increase timeout in runsettings:
 
 **gRPC connection refused:**
 ```bash
-curl http://localhost:8050/health
+curl http://localhost:8000/health
 docker logs backup-integration-test-server
 ```
 

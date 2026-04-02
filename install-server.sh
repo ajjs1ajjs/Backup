@@ -38,7 +38,7 @@ sudo docker rm backup-server 2>/dev/null || true
 sudo docker build -t backup-server .
 
 # Run
-sudo docker run -d -p 8050:8050 --name backup-server backup-server
+sudo docker run -d -p 8000:8000 --name backup-server backup-server
 
-echo "[$(date)] Server started on http://localhost:8050"
+echo "[$(date)] Server started on http://localhost:8000"
 echo "[$(date)] Login: admin / admin123"

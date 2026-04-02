@@ -132,7 +132,7 @@ public class AgentCommunicationService : BackgroundService
                 {
                     if (!_agentClients.TryGetValue(agent.Id, out var client))
                     {
-                        client = new GrpcAgentClient(_configuration["AgentCommunication:ServerAddress"] ?? "http://localhost:8050", 
+                        client = new GrpcAgentClient(_configuration["AgentCommunication:ServerAddress"] ?? "http://localhost:8000", 
                             _services.GetRequiredService<ILogger<GrpcAgentClient>>());
                         _agentClients[agent.Id] = client;
                     }

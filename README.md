@@ -47,7 +47,7 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 ```bash
 # Using Docker
 docker run -d \
-  -p 8050:8050 \
+  -p 8000:8000 \
   -e POSTGRES_HOST=localhost \
   -e Jwt__Key="CHANGE_ME_TO_A_STRONG_SECRET" \
   backupsystem/server:latest
@@ -62,26 +62,26 @@ dotnet run
 **Linux:**
 ```bash
 # One-line installation (recommended)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 
 # Download script first, then run
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # One-line installation (recommended)
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 
 # Download script first, then run
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+.\install.ps1 -Server "10.0.0.1:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 ```
 
 ### 3. Access UI
 
-Open `http://localhost:8050/swagger` for API and configure UI API URL (see Configuration section).
+Open `http://localhost:8000/swagger` for API and configure UI API URL (see Configuration section).
 
 ## 📁 Project Structure
 
@@ -128,8 +128,8 @@ src/
 | `POSTGRES_DB` | Database name | backup |
 | `POSTGRES_USER` | Database user | postgres |
 | `POSTGRES_PASSWORD` | Database password | postgres |
-| `SERVER_PORT` | Server port | 8050 |
-| `Server__PublicUrl` | Public URL for agents/install scripts | auto-detected as `http://<local-ip>:8050` |
+| `SERVER_PORT` | Server port | 8000 |
+| `Server__PublicUrl` | Public URL for agents/install scripts | auto-detected as `http://<local-ip>:8000` |
 | `Jwt__Key` | JWT signing key (required) | no default, server won't start without it |
 | `BootstrapAdmin__Username` | First admin username | admin |
 | `BootstrapAdmin__Email` | First admin email | admin@backupsystem.com |
@@ -150,7 +150,7 @@ Create `appsettings.json`:
     "Audience": "BackupClients"
   },
   "Server": {
-    "PublicUrl": "http://10.0.0.10:8050"
+    "PublicUrl": "http://10.0.0.10:8000"
   },
   "BootstrapAdmin": {
     "Username": "admin",

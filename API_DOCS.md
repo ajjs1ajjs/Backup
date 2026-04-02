@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-http://localhost:8050/api
+http://localhost:8000/api
 ```
 
 ## Authentication
@@ -147,7 +147,7 @@ Use `server.public_url` to control URL used by agent deployment/install instruct
 PUT /api/settings/server.public_url
 Body: {
   "key": "server.public_url",
-  "value": "http://10.0.0.10:8050",
+  "value": "http://10.0.0.10:8000",
   "type": "string",
   "description": "Public server URL used by agents and installers"
 }

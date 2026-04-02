@@ -43,12 +43,12 @@ Options:
     -h, --help           Show this help
 
 Examples:
-    $0 --server 10.0.0.1:8050 --token ABCD-1234 --agent-type hyperv --auto-start
+    $0 --server 10.0.0.1:8000 --token ABCD-1234 --agent-type hyperv --auto-start
     $0 --mode server --install-dir /opt/backup-server
-    $0 --skip-ssl --server 10.0.0.1:8050 --token ABCD --auto-start
-    $0 --local-source /path/to/source --server 10.0.0.1:8050 --token ABCD
-    curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token ABCD --auto-start
-    curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:8050 --token ABCD
+    $0 --skip-ssl --server 10.0.0.1:8000 --token ABCD --auto-start
+    $0 --local-source /path/to/source --server 10.0.0.1:8000 --token ABCD
+    curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:8000 --token ABCD --auto-start
+    curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:8000 --token ABCD
 
 EOF
 }

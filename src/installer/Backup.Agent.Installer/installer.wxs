@@ -44,7 +44,7 @@
             </Component>
         </ComponentGroup>
 
-        <Property Id="SERVER_URL" Value="http://localhost:8050" />
+        <Property Id="SERVER_URL" Value="http://localhost:8000" />
         <Property Id="AGENT_TOKEN" Value="" />
         <Property Id="AGENT_TYPE" Value="hyperv" />
 

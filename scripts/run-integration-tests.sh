@@ -163,12 +163,12 @@ if [ "$TEST_TYPE" = "All" ] || [ "$TEST_TYPE" = "Stress" ]; then
     write_step "Running Stress Tests..."
     
     # Check if server is running
-    if curl -s --connect-timeout 5 http://localhost:8080/health > /dev/null 2>&1; then
+    if curl -s --connect-timeout 5 http://localhost:8000/health > /dev/null 2>&1; then
         write_success "Backup server is running"
         
         echo -e "${GRAY}Running stress test for 100 VMs...${NC}"
         
-        RESULT=$(curl -s -X POST http://localhost:8080/api/stresstest/run \
+        RESULT=$(curl -s -X POST http://localhost:8000/api/stresstest/run \
             -H "Content-Type: application/json" \
             -d '{"vmCount":100,"concurrentCount":50}')
         

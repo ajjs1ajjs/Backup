@@ -19,6 +19,7 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("Starting Backup Server...");
+    const int defaultServerPort = 8000;
 
     var builder = WebApplication.CreateBuilder(args);
 
@@ -105,6 +106,17 @@ try
 
     var app = builder.Build();
 
+    var hostAddress = Dns.GetHostAddresses(Dns.GetHostName())
+        .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+        ?.ToString() ?? "localhost";
+
+    // Bind to both localhost and server IP unless explicit URL config is provided.
+    if (!app.Urls.Any())
+    {
+        app.Urls.Add($"http://localhost:{defaultServerPort}");
+        app.Urls.Add($"http://{hostAddress}:{defaultServerPort}");
+    }
+
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -126,10 +138,7 @@ try
         var publicServerUrl = configuredPublicServerUrl;
         if (string.IsNullOrWhiteSpace(publicServerUrl))
         {
-            var hostAddress = Dns.GetHostAddresses(Dns.GetHostName())
-                .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
-                ?.ToString() ?? "localhost";
-            publicServerUrl = $"http://{hostAddress}:8050";
+            publicServerUrl = $"http://{hostAddress}:{defaultServerPort}";
         }
 
         var adminUser = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);

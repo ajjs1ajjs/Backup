@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
-EXPOSE 8050
+EXPOSE 8000
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
@@ -15,5 +15,5 @@ RUN dotnet publish "Backup.Server/Backup.Server.csproj" -c Release -o /app/publi
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENV ASPNETCORE_URLS=http://+:8050
+ENV ASPNETCORE_URLS=http://+:8000
 ENTRYPOINT ["dotnet", "Backup.Server.dll"]
