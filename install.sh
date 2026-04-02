@@ -187,17 +187,45 @@ download_source() {
     elif [[ -d ".git" ]]; then
         log "Using existing source"
     else
-        log "Source not found. Please provide source in $src_dir or use --local-source"
-        error "Please ensure source code is available"
+        log "Downloading agent source from GitHub..."
+        local archive_url="https://github.com/ajjs1ajjs/Backup/archive/refs/heads/main.zip"
+        
+        if [[ "$SKIP_SSL" == "true" ]]; then
+            curl -kfsSL -o source.zip "$archive_url" || error "Failed to download source"
+        else
+            curl -fsSL -o source.zip "$archive_url" || error "Failed to download source"
+        fi
+        
+        unzip -q source.zip
+        mv Backup-main/src/agent/* . 2>/dev/null || mv Backup-main/* . 2>/dev/null || true
+        rm -rf source.zip Backup-main
+        
+        if [[ ! -f "CMakeLists.txt" && ! -f "Makefile" ]]; then
+            log "Warning: CMakeLists.txt not found, trying alternative location..."
+            if [[ -d "src/agent/Backup.Agent" ]]; then
+                mv src/agent/Backup.Agent/* .
+                rm -rf src
+            fi
+        fi
     fi
     
     log "Compiling agent..."
     mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" 2>/dev/null || {
+        log "CMake failed - trying alternative build..."
+        cd ..
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release 2>/dev/null || {
+            error "Build failed. Please provide source with --local-source or install cmake"
+        }
+    }
     make -j$(nproc)
     
     mkdir -p "$BIN_DIR"
-    cp backup-agent "$BIN_DIR/"
+    cp backup-agent "$BIN_DIR/" 2>/dev/null || cp *backup-agent* "$BIN_DIR/" 2>/dev/null || {
+        log "Looking for agent binary..."
+        find . -name "backup-agent*" -type f -executable -exec cp {} "$BIN_DIR/" \;
+    }
     
     chmod +x "$BIN_DIR/backup-agent"
     log "Agent built successfully"

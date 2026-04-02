@@ -5,37 +5,37 @@
 ### Linux (Bash)
 ```bash
 chmod +x install.sh
-sudo ./install.sh --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+sudo ./install.sh --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
 ```
 
 ### Windows (PowerShell)
 ```powershell
-.\install.ps1 -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+.\install.ps1 -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
 ```
 
 ### Універсальна установка (curl/iwr)
 ```bash
 # Linux - з GitHub (рекомендовано)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
 
 # Linux - пропустити SSL (якщо проблеми з сертифікатами)
-curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
 
 # Linux - зберегти скрипт і виконати
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --auto-start
 ```
 
 ```powershell
 # Windows - з GitHub (рекомендовано)
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AutoStart
 
 # Windows - пропустити SSL
-iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
+iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AutoStart
 
 # Windows - зберегти скрипт і виконати
 irm -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
+.\install.ps1 -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AutoStart
 ```
 
 ## Серверна інсталяція (одною командою)
@@ -53,12 +53,12 @@ sudo ./install.sh --mode server --install-dir /opt/backup-server
 ### Повна інсталяція (Server + Agent)
 ```bash
 # Linux
-sudo ./install.sh --mode all --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+sudo ./install.sh --mode all --server 10.0.0.1:8050 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
 ```
 
 ```powershell
 # Windows
-.\install.ps1 -Mode all -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+.\install.ps1 -Mode all -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
 ```
 
 ## Параметри інсталяції
@@ -66,7 +66,7 @@ sudo ./install.sh --mode all --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" -
 ```bash
 # Повна інсталяція агента з параметрами
 ./install.sh \
-  --server 10.0.0.1:50051 \
+  --server 10.0.0.1:8050 \
   --token "AAA-BBB-CCC-DDD" \
   --agent-type "hyperv" \
   --auto-start
@@ -74,14 +74,14 @@ sudo ./install.sh --mode all --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" -
 
 ```powershell
 # Windows з параметрами
-.\install.ps1 -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+.\install.ps1 -Server "10.0.0.1:8050" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
 ```
 
 ## Параметри
 
 | Параметр | Опис | Приклад |
 |----------|------|---------|
-| `--server` | Адреса Management Server | `10.0.0.1:50051` |
+| `--server` | Адреса Management Server | `10.0.0.1:8050` |
 | `--token` | Токен реєстрації агента | `AAA-BBB-CCC-DDD` |
 | `--agent-type` | Тип агента | `hyperv`, `vmware`, `kvm`, `mssql`, `postgres`, `oracle` |
 | `--install-dir` | Директорія інсталяції | `/opt/backup-agent` |
@@ -110,7 +110,7 @@ sudo ./install.sh --mode all --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" -
 ```bash
 docker run -d \
   --name backup-agent \
-  -e SERVER_ADDR=10.0.0.1:50051 \
+  -e SERVER_ADDR=10.0.0.1:8050 \
   -e AGENT_TOKEN=AAA-BBB-CCC-DDD \
   -e AGENT_TYPE=hyperv \
   -v /var/lib/backup-agent:/data \
@@ -122,7 +122,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name backup-server \
-  -p 50051:50051 \
+  -p 8050:8050 \
   -p 8080:80 \
   -v /backup/data:/data \
   -e DB_CONNECTION="Server=db;Database=backup;User=sa;Password=P@ssw0rd" \

@@ -74,7 +74,7 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 ```bash
 # Using Docker
 docker run -d \
-  -p 50051:50051 \
+  -p 8050:8050 \
   -p 8080:8080 \
   -e POSTGRES_HOST=localhost \
   backupsystem/server:latest
@@ -89,27 +89,27 @@ dotnet run
 **Linux:**
 ```bash
 # Option 1: Direct from GitHub (recommended)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 
 # Option 2: Skip SSL verification (if certificate issues)
-curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 
 # Option 3: Download script first, then run
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:50051 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:8050 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # Option 1: Direct from GitHub (recommended)
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:50051" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 
 # Option 2: Skip SSL verification
-iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "YOUR_TOKEN" -AutoStart
+iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AutoStart
 
 # Option 3: Download script first, then run
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "10.0.0.1:50051" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+.\install.ps1 -Server "10.0.0.1:8050" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
 ```
 
 ### 3. Access UI
@@ -161,7 +161,7 @@ src/
 | `POSTGRES_DB` | Database name | backup |
 | `POSTGRES_USER` | Database user | postgres |
 | `POSTGRES_PASSWORD` | Database password | postgres |
-| `SERVER_PORT` | gRPC server port | 50051 |
+| `SERVER_PORT` | gRPC server port | 8050 |
 | `UI_PORT` | Web UI port | 8080 |
 
 ### Configuration File
