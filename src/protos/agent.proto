@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message AgentRegistrationRequest {
+    string agent_id = 1;
+    string hostname = 2;
+    string os_type = 3;
+    string agent_version = 4;
+    AgentType agent_type = 5;
+    repeated string capabilities = 6;
+}
+
+message AgentRegistrationResponse {
+    bool success = 1;
+    string message = 2;
+    string server_version = 3;
+    int64 assigned_agent_id = 4;
+}
+
+enum AgentType {
+    AGENT_TYPE_UNSPECIFIED = 0;
+    AGENT_TYPE_HYPERV = 1;
+    AGENT_TYPE_VMWARE = 2;
+    AGENT_TYPE_KVM = 3;
+    AGENT_TYPE_MSSQL = 4;
+    AGENT_TYPE_POSTGRESQL = 5;
+    AGENT_TYPE_ORACLE = 6;
+}
+
+message AgentHeartbeat {
+    int64 agent_id = 1;
+    AgentStatus status = 2;
+    repeated string active_jobs = 3;
+    ResourceUsage resource_usage = 4;
+}
+
+message ResourceUsage {
+    double cpu_percent = 1;
+    int64 memory_used_mb = 2;
+    int64 memory_total_mb = 3;
+    double network_speed_mbps = 4;
+    double disk_speed_mbps = 5;
+}
+
+enum AgentStatus {
+    AGENT_STATUS_UNSPECIFIED = 0;
+    AGENT_STATUS_IDLE = 1;
+    AGENT_STATUS_BACKING_UP = 2;
+    AGENT_STATUS_RESTORING = 3;
+    AGENT_STATUS_ERROR = 4;
+}
+
+service AgentService {
+    rpc Register(AgentRegistrationRequest) returns (AgentRegistrationResponse);
+    rpc Heartbeat(stream AgentHeartbeat) returns (stream ServerCommand);
+    rpc GetCapabilities(AgentCapabilitiesRequest) returns (AgentCapabilitiesResponse);
+}
+
+message AgentCapabilitiesRequest {
+    int64 agent_id = 1;
+}
+
+message AgentCapabilitiesResponse {
+    repeated string features = 1;
+    map<string, string> options = 2;
+}
+
+message ServerCommand {
+    oneof command {
+        StartBackupCommand start_backup = 1;
+        StopBackupCommand stop_backup = 2;
+        StartRestoreCommand start_restore = 3;
+        UpdateConfigCommand update_config = 4;
+        PingCommand ping = 5;
+    }
+}
+
+message StartBackupCommand {
+    string job_id = 1;
+    string backup_type = 2;
+    string source_path = 3;
+    string destination_path = 4;
+    bool compression_enabled = 5;
+    bool deduplication_enabled = 6;
+    string incremental_base = 7;
+}
+
+message StopBackupCommand {
+    string job_id = 1;
+    bool force = 2;
+}
+
+message StartRestoreCommand {
+    string job_id = 1;
+    string backup_path = 2;
+    string destination_path = 3;
+    bool full_restore = 4;
+    string point_in_time = 5;
+}
+
+message UpdateConfigCommand {
+    map<string, string> config = 1;
+}
+
+message PingCommand {
+    int64 timestamp = 1;
+}

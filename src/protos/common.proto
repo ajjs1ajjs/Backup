@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+message VirtualMachine {
+    string vm_id = 1;
+    string name = 2;
+    string hypervisor_type = 3;
+    string hypervisor_host = 4;
+    string ip_address = 5;
+    string os_type = 6;
+    int64 memory_mb = 7;
+    int32 cpu_cores = 8;
+    repeated string disks = 9;
+    map<string, string> tags = 10;
+    VMStatus status = 11;
+    int64 last_backup_at = 12;
+    string last_backup_id = 13;
+}
+
+enum VMStatus {
+    VM_STATUS_UNSPECIFIED = 0;
+    VM_STATUS_RUNNING = 1;
+    VM_STATUS_STOPPED = 2;
+    VM_STATUS_SUSPENDED = 3;
+    VM_STATUS_BACKING_UP = 4;
+    VM_STATUS_ERROR = 5;
+}
+
+message VMListRequest {
+    string hypervisor_type = 1;
+    string hypervisor_host = 2;
+    VMStatus filter_status = 3;
+    int32 page = 4;
+    int32 page_size = 5;
+    string search = 6;
+}
+
+message VMListResponse {
+    repeated VirtualMachine vms = 1;
+    int32 total_count = 2;
+}
+
+message VMResponse {
+    string vm_id = 1;
+    bool success = 2;
+    string message = 3;
+    VirtualMachine vm = 4;
+}
+
+service VmService {
+    rpc ListVMs(VMListRequest) returns (VMListResponse);
+    rpc GetVM(GetVMRequest) returns (VirtualMachine);
+    rpc RefreshVMs(RefreshVMsRequest) returns (VMResponse);
+}
+
+message GetVMRequest {
+    string vm_id = 1;
+}
+
+message RefreshVMsRequest {
+    string hypervisor_host = 1;
+}
+
+message User {
+    string user_id = 1;
+    string username = 2;
+    string email = 3;
+    string role = 4;
+    bool is_active = 5;
+    int64 created_at = 6;
+    int64 last_login_at = 7;
+}
+
+message UserRequest {
+    string user_id = 1;
+    string username = 2;
+    string email = 3;
+    string password = 4;
+    string role = 5;
+}
+
+message UserResponse {
+    string user_id = 1;
+    bool success = 2;
+    string message = 3;
+    User user = 4;
+}
+
+service UserService {
+    rpc CreateUser(UserRequest) returns (UserResponse);
+    rpc UpdateUser(UserRequest) returns (UserResponse);
+    rpc DeleteUser(DeleteUserRequest) returns (UserResponse);
+    rpc GetUser(GetUserRequest) returns (User);
+    rpc ListUsers(ListUsersRequest) returns (UserListResponse);
+    rpc Login(LoginRequest) returns (LoginResponse);
+    rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+}
+
+message DeleteUserRequest {
+    string user_id = 1;
+}
+
+message GetUserRequest {
+    string user_id = 1;
+}
+
+message ListUsersRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    string filter_role = 3;
+}
+
+message UserListResponse {
+    repeated User users = 1;
+    int32 total_count = 2;
+}
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+    string token = 3;
+    User user = 4;
+}
+
+message LogoutRequest {
+    string user_id = 1;
+}
+
+message DashboardStats {
+    int64 total_jobs = 1;
+    int64 running_jobs = 2;
+    int64 failed_jobs = 3;
+    int64 total_backups = 4;
+    int64 total_repositories = 5;
+    int64 total_agents = 6;
+    int64 online_agents = 7;
+    int64 total_size_bytes = 8;
+    int64 protected_vms = 9;
+    double success_rate = 10;
+    int64 last_backup_timestamp = 11;
+}
+
+service DashboardService {
+    rpc GetStats(google.protobuf.Empty) returns (DashboardStats);
+    rpc GetActivity(ActivityRequest) returns (ActivityResponse);
+}
+
+message ActivityRequest {
+    int64 from_timestamp = 1;
+    int64 to_timestamp = 2;
+    int32 limit = 3;
+}
+
+message ActivityResponse {
+    repeated ActivityItem activities = 1;
+}
+
+message ActivityItem {
+    string activity_id = 1;
+    string type = 2;
+    string description = 3;
+    string entity_id = 4;
+    string entity_type = 5;
+    int64 timestamp = 6;
+    string status = 7;
+}

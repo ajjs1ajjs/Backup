@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message TransferInit {
+    string transfer_id = 1;
+    TransferType type = 2;
+    string job_id = 3;
+    string source_path = 4;
+    string destination_path = 5;
+    int64 total_size = 6;
+    int64 chunk_size = 7;
+    bool compression = 8;
+    bool deduplication = 9;
+    string checksum_algorithm = 10;
+}
+
+enum TransferType {
+    TRANSFER_TYPE_UNSPECIFIED = 0;
+    TRANSFER_TYPE_UPLOAD = 1;
+    TRANSFER_TYPE_DOWNLOAD = 2;
+}
+
+message Chunk {
+    string transfer_id = 1;
+    int64 chunk_index = 2;
+    bytes data = 3;
+    string checksum = 4;
+    bool is_last = 5;
+}
+
+message ChunkAck {
+    string transfer_id = 1;
+    int64 chunk_index = 2;
+    bool received = 3;
+    string checksum = 4;
+}
+
+message TransferProgress {
+    string transfer_id = 1;
+    int64 bytes_transferred = 2;
+    int64 total_bytes = 3;
+    double speed_mbps = 4;
+    TransferStatus status = 5;
+}
+
+enum TransferStatus {
+    TRANSFER_STATUS_UNSPECIFIED = 0;
+    TRANSFER_STATUS_PENDING = 1;
+    TRANSFER_STATUS_IN_PROGRESS = 2;
+    TRANSFER_STATUS_COMPLETED = 3;
+    TRANSFER_STATUS_FAILED = 4;
+    TRANSFER_STATUS_CANCELLED = 5;
+    TRANSFER_STATUS_PAUSED = 6;
+}
+
+message TransferRequest {
+    string transfer_id = 1;
+    TransferStatus status = 2;
+}
+
+message TransferResponse {
+    string transfer_id = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message LogMessage {
+    string log_id = 1;
+    string job_id = 2;
+    string agent_id = 3;
+    LogLevel level = 4;
+    string message = 5;
+    string source = 6;
+    int64 timestamp = 7;
+    map<string, string> metadata = 8;
+}
+
+enum LogLevel {
+    LOG_LEVEL_UNSPECIFIED = 0;
+    LOG_LEVEL_TRACE = 1;
+    LOG_LEVEL_DEBUG = 2;
+    LOG_LEVEL_INFO = 3;
+    LOG_LEVEL_WARNING = 4;
+    LOG_LEVEL_ERROR = 5;
+    LOG_LEVEL_FATAL = 6;
+}
+
+service FileTransferService {
+    rpc InitTransfer(TransferInit) returns (TransferResponse);
+    rpc UploadStream(stream Chunk) returns (TransferResponse);
+    rpc DownloadStream(TransferInit) returns (stream Chunk);
+    rpc GetProgress(TransferRequest) returns (TransferProgress);
+    rpc PauseTransfer(TransferRequest) returns (TransferResponse);
+    rpc ResumeTransfer(TransferRequest) returns (TransferResponse);
+    rpc CancelTransfer(TransferRequest) returns (TransferResponse);
+}
+
+service LogService {
+    rpc SendLog(stream LogMessage) returns (LogResponse);
+    rpc QueryLogs(LogQueryRequest) returns (LogQueryResponse);
+}
+
+message LogResponse {
+    bool success = 1;
+}
+
+message LogQueryRequest {
+    string job_id = 1;
+    string agent_id = 2;
+    LogLevel min_level = 3;
+    int64 from_timestamp = 4;
+    int64 to_timestamp = 5;
+    int32 limit = 6;
+}
+
+message LogQueryResponse {
+    repeated LogMessage logs = 1;
+    int32 total_count = 2;
+}

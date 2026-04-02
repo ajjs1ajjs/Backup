@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message Repository {
+    string repository_id = 1;
+    string name = 2;
+    RepositoryType type = 3;
+    RepositoryStatus status = 4;
+    string path = 5;
+    int64 capacity_bytes = 6;
+    int64 used_bytes = 7;
+    int64 available_bytes = 8;
+    map<string, string> credentials = 9;
+    RepositoryOptions options = 10;
+    int64 created_at = 11;
+    int64 last_used_at = 12;
+}
+
+enum RepositoryType {
+    REPOSITORY_TYPE_UNSPECIFIED = 0;
+    REPOSITORY_TYPE_LOCAL = 1;
+    REPOSITORY_TYPE_NFS = 2;
+    REPOSITORY_TYPE_SMB = 3;
+    REPOSITORY_TYPE_S3 = 4;
+    REPOSITORY_TYPE_AZURE_BLOB = 5;
+    REPOSITORY_TYPE_GCS = 6;
+    REPOSITORY_TYPE_TAPE = 7;
+}
+
+enum RepositoryStatus {
+    REPOSITORY_STATUS_UNSPECIFIED = 0;
+    REPOSITORY_STATUS_ONLINE = 1;
+    REPOSITORY_STATUS_OFFLINE = 2;
+    REPOSITORY_STATUS_ERROR = 3;
+    REPOSITORY_STATUS_MAINTENANCE = 4;
+}
+
+message RepositoryOptions {
+    int64 retention_days = 1;
+    string retention_policy = 2;
+    bool compression_enabled = 3;
+    bool deduplication_enabled = 4;
+    string encryption_key_id = 5;
+}
+
+message RepositoryListRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    RepositoryType filter_type = 3;
+    RepositoryStatus filter_status = 4;
+}
+
+message RepositoryListResponse {
+    repeated Repository repositories = 1;
+    int32 total_count = 2;
+}
+
+message RepositoryRequest {
+    string repository_id = 1;
+    string name = 2;
+    RepositoryType type = 3;
+    string path = 4;
+    RepositoryOptions options = 5;
+}
+
+message RepositoryResponse {
+    string repository_id = 1;
+    bool success = 2;
+    string message = 3;
+    Repository repository = 4;
+}
+
+message RepositoryStatsRequest {
+    string repository_id = 1;
+}
+
+message RepositoryStatsResponse {
+    string repository_id = 1;
+    int64 total_backups = 2;
+    int64 total_size_bytes = 3;
+    int64 total_original_size_bytes = 4;
+    double compression_ratio = 5;
+    double deduplication_ratio = 6;
+    int64 backup_count_by_type = 7;
+    map<string, int64> backups_by_vm = 8;
+}
+
+service RepositoryService {
+    rpc CreateRepository(RepositoryRequest) returns (RepositoryResponse);
+    rpc UpdateRepository(RepositoryRequest) returns (RepositoryResponse);
+    rpc DeleteRepository(DeleteRepositoryRequest) returns (RepositoryResponse);
+    rpc GetRepository(GetRepositoryRequest) returns (Repository);
+    rpc ListRepositories(RepositoryListRequest) returns (RepositoryListResponse);
+    rpc TestRepository(TestRepositoryRequest) returns (RepositoryResponse);
+    rpc GetRepositoryStats(RepositoryStatsRequest) returns (RepositoryStatsResponse);
+}
+
+message DeleteRepositoryRequest {
+    string repository_id = 1;
+    bool force = 2;
+}
+
+message GetRepositoryRequest {
+    string repository_id = 1;
+}
+
+message TestRepositoryRequest {
+    string path = 1;
+    RepositoryType type = 2;
+    map<string, string> credentials = 3;
+}

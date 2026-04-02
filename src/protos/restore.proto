@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message RestoreRequest {
+    string restore_id = 1;
+    string backup_id = 2;
+    RestoreType restore_type = 3;
+    string destination_path = 4;
+    string target_host = 5;
+    RestoreOptions options = 6;
+}
+
+enum RestoreType {
+    RESTORE_TYPE_UNSPECIFIED = 0;
+    RESTORE_TYPE_FULL_VM = 1;
+    RESTORE_TYPE_INSTANT = 2;
+    RESTORE_TYPE_FILE_LEVEL = 3;
+    RESTORE_TYPE_DATABASE = 4;
+    RESTORE_TYPE_EXPORT = 5;
+}
+
+message RestoreOptions {
+    bool power_on = 1;
+    bool keep_mac = 2;
+    bool overwrite_existing = 3;
+    string target_datastore = 4;
+    string target_network = 5;
+    int64 target_memory_mb = 6;
+    int32 target_cpu_cores = 7;
+}
+
+message RestoreResponse {
+    string restore_id = 1;
+    bool success = 2;
+    string message = 3;
+    RestoreStatus status = 4;
+}
+
+enum RestoreStatus {
+    RESTORE_STATUS_UNSPECIFIED = 0;
+    RESTORE_STATUS_PENDING = 1;
+    RESTORE_STATUS_IN_PROGRESS = 2;
+    RESTORE_STATUS_COMPLETED = 3;
+    RESTORE_STATUS_FAILED = 4;
+    RESTORE_STATUS_CANCELLED = 5;
+}
+
+message RestoreProgress {
+    string restore_id = 1;
+    RestoreStatus status = 2;
+    int64 bytes_restored = 3;
+    int64 total_bytes = 4;
+    double progress_percent = 5;
+    int64 elapsed_seconds = 6;
+    string current_file = 7;
+    string error_message = 8;
+}
+
+message RestoreListRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    RestoreStatus filter_status = 3;
+}
+
+message RestoreListResponse {
+    repeated RestoreInfo restores = 1;
+    int32 total_count = 2;
+}
+
+message RestoreInfo {
+    string restore_id = 1;
+    string backup_id = 2;
+    RestoreType restore_type = 3;
+    RestoreStatus status = 4;
+    int64 created_at = 5;
+    int64 completed_at = 6;
+    string destination_path = 7;
+}
+
+service RestoreService {
+    rpc StartRestore(RestoreRequest) returns (RestoreResponse);
+    rpc GetRestoreProgress(RestoreProgressRequest) returns (RestoreProgress);
+    rpc CancelRestore(CancelRestoreRequest) returns (RestoreResponse);
+    rpc ListRestores(RestoreListRequest) returns (RestoreListResponse);
+    rpc BrowseBackupFiles(BrowseBackupFilesRequest) returns (BrowseBackupFilesResponse);
+}
+
+message RestoreProgressRequest {
+    string restore_id = 1;
+}
+
+message CancelRestoreRequest {
+    string restore_id = 1;
+    bool force = 2;
+}
+
+message BrowseBackupFilesRequest {
+    string backup_id = 1;
+    string path = 2;
+}
+
+message BrowseBackupFilesResponse {
+    repeated BackupFileInfo files = 1;
+    string current_path = 2;
+    bool has_more = 3;
+}

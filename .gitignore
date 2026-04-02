@@ -1,0 +1,98 @@
+# Backup System - .gitignore
+
+## Build Results
+bin/
+obj/
+out/
+build/
+*.dll
+*.exe
+*.pdb
+*.o
+*.so
+*.a
+
+## IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+## NuGet
+*.nupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+package-lock.json
+
+## OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## Logs
+*.log
+logs/
+*.tmp
+
+## Secrets
+*.env
+*.env.local
+*.secret
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+## Database
+*.db
+*.sqlite
+*.mdf
+*.ldf
+
+## Backup Files
+*.bak
+*.backup
+*.old
+
+## Docker
+.docker/
+docker-compose.override.yml
+
+## Test Results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## Temporary
+*.tmp
+*.temp
+~*
+*.swp
+*.swo
+*~
+
+## CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Makefile
+
+## Misc
+*.ignore

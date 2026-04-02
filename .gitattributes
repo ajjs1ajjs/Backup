@@ -1,0 +1,74 @@
+# Force text files to use LF line endings
+* text=auto
+
+# C# files
+*.cs text eol=lf
+*.csx text eol=lf
+*.csproj text eol=lf
+*.sln text eol=lf
+
+# C++ files
+*.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.cc text eol=lf
+*.cxx text eol=lf
+
+# CMake
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Protobuf
+*.proto text eol=lf
+
+# JavaScript/TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+
+# HTML/CSS
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+
+# Markdown
+*.md text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.bat text eol=lf
+*.cmd text eol=lf
+
+# Dockerfile
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+
+# YAML
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# SQL
+*.sql text eol=lf
+
+# Git
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Exclude binary files
+*.dll -text
+*.exe -text
+*.pdb -text
+*.so -text
+*.a -text
+*.o -text
+
+# Images
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.ico -text
+*.svg -text

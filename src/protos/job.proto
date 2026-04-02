@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message JobRequest {
+    string job_id = 1;
+    JobType job_type = 2;
+    string source_id = 3;
+    string destination_id = 4;
+    JobSchedule schedule = 5;
+    BackupOptions options = 6;
+    string name = 7;
+    bool enabled = 8;
+}
+
+enum JobType {
+    JOB_TYPE_UNSPECIFIED = 0;
+    JOB_TYPE_FULL_BACKUP = 1;
+    JOB_TYPE_INCREMENTAL = 2;
+    JOB_TYPE_DIFFERENTIAL = 3;
+    JOB_TYPE_RESTORE = 4;
+    JOB_TYPE_VERIFY = 5;
+}
+
+message JobSchedule {
+    oneof schedule_type {
+        CronSchedule cron = 1;
+        IntervalSchedule interval = 2;
+    }
+    string timezone = 3;
+}
+
+message CronSchedule {
+    string expression = 1;
+}
+
+message IntervalSchedule {
+    int64 interval_seconds = 1;
+}
+
+message BackupOptions {
+    bool compression_enabled = 1;
+    bool deduplication_enabled = 2;
+    int64 block_size_kb = 3;
+    string compression_level = 4;
+    int64 retention_days = 5;
+    string retention_policy = 6;
+}
+
+message JobResponse {
+    string job_id = 1;
+    bool success = 2;
+    string message = 3;
+    JobDetails job_details = 4;
+}
+
+message JobDetails {
+    string job_id = 1;
+    JobType job_type = 2;
+    JobStatus status = 3;
+    string name = 4;
+    int64 created_at = 5;
+    int64 last_run = 6;
+    int64 next_run = 7;
+    repeated JobRunHistory history = 8;
+}
+
+enum JobStatus {
+    JOB_STATUS_UNSPECIFIED = 0;
+    JOB_STATUS_PENDING = 1;
+    JOB_STATUS_RUNNING = 2;
+    JOB_STATUS_COMPLETED = 3;
+    JOB_STATUS_FAILED = 4;
+    JOB_STATUS_CANCELLED = 5;
+}
+
+message JobRunHistory {
+    string run_id = 1;
+    int64 start_time = 2;
+    int64 end_time = 3;
+    JobStatus status = 4;
+    int64 bytes_processed = 5;
+    int64 files_processed = 6;
+    double speed_mbps = 7;
+    string error_message = 8;
+}
+
+message JobListRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    JobStatus filter_status = 3;
+    JobType filter_type = 4;
+}
+
+message JobListResponse {
+    repeated JobDetails jobs = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+service JobService {
+    rpc CreateJob(JobRequest) returns (JobResponse);
+    rpc UpdateJob(JobRequest) returns (JobResponse);
+    rpc DeleteJob(DeleteJobRequest) returns (JobResponse);
+    rpc GetJob(GetJobRequest) returns (JobDetails);
+    rpc ListJobs(JobListRequest) returns (JobListResponse);
+    rpc RunJob(RunJobRequest) returns (JobResponse);
+    rpc StopJob(StopJobRequest) returns (JobResponse);
+}
+
+message DeleteJobRequest {
+    string job_id = 1;
+}
+
+message GetJobRequest {
+    string job_id = 1;
+}
+
+message RunJobRequest {
+    string job_id = 1;
+}
+
+message StopJobRequest {
+    string job_id = 1;
+    bool force = 2;
+}

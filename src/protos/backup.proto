@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package backup;
+
+option csharp_namespace = "Backup.Contracts";
+
+message BackupPoint {
+    string backup_id = 1;
+    string job_id = 2;
+    string vm_id = 3;
+    BackupType backup_type = 4;
+    string repository_id = 5;
+    string file_path = 6;
+    int64 created_at = 7;
+    int64 size_bytes = 8;
+    int64 original_size_bytes = 9;
+    string checksum = 10;
+    bool is_synthetic = 11;
+    string parent_backup_id = 12;
+    map<string, string> metadata = 13;
+    BackupStatus status = 14;
+}
+
+enum BackupType {
+    BACKUP_TYPE_UNSPECIFIED = 0;
+    BACKUP_TYPE_FULL = 1;
+    BACKUP_TYPE_INCREMENTAL = 2;
+    BACKUP_TYPE_DIFFERENTIAL = 3;
+    BACKUP_TYPE_SYNTHETIC_FULL = 4;
+}
+
+enum BackupStatus {
+    BACKUP_STATUS_UNSPECIFIED = 0;
+    BACKUP_STATUS_IN_PROGRESS = 1;
+    BACKUP_STATUS_COMPLETED = 2;
+    BACKUP_STATUS_FAILED = 3;
+    BACKUP_STATUS_VERIFIED = 4;
+    BACKUP_STATUS_EXPIRED = 5;
+}
+
+message BackupListRequest {
+    string job_id = 1;
+    string repository_id = 2;
+    BackupType backup_type = 3;
+    int32 page = 4;
+    int32 page_size = 5;
+}
+
+message BackupListResponse {
+    repeated BackupPoint backups = 1;
+    int32 total_count = 2;
+}
+
+message BackupDetailsRequest {
+    string backup_id = 1;
+}
+
+message BackupDetailsResponse {
+    BackupPoint backup = 1;
+    repeated BackupFileInfo files = 2;
+    BackupMetrics metrics = 3;
+}
+
+message BackupFileInfo {
+    string path = 1;
+    int64 size = 2;
+    int64 modified_at = 3;
+    bool is_directory = 4;
+}
+
+message BackupMetrics {
+    double speed_mbps = 1;
+    int64 duration_seconds = 2;
+    double compression_ratio = 3;
+    double deduplication_ratio = 4;
+}
+
+message DeleteBackupRequest {
+    string backup_id = 1;
+    bool force = 2;
+}
+
+message DeleteBackupResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+service BackupService {
+    rpc ListBackups(BackupListRequest) returns (BackupListResponse);
+    rpc GetBackupDetails(BackupDetailsRequest) returns (BackupDetailsResponse);
+    rpc DeleteBackup(DeleteBackupRequest) returns (DeleteBackupResponse);
+    rpc VerifyBackup(VerifyBackupRequest) returns (VerifyBackupResponse);
+}
+
+message VerifyBackupRequest {
+    string backup_id = 1;
+    bool check_checksum = 2;
+}
+
+message VerifyBackupResponse {
+    string backup_id = 1;
+    bool success = 2;
+    string message = 3;
+}
