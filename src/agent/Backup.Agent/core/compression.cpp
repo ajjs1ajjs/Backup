@@ -4,8 +4,6 @@ namespace backup {
 
 class ZstdCompressor::Impl {
 public:
-    ZSTD_CCtx* ctx = nullptr;
-    ZSTD_DCtx* dctx = nullptr;
     int level;
     ~Impl() {}
 };
