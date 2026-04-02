@@ -13,8 +13,12 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username && password) {
-      login(username);
-      navigate('/dashboard');
+      const success = await login(username, password);
+      if (success) {
+        navigate('/dashboard');
+      } else {
+        setError('Invalid credentials');
+      }
     } else {
       setError('Please enter username and password');
     }
