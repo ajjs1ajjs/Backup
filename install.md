@@ -15,19 +15,27 @@ sudo ./install.sh --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --agent-type
 
 ### Універсальна установка (curl/iwr)
 ```bash
-# Linux - стандартна
-curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+# Linux - з GitHub (рекомендовано)
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
 
 # Linux - пропустити SSL (якщо проблеми з сертифікатами)
 curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
+
+# Linux - зберегти скрипт і виконати
+curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
+sudo chmod +x install.sh && sudo ./install.sh --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --auto-start
 ```
 
 ```powershell
-# Windows - стандартна
-iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
+# Windows - з GitHub (рекомендовано)
+irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
 
 # Windows - пропустити SSL
 iwr -useb -SkipCertificateCheck https://get.backupsystem.com/agent/install.ps1 | iex -SkipSSL -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
+
+# Windows - зберегти скрипт і виконати
+irm -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
+.\install.ps1 -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
 ```
 
 ## Серверна інсталяція (одною командою)
