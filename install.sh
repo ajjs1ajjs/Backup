@@ -319,6 +319,11 @@ start_agent() {
         log "Agent started successfully"
         systemctl status backup-agent --no-pager
     else
+        log "Warning: Failed to start agent via systemd, trying direct start..."
+        log "Checking service status..."
+        systemctl status backup-agent --no-pager || true
+        log "Trying to start agent directly..."
+        $BIN_DIR/backup-agent version || log "Direct start failed"
         error "Failed to start agent"
     fi
 }
@@ -413,7 +418,7 @@ main() {
     verify_installation
     
     if [[ "$AUTO_START" == "true" ]]; then
-        start_agent
+        start_agent || log "Warning: Could not start agent - may need manual start"
     else
         log "Installation complete. To start agent manually:"
         log "  systemctl start backup-agent"
