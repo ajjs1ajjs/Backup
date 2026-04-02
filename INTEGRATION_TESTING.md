@@ -16,6 +16,9 @@ This guide covers integration testing between the C# server and C++ agents, as w
 
 ## Quick Start
 
+> Integration/API endpoints in this project run on port `8050`.
+> If authentication is required for setup flows, first login with bootstrap admin and complete forced password change.
+
 ### Run All Tests with Docker Compose
 
 ```bash
@@ -132,7 +135,7 @@ The `StressTestController` provides REST APIs for stress testing:
 
 ```bash
 # Using curl
-curl -X POST http://localhost:8080/api/stresstest/run \
+curl -X POST http://localhost:8050/api/stresstest/run \
   -H "Content-Type: application/json" \
   -d '{
     "vmCount": 100,
@@ -140,7 +143,7 @@ curl -X POST http://localhost:8080/api/stresstest/run \
   }'
 
 # Using PowerShell
-Invoke-RestMethod -Uri "http://localhost:8080/api/stresstest/run" \
+Invoke-RestMethod -Uri "http://localhost:8050/api/stresstest/run" \
   -Method POST \
   -ContentType "application/json" \
   -Body '{"vmCount":100,"concurrentCount":50}'
@@ -149,7 +152,7 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/stresstest/run" \
 ### Example: Stress Test with Network Failures
 
 ```bash
-curl -X POST http://localhost:8080/api/stresstest/run-with-failures \
+curl -X POST http://localhost:8050/api/stresstest/run-with-failures \
   -H "Content-Type: application/json" \
   -d '{
     "vmCount": 100,
@@ -162,7 +165,7 @@ curl -X POST http://localhost:8080/api/stresstest/run-with-failures \
 ### Example: Scalability Test
 
 ```bash
-curl -X POST http://localhost:8080/api/stresstest/scalability \
+curl -X POST http://localhost:8050/api/stresstest/scalability \
   -H "Content-Type: application/json" \
   -d '{
     "vmCount": 100,
@@ -200,7 +203,7 @@ Response:
 ### Example: Endurance Test (8 hours)
 
 ```bash
-curl -X POST http://localhost:8080/api/stresstest/endurance \
+curl -X POST http://localhost:8050/api/stresstest/endurance \
   -H "Content-Type: application/json" \
   -d '{
     "vmCount": 50,
@@ -227,7 +230,7 @@ curl -X POST http://localhost:8080/api/stresstest/endurance \
 
 ```bash
 # Run scalability benchmark
-curl -X POST http://localhost:8080/api/stresstest/scalability \
+curl -X POST http://localhost:8050/api/stresstest/scalability \
   -H "Content-Type: application/json" \
   -d '{
     "vmCount": 100,
@@ -259,7 +262,7 @@ Concurrency: 100 | Throughput: ~15/s  | Avg: 6000ms  | P95: 9800ms
 | `TEST_PostgresDb` | Database name | backup_test |
 | `TEST_PostgresUser` | Database user | postgres |
 | `TEST_PostgresPassword` | Database password | postgres |
-| `TEST_ServerUrl` | Server URL | http://localhost:8080 |
+| `TEST_ServerUrl` | Server URL | http://localhost:8050 |
 
 ### Stress Test Configuration
 
@@ -306,7 +309,7 @@ Increase timeout in test settings:
 Ensure server is running:
 ```bash
 # Check server health
-curl http://localhost:8080/health
+curl http://localhost:8050/health
 
 # View server logs
 docker logs backup-integration-test-server
