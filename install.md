@@ -1,5 +1,15 @@
 # Інсталяція агента (Agent Installation)
 
+> Порт сервера за замовчуванням: `8050`.
+> Під час першого входу використовуйте bootstrap-обліковий запис і змініть пароль.
+
+## Перший вхід після встановлення сервера
+
+1. Запустіть сервер із заданим `Jwt__Key` (обов'язково).
+2. Увійдіть під bootstrap-користувачем (за замовчуванням `admin/admin123`).
+3. Система попросить змінити пароль при першому вході.
+4. За потреби оновіть публічну адресу сервера через налаштування `server.public_url`.
+
 ## Швидка установка (oneliner)
 
 ### Linux
@@ -120,7 +130,8 @@ docker run -d \
 docker run -d \
   --name backup-server \
   -p 8050:8050 \
-  -p 8080:80 \
+  -e Jwt__Key="CHANGE_ME_TO_A_STRONG_SECRET" \
+  -e Server__PublicUrl="http://10.0.0.10:8050" \
   -v /backup/data:/data \
   -e DB_CONNECTION="Server=db;Database=backup;User=sa;Password=P@ssw0rd" \
   backupsystem/server:latest

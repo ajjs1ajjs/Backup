@@ -2,13 +2,38 @@
 
 ## Base URL
 ```
-http://localhost:5000/api
+http://localhost:8050/api
 ```
 
 ## Authentication
 All API requests require JWT token in Authorization header:
 ```
 Authorization: Bearer <token>
+```
+
+### First Login Flow
+
+- On first installation, bootstrap admin credentials are created from configuration:
+  - `BootstrapAdmin:Username` (default `admin`)
+  - `BootstrapAdmin:Password` (default `admin123`)
+- First login with bootstrap admin returns:
+  - HTTP `403`
+  - `code: "PASSWORD_CHANGE_REQUIRED"`
+- Use password-change endpoint, then login again (or use returned token).
+
+#### POST /api/auth/change-password-first-login
+Change bootstrap password on first login.
+```json
+Body: {
+  "username": "admin",
+  "currentPassword": "admin123",
+  "newPassword": "StrongPassword123!"
+}
+```
+```json
+Response: {
+  "token": "<jwt-token>"
+}
 ```
 
 ## Endpoints
@@ -116,6 +141,18 @@ Get all settings
 #### PUT /api/settings/{key}
 Update setting
 
+#### Recommended server URL setting
+Use `server.public_url` to control URL used by agent deployment/install instructions:
+```json
+PUT /api/settings/server.public_url
+Body: {
+  "key": "server.public_url",
+  "value": "http://10.0.0.10:8050",
+  "type": "string",
+  "description": "Public server URL used by agents and installers"
+}
+```
+
 ## WebSocket Events
 
 ### /ws/backup
@@ -153,5 +190,4 @@ Agent status events
 ```
 
 ## Rate Limits
-- 100 requests per minute per IP
-- 10 requests per second for heavy operations
+- Rate limiting is currently disabled in this build configuration.
