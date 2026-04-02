@@ -125,6 +125,14 @@ try
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
         db.Database.EnsureCreated();
         Log.Information("Database initialized");
+        
+        var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+        var adminUser = await authService.GetUserByUsernameAsync("admin");
+        if (adminUser == null)
+        {
+            await authService.RegisterAsync("admin", "admin@backupsystem.com", "admin123", "Admin");
+            Log.Information("Default admin user created (admin/admin123)");
+        }
     }
 
     app.UseSerilogRequestLogging();
