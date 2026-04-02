@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Package Name="Backup Agent"
+             Manufacturer="Backup System"
+             Version="1.0.0.0"
+             UpgradeCode="F8C3E4B2-1D56-4A98-9F3E-7C4B5E6A9012"
+             Compressed="yes"
+             InstallerVersion="500">
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of Backup Agent is already installed." />
+
+        <MediaTemplate EmbedCab="yes" />
+
+        <Feature Id="ProductFeature" Title="Backup Agent" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+            <ComponentRef Id="ApplicationShortcut" />
+        </Feature>
+
+        <StandardDirectory Id="ProgramFiles64Folder">
+            <Directory Id="INSTALLFOLDER" Name="Backup Agent">
+                <Component Id="MainExecutable" Guid="C8D3E4F5-6A7B-4C8D-9E0F-1A2B3C4D5E6F">
+                    <File Id="BackupAgentExe" 
+                          Source="$(var.SourceDir)\backup-agent.exe" 
+                          KeyPath="yes">
+                        <Shortcut Id="StartMenuShortcut"
+                                  Directory="ProgramMenuFolder"
+                                  Name="Backup Agent"
+                                  WorkingDirectory="INSTALLFOLDER"
+                                  Icon="backup-agent.exe" />
+                    </File>
+                </Component>
+            </Directory>
+        </StandardDirectory>
+
+        <StandardDirectory Id="ProgramMenuFolder">
+            <Component Id="ApplicationShortcut" Guid="D9E4F5A6-7B8C-4D9E-0F1A-2B3C4D5E6F7">
+                <RegistryValue Root="HKCU" Key="Software\BackupSystem\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+            </Component>
+        </StandardDirectory>
+
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <Component Id="ConfigFile" Guid="E0F5A6B7-8C9D-4E0F-1A2B-3C4D5E6F7A8">
+                <File Source="$(var.SourceDir)\config.json" />
+            </Component>
+        </ComponentGroup>
+
+        <Property Id="SERVER_URL" Value="http://localhost:50051" />
+        <Property Id="AGENT_TOKEN" Value="" />
+        <Property Id="AGENT_TYPE" Value="hyperv" />
+
+        <Dialog Id="ServerConfigDialog" Title="Configure Backup Agent">
+            <Control Id="ServerUrlLabel" Type="Text" X="20" Y="50" Width="80" Height="18" Text="Server URL:" />
+            <Control Id="ServerUrlEdit" Type="Edit" X="110" Y="48" Width="200" Height="18" Property="SERVER_URL" />
+
+            <Control Id="TokenLabel" Type="Text" X="20" Y="80" Width="80" Height="18" Text="Agent Token:" />
+            <Control Id="TokenEdit" Type="Edit" X="110" Y="78" Width="200" Height="18" Property="AGENT_TOKEN" />
+
+            <Control Id="AgentTypeLabel" Type="Text" X="20" Y="110" Width="80" Height="18" Text="Agent Type:" />
+            <Control Id="AgentTypeCombo" Type="ComboBox" X="110" Y="108" Width="200" Height="18" Property="AGENT_TYPE">
+                <ListEntry Value="hyperv" Text="Hyper-V" />
+                <ListEntry Value="vmware" Text="VMware" />
+                <ListEntry Value="kvm" Text="KVM" />
+                <ListEntry Value="mssql" Text="MS SQL" />
+                <ListEntry Value="postgresql" Text="PostgreSQL" />
+            </Control>
+
+            <Control Id="NextButton" Type="PushButton" X="236" Y="143" Width="80" Height="27" Text="Next" Default="yes" />
+            <Control Id="CancelButton" Type="PushButton" X="304" Y="143" Width="80" Height="27" Text="Cancel" />
+        </Dialog>
+
+        <Binary Id="backup-agent.exe" Source="$(var.SourceDir)\backup-agent.exe" />
+    </Package>
+</Wix>

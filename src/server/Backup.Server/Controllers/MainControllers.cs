@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
 
@@ -6,6 +7,7 @@ namespace Backup.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class JobsController : ControllerBase
 {
     private readonly BackupDbContext _db;
@@ -18,6 +20,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "Viewer")]
     public async Task<ActionResult> GetJobs([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var jobs = await _db.Jobs
@@ -135,6 +138,7 @@ public class JobsController : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class AgentsController : ControllerBase
 {
     private readonly BackupDbContext _db;
@@ -176,6 +180,7 @@ public class AgentsController : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class RepositoriesController : ControllerBase
 {
     private readonly BackupDbContext _db;

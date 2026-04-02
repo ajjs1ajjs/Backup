@@ -24,10 +24,33 @@ curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --ser
 iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AutoStart
 ```
 
+## Серверна інсталяція (одною командою)
+
+### Linux Server
+```bash
+sudo ./install.sh --mode server --install-dir /opt/backup-server
+```
+
+### Windows Server
+```powershell
+.\install.ps1 -Mode server -InstallDir "C:\BackupServer"
+```
+
+### Повна інсталяція (Server + Agent)
+```bash
+# Linux
+sudo ./install.sh --mode all --server 10.0.0.1:50051 --token "AAA-BBB-CCC-DDD" --agent-type "hyperv" --auto-start
+```
+
+```powershell
+# Windows
+.\install.ps1 -Mode all -Server "10.0.0.1:50051" -Token "AAA-BBB-CCC-DDD" -AgentType "hyperv" -AutoStart
+```
+
 ## Параметри інсталяції
 
 ```bash
-# Повна інсталяція з параметрами
+# Повна інсталяція агента з параметрами
 ./install.sh \
   --server 10.0.0.1:50051 \
   --token "AAA-BBB-CCC-DDD" \
@@ -48,6 +71,7 @@ iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1
 | `--token` | Токен реєстрації агента | `AAA-BBB-CCC-DDD` |
 | `--agent-type` | Тип агента | `hyperv`, `vmware`, `kvm`, `mssql`, `postgres`, `oracle` |
 | `--install-dir` | Директорія інсталяції | `/opt/backup-agent` |
+| `--mode` | Режим інсталяції | `agent`, `server`, `all` |
 | `--auto-start` | Автозапуск після інсталяції | `true/false` |
 | `--user` | Користувач для запуску | `root` (Linux) |
 | `--service-name` | Ім'я служби | `BackupAgent` |
@@ -64,20 +88,29 @@ iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1
 | `postgres` | PostgreSQL агент | PostgreSQL |
 | `oracle` | Oracle агент | Oracle Client |
 
-## Демонстрація інсталяції (Silent Install)
+## Docker-інсталяція (альтернатива)
 
+### Agent в Docker
 ```bash
-# Linux - повна автоматична інсталяція
-curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- \
-  --server $SERVER_ADDR \
-  --token $AGENT_TOKEN \
-  --agent-type hyperv \
-  --auto-start
+docker run -d \
+  --name backup-agent \
+  -e SERVER_ADDR=10.0.0.1:50051 \
+  -e AGENT_TOKEN=AAA-BBB-CCC-DDD \
+  -e AGENT_TYPE=hyperv \
+  -v /var/lib/backup-agent:/data \
+  -v /mnt/backup-data:/backup-data \
+  backupsystem/agent:latest
 ```
 
-```powershell
-# Windows - повна автоматична інсталяція
-.\install.ps1 -Server $env:SERVER_ADDR -Token $env:AGENT_TOKEN -AgentType "hyperv" -AutoStart
+### Server в Docker
+```bash
+docker run -d \
+  --name backup-server \
+  -p 50051:50051 \
+  -p 8080:80 \
+  -v /backup/data:/data \
+  -e DB_CONNECTION="Server=db;Database=backup;User=sa;Password=P@ssw0rd" \
+  backupsystem/server:latest
 ```
 
 ## Перевірка інсталяції
@@ -118,22 +151,8 @@ Get-Service -Name "BackupAgent"
 
 ```bash
 # Linux
-./backup-agent uninstall
+./install.sh --uninstall
 
 # Windows
-.\backup-agent.exe uninstall
-```
-
-## Docker-інсталяція (альтернатива)
-
-```bash
-# Linux
-docker run -d \
-  --name backup-agent \
-  -e SERVER_ADDR=10.0.0.1:50051 \
-  -e AGENT_TOKEN=AAA-BBB-CCC-DDD \
-  -e AGENT_TYPE=hyperv \
-  -v /var/lib/backup-agent:/data \
-  -v /mnt/backup-data:/backup-data \
-  backupsystem/agent:latest
+.\install.ps1 -Uninstall
 ```

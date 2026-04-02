@@ -6,6 +6,7 @@ param(
     [string]$Token = "",
     [string]$AgentType = "hyperv",
     [string]$InstallDir = "C:\Program Files\BackupAgent",
+    [string]$Mode = "agent",
     [switch]$AutoStart,
     [switch]$Force,
     [switch]$Uninstall
@@ -42,11 +43,13 @@ Options:
     -Token TOKEN         Agent registration token
     -AgentType TYPE      Agent type: hyperv, vmware, kvm, mssql, postgres, oracle
     -InstallDir DIR      Installation directory (default: $InstallDir)
+    -Mode MODE           Installation mode: agent, server, all (default: agent)
     -AutoStart           Start agent after installation
     -Force              Force reinstallation
 
 Examples:
     .\install.ps1 -Server "10.0.0.1:50051" -Token "ABCD-1234" -AgentType "hyperv" -AutoStart
+    .\install.ps1 -Mode server -InstallDir "C:\BackupServer"
     iwr -useb https://get.backupsystem.com/agent/install.ps1 | iex -Server "10.0.0.1:50051" -Token "ABCD"
 
 "@
@@ -94,10 +97,62 @@ function Check-Dependencies {
         }
     }
     
+    # Check VDDK for VMware
+    if ($AgentType -eq "vmware") {
+        $vddkPath = "${env:ProgramFiles}\VMware\VDDK"
+        if (-not (Test-Path $vddkPath)) {
+            Write-Log "Warning: VDDK not found. VMware backups may not work."
+        }
+    }
+    
+    # Check Hyper-V PowerShell modules for Hyper-V agent
+    if ($AgentType -eq "hyperv") {
+        try {
+            $hypervModule = Get-Module -ListAvailable -Name Hyper-V -ErrorAction SilentlyContinue
+            if (-not $hypervModule) {
+                Write-Log "Warning: Hyper-V PowerShell module not found. Please install Hyper-V management tools."
+            }
+        } catch {
+            Write-Log "Warning: Could not verify Hyper-V module: $_"
+        }
+    }
+    
+    # Check libvirt for KVM
+    if ($AgentType -eq "kvm") {
+        $libvirt = Get-ChildItem -Path "C:\Windows\System32" -Filter "libvirt.dll" -ErrorAction SilentlyContinue
+        if (-not $libvirt) {
+            Write-Log "Warning: libvirt not found. KVM backups may not work."
+        }
+    }
+    
+    # Check .NET for Server
+    if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+        Write-Log "Note: .NET SDK not found - server components require .NET 8.0"
+    }
+    
+    # Check Node.js for UI
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-Log "Note: Node.js not found - UI build requires Node.js 18+"
+    }
+    
     if ($missing.Count -gt 0) {
         Write-Log "Missing dependencies: $($missing -join ', ')"
         Write-Log "Please install Visual Studio Build Tools with C++ workload"
         Write-Log "Download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+        
+        # Try to offer automatic install of vcredist
+        $vcredistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+        $vcredistPath = Join-Path $env:TEMP "vc_redist.x64.exe"
+        
+        Write-Log "Attempting to install Visual C++ Redistributable..."
+        try {
+            Invoke-WebRequest -Uri $vcredistUrl -OutFile $vcredistPath -UseBasicParsing
+            Start-Process -FilePath $vcredistPath -Args "/quiet /norestart" -Wait
+            Write-Log "Visual C++ Redistributable installed"
+            Remove-Item $vcredistPath -Force -ErrorAction SilentlyContinue
+        } catch {
+            Write-Log "Warning: Could not auto-install vcredist. Please install manually."
+        }
     }
     
     Write-Log "Dependency check complete"
@@ -253,10 +308,80 @@ function Uninstall-Agent {
     Write-Log "Agent uninstalled successfully"
 }
 
+function Install-Server {
+    Write-Log "Installing Backup Server..."
+    
+    $serverDir = Join-Path $InstallDir "server"
+    $uiDir = Join-Path $serverDir "ui"
+    
+    # Check and install .NET SDK
+    $dotnetPath = $null
+    if (Get-Command dotnet -ErrorAction SilentlyContinue) {
+        $dotnetPath = (Get-Command dotnet).Source
+    } else {
+        Write-Log "Installing .NET SDK 8.0..."
+        $dotnetInstallScript = Join-Path $env:TEMP "dotnet-install.ps1"
+        try {
+            Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $dotnetInstallScript -UseBasicParsing
+            & $dotnetInstallScript -Channel 8.0 -InstallDir "C:\Program Files\dotnet"
+            $dotnetPath = "C:\Program Files\dotnet\dotnet.exe"
+        } catch {
+            Write-Log "Warning: Could not install .NET SDK. Please install manually from https://dotnet.microsoft.com/download"
+        }
+    }
+    
+    # Ensure server directory exists
+    if (-not (Test-Path $serverDir)) {
+        New-Item -ItemType Directory -Path $serverDir -Force | Out-Null
+    }
+    
+    # Find project root
+    $projectRoot = Split-Path -Parent (Split-Path -Parent (Get-Location))
+    $serverProject = Join-Path $projectRoot "src\server\Backup.Server\Backup.Server.csproj"
+    
+    if (Test-Path $serverProject) {
+        Write-Log "Building server..."
+        if ($dotnetPath) {
+            & $dotnetPath restore $serverProject
+            & $dotnetPath publish $serverProject -c Release -o (Join-Path $serverDir "publish")
+        }
+    } else {
+        Write-Log "Warning: Server source not found, skipping server build"
+    }
+    
+    # Build UI if Node.js is available
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        $uiProject = Join-Path $projectRoot "src\ui\package.json"
+        if (Test-Path $uiProject) {
+            Write-Log "Building UI..."
+            Set-Location (Join-Path $projectRoot "src\ui")
+            npm install --production
+            npm run build
+            if (Test-Path "build") {
+                Move-Item "build" $uiDir -Force
+            }
+            Set-Location $projectRoot
+        }
+    } else {
+        Write-Log "Warning: Node.js not found, skipping UI build"
+    }
+    
+    Write-Log "Server installation complete"
+}
+
 # Main
 if ($Uninstall) {
     Check-Admin
     Uninstall-Agent
+    exit 0
+}
+
+# Handle mode parameter
+if ($Mode -eq "server" -or $Mode -eq "all") {
+    Check-Admin
+    Check-Dependencies
+    Install-Server
+    Write-Log "Server installation completed!"
     exit 0
 }
 

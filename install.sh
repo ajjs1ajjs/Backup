@@ -14,6 +14,7 @@ AGENT_TOKEN=""
 AGENT_TYPE="hyperv"
 AUTO_START=false
 FORCE=false
+INSTALL_MODE="agent"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 error() { echo "[ERROR] $1" >&2; exit 1; }
@@ -29,6 +30,7 @@ Options:
     --token TOKEN         Agent registration token
     --agent-type TYPE     Agent type: hyperv, vmware, kvm, mssql, postgres, oracle
     --install-dir DIR     Installation directory (default: $INSTALL_DIR)
+    --mode MODE           Installation mode: agent, server, all (default: agent)
     --auto-start         Start agent after installation
     --force              Force reinstallation
     --uninstall          Uninstall agent
@@ -36,6 +38,7 @@ Options:
 
 Examples:
     $0 --server 10.0.0.1:50051 --token ABCD-1234 --agent-type hyperv --auto-start
+    $0 --mode server --install-dir /opt/backup-server
     curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:50051 --token ABCD --auto-start
 
 EOF
@@ -48,6 +51,7 @@ parse_args() {
             --token) AGENT_TOKEN="$2"; shift 2 ;;
             --agent-type) AGENT_TYPE="$2"; shift 2 ;;
             --install-dir) INSTALL_DIR="$2"; shift 2 ;;
+            --mode) INSTALL_MODE="$2"; shift 2 ;;
             --auto-start) AUTO_START=true; shift ;;
             --force) FORCE=true; shift ;;
             --uninstall) UNINSTALL=true; shift ;;
@@ -68,7 +72,7 @@ check_deps() {
     
     log "Checking dependencies..."
     
-    for cmd in cmake make g++; do
+    for cmd in cmake make g++ git pkg-config; do
         if ! command -v $cmd &> /dev/null; then
             missing+=($cmd)
         fi
@@ -86,6 +90,8 @@ check_deps() {
         apt-get install -y --no-install-recommends \
             cmake \
             build-essential \
+            git \
+            pkg-config \
             libssl-dev \
             libcurl4-openssl-dev \
             libxml2-dev \
@@ -94,6 +100,31 @@ check_deps() {
             curl \
             ca-certificates
     fi
+    
+    if ! command -v systemctl &> /dev/null; then
+        log "Warning: systemd not found - service installation will be skipped"
+    fi
+    
+    if ! command -v dotnet &> /dev/null; then
+        log "Warning: .NET SDK not found - server installation will be skipped"
+    fi
+    
+    if ! command -v node &> /dev/null; then
+        log "Warning: Node.js not found - UI build will be skipped"
+    fi
+    
+    case "$AGENT_TYPE" in
+        kvm)
+            if ! command -v virsh &> /dev/null && ! dpkg -l | grep -q libvirt; then
+                log "Warning: libvirt not found - KVM backups may not work"
+            fi
+            ;;
+        postgres)
+            if ! command -v psql &> /dev/null; then
+                log "Warning: PostgreSQL client not found - PostgreSQL backups may not work"
+            fi
+            ;;
+    esac
     
     log "All dependencies satisfied"
 }
@@ -238,10 +269,62 @@ uninstall_agent() {
     log "Agent uninstalled successfully"
 }
 
+install_server() {
+    log "Installing Backup Server..."
+    
+    local server_dir="$INSTALL_DIR/server"
+    local ui_dir="$server_dir/ui"
+    
+    if ! command -v dotnet &> /dev/null; then
+        log "Installing .NET SDK 8.0..."
+        wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh
+        chmod +x /tmp/dotnet-install.sh
+        /tmp/dotnet-install.sh --channel 8.0 --install-dir /opt/dotnet
+        export DOTNET_ROOT=/opt/dotnet
+        export PATH="$PATH:/opt/dotnet"
+    fi
+    
+    mkdir -p "$server_dir"
+    cd "$server_dir"
+    
+    log "Building server..."
+    if [[ -f "src/server/Backup.Server/Backup.Server.csproj" ]]; then
+        dotnet restore src/server/Backup.Server/Backup.Server.csproj
+        dotnet publish src/server/Backup.Server/Backup.Server.csproj -c Release -o "$server_dir/publish"
+    else
+        log "Warning: Server source not found, skipping server build"
+    fi
+    
+    if command -v node &> /dev/null; then
+        log "Building UI..."
+        if [[ -f "src/ui/package.json" ]]; then
+            cd src/ui
+            npm install --production
+            npm run build
+            mv build "$ui_dir"
+        else
+            log "Warning: UI source not found, skipping UI build"
+        fi
+    else
+        log "Warning: Node.js not found, skipping UI build"
+    fi
+    
+    log "Server installation complete"
+}
+
 main() {
     if [[ "$UNINSTALL" == "true" ]]; then
         check_root
         uninstall_agent
+        exit 0
+    fi
+    
+    parse_args "$@"
+    
+    if [[ "$INSTALL_MODE" == "server" || "$INSTALL_MODE" == "all" ]]; then
+        check_root
+        check_deps
+        install_server
         exit 0
     fi
     
@@ -250,7 +333,6 @@ main() {
         error "Server and Token are required"
     fi
     
-    parse_args "$@"
     check_root
     check_deps
     create_dirs
