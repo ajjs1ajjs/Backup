@@ -132,7 +132,7 @@ This document summarizes the integration testing infrastructure implemented for 
 
 **Example Request:**
 ```bash
-curl -X POST http://localhost:8080/api/stresstest/run \
+curl -X POST http://localhost:8050/api/stresstest/run \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"concurrentCount":50}'
 ```
@@ -279,7 +279,7 @@ cd src/server/Backup.Server
 dotnet run
 
 # Run stress test (in new terminal)
-curl -X POST http://localhost:8080/api/stresstest/run \
+curl -X POST http://localhost:8050/api/stresstest/run \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"concurrentCount":100}'
 ```
@@ -287,7 +287,7 @@ curl -X POST http://localhost:8080/api/stresstest/run \
 ### Scalability Test (10 minutes)
 
 ```bash
-curl -X POST http://localhost:8080/api/stresstest/scalability \
+curl -X POST http://localhost:8050/api/stresstest/scalability \
   -H "Content-Type: application/json" \
   -d '{"vmCount":100,"startConcurrency":10,"maxConcurrency":100,"stepSize":10}'
 ```
@@ -330,7 +330,7 @@ Concurrency: 100 | Throughput: ~15/s | Avg: 6000ms | P95: 9800ms
 
 2. **Execute Stress Test**
    ```bash
-   curl -X POST http://localhost:8080/api/stresstest/run \
+   curl -X POST http://localhost:8050/api/stresstest/run \
      -d '{"vmCount":100,"concurrentCount":100}'
    ```
 
