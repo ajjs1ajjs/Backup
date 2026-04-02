@@ -62,7 +62,7 @@ export default function Settings() {
               label="Server Port" 
               type="number" 
               fullWidth 
-              value={localSettings['network.port'] || '50051'}
+              value={localSettings['network.port'] || '8050'}
               onChange={(e) => setLocalSettings({...localSettings, 'network.port': e.target.value})}
             />
             <FormControlLabel 

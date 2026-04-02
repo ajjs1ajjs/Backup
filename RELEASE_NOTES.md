@@ -61,14 +61,14 @@ _________________
 
 1. Install server:
 ```bash
-docker run -d -p 50051:50051 -p 8080:8080 backupsystem/server:latest
+docker run -d -p 8050:8050 -p 8080:8080 backupsystem/server:latest
 ```
 
 2. Access UI: http://localhost:8080
 
 3. Install agent:
 ```bash
-curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash
 ```
 
 ### Known Limitations

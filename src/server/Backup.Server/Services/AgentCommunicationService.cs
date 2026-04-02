@@ -129,7 +129,7 @@ public class AgentCommunicationService : BackgroundService
                 {
                     if (!_agentClients.TryGetValue(agent.Id, out var client))
                     {
-                        client = new GrpcAgentClient("http://localhost:50051", 
+                        client = new GrpcAgentClient("http://localhost:8050", 
                             _services.GetRequiredService<ILogger<GrpcAgentClient>>());
                         _agentClients[agent.Id] = client;
                     }

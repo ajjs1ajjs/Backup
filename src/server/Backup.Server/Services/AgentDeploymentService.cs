@@ -69,7 +69,7 @@ public class AgentDeploymentService
 
     private string GenerateDeployScript(DeploymentRequest request)
     {
-        var serverUrl = "http://localhost:50051";
+        var serverUrl = "http://localhost:8050";
         
         if (request.AgentType == "hyperv" || request.AgentType == "mssql")
         {
@@ -161,7 +161,7 @@ curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --ser
 
     private DeploymentResult GenerateManualInstructions(DeploymentRequest request)
     {
-        var serverUrl = "http://localhost:50051";
+        var serverUrl = "http://localhost:8050";
         
         return new DeploymentResult
         {

@@ -222,6 +222,6 @@ INSERT INTO settings (key, value, description) VALUES
     ('backup.compression', 'zstd', 'Default compression algorithm'),
     ('backup.block_size_kb', '64', 'Default block size in KB'),
     ('backup.retention_days', '30', 'Default retention days'),
-    ('network.port', '50051', 'gRPC server port'),
+    ('network.port', '8050', 'gRPC server port'),
     ('security.encryption', 'aes256', 'Encryption algorithm'),
     ('scheduler.timezone', 'UTC', 'Default timezone');
