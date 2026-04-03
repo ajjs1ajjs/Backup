@@ -302,10 +302,9 @@ public class JobRunHistory
     public double SpeedMbps { get; set; }
 
     public string? ErrorMessage { get; set; }
-
-    [ForeignKey("JobId")]
-    public Job? Job { get; set; }
 }
+
+[Table("settings")]
 
 [Table("users")]
 public class User
