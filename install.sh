@@ -4,7 +4,7 @@ set -e
 
 VERSION="1.0.0"
 INSTALL_DIR="/opt/backup"
-BUILD_DIR="/tmp/backup-install-build"
+BUILD_DIR="/tmp/backup-build-$$"
 JWT_KEY=""
 AUTO_START=true
 PG_PASSWORD="postgres"
