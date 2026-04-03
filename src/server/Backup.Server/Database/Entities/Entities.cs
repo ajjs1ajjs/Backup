@@ -304,8 +304,6 @@ public class JobRunHistory
     public string? ErrorMessage { get; set; }
 }
 
-[Table("settings")]
-
 [Table("users")]
 public class User
 {
