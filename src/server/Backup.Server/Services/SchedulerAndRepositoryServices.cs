@@ -221,7 +221,7 @@ public class RepositoryService
         var repo = await _db.Repositories.FindAsync(repositoryId);
         if (repo == null) return 0;
         
-        return repo.CapacityBytes - repo.UsedBytes;
+        return (repo.CapacityBytes ?? 0) - repo.UsedBytes;
     }
 
     public async Task<List<string>> GetExpiredBackupsAsync(string repositoryId, RetentionPolicy policy)

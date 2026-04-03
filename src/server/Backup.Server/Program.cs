@@ -91,13 +91,11 @@ try
         });
     });
 
-    builder.Services.AddGrpc();
     builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
         .AllowAnyOrigin()
         .AllowAnyMethod()
         .AllowAnyHeader()));
 
-    builder.Services.AddScoped<IAgentRegistry, AgentRegistry>();
     builder.Services.AddScoped<IAuthService, AuthService>();
 
     builder.Services.AddHostedService<JobSchedulerService>();
