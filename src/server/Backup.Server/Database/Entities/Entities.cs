@@ -272,9 +272,6 @@ public class Restore
     public DateTime? CompletedAt { get; set; }
 
     public DateTime? StartedAt { get; set; }
-
-    [ForeignKey("BackupId")]
-    public BackupPoint? BackupPoint { get; set; }
 }
 
 [Table("job_run_history")]
