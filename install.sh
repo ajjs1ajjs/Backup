@@ -85,6 +85,10 @@ clone_repo() {
     log "Cloning repository..."
     rm -rf "$BUILD_DIR"
     git clone https://github.com/ajjs1ajjs/Backup.git "$BUILD_DIR"
+    
+    log "Stopping old server..."
+    pkill -9 -f Backup.Server 2>/dev/null || true
+    sleep 2
 }
 
 generate_jwt_key() {
