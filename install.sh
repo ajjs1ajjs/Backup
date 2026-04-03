@@ -130,8 +130,7 @@ clone_repo() {
     rm -rf /opt/backup/server/publish 2>/dev/null || true
     sleep 2
 
-    local current_dir="$(cd "$(dirname "$0")" && pwd)"
-    cp -r "$current_dir" "$BUILD_DIR"
+    git clone https://github.com/ajjs1ajjs/Backup.git "$BUILD_DIR"
 }
 
 generate_jwt_key() {
