@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 const API_URL =
   window.localStorage.getItem('apiUrl') ||
   process.env.REACT_APP_API_URL ||
-  'http://localhost:8000';
+  '';
 
 export const useAuthStore = create(
   persist(
