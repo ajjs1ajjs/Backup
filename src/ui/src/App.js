@@ -10,27 +10,34 @@ import Dashboard from './pages/Dashboard';
 import Jobs from './pages/Jobs';
 import Backups from './pages/Backups';
 import Restore from './pages/Restore';
+import Replication from './pages/Replication';
+import Inventory from './pages/Inventory';
 import Repositories from './pages/Repositories';
 import Agents from './pages/Agents';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
+import Alerts from './pages/Alerts';
 
 const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: { main: '#1976d2' },
-    secondary: { main: '#dc004e' },
-    success: { main: '#2e7d32' },
-    warning: { main: '#ed6c02' },
-    error: { main: '#d32f2f' },
-    background: { default: '#f5f5f5' },
+    primary: { main: '#4fc3f7' },
+    secondary: { main: '#ab47bc' },
+    success: { main: '#66bb6a' },
+    warning: { main: '#ffa726' },
+    error: { main: '#ef5350' },
+    background: { default: '#f5f6f8', paper: '#ffffff' },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
   },
   components: {
-    MuiButton: { styleOverrides: { root: { textTransform: 'none' } } },
-    MuiCard: { styleOverrides: { root: { borderRadius: 12 } } },
+    MuiButton: { styleOverrides: { root: { textTransform: 'none', borderRadius: 8 } } },
+    MuiCard: { styleOverrides: { root: { borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)' } } },
+    MuiPaper: { styleOverrides: { root: { boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } } },
+    MuiTableCell: { styleOverrides: { root: { borderBottom: '1px solid #f0f0f0' } } },
   },
 });
 
@@ -53,8 +60,11 @@ function App() {
               <Route path="jobs" element={<Jobs />} />
               <Route path="backups" element={<Backups />} />
               <Route path="restore" element={<Restore />} />
+              <Route path="replication" element={<Replication />} />
+              <Route path="inventory" element={<Inventory />} />
               <Route path="repositories" element={<Repositories />} />
               <Route path="agents" element={<Agents />} />
+              <Route path="alerts" element={<Alerts />} />
               <Route path="settings" element={<Settings />} />
               <Route path="reports" element={<Reports />} />
             </Route>

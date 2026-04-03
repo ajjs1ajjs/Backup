@@ -1,47 +1,78 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Drawer, AppBar, Toolbar, List, Typography, Divider,
   ListItem, ListItemButton, ListItemIcon, ListItemText,
-  IconButton, Badge, Avatar, Menu, MenuItem
+  IconButton, Badge, Avatar, Menu, MenuItem, Collapse
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
+  Storage as InventoryIcon,
   Backup as BackupIcon,
   Restore as RestoreIcon,
-  Storage as StorageIcon,
-  Computer as ComputerIcon,
   Settings as SettingsIcon,
   Assessment as ReportIcon,
-  Work as WorkIcon,
+  Computer as ComputerIcon,
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  ExpandMore,
+  ExpandLess,
+  Warning as WarningIcon,
+  Cloud as CloudIcon,
+  Security as SecurityIcon
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
-  { text: 'Backups', icon: <BackupIcon />, path: '/backups' },
-  { text: 'Restore', icon: <RestoreIcon />, path: '/restore' },
-  { text: 'Repositories', icon: <StorageIcon />, path: '/repositories' },
-  { text: 'Agents', icon: <ComputerIcon />, path: '/agents' },
-  { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
-  { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+const navSections = [
+  {
+    label: 'HOME',
+    items: [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    ]
+  },
+  {
+    label: 'PROTECTION',
+    items: [
+      { text: 'Backup Jobs', icon: <BackupIcon />, path: '/jobs' },
+      { text: 'Recovery', icon: <RestoreIcon />, path: '/restore' },
+      { text: 'Replication', icon: <CloudIcon />, path: '/replication' },
+    ]
+  },
+  {
+    label: 'INFRASTRUCTURE',
+    items: [
+      { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
+      { text: 'Repositories', icon: <StorageIcon />, path: '/repositories' },
+      { text: 'Agents', icon: <ComputerIcon />, path: '/agents' },
+    ]
+  },
+  {
+    label: 'MONITORING',
+    items: [
+      { text: 'Alerts', icon: <WarningIcon />, path: '/alerts' },
+      { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
+    ]
+  },
+  {
+    label: 'CONFIGURATION',
+    items: [
+      { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    ]
+  },
 ];
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuthStore();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const { logout, username } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({});
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-
   const handleMenu = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
@@ -51,84 +82,117 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const toggleSection = (label) => {
+    setExpandedSections(prev => ({ ...prev, [label]: !prev[label] }));
+  };
+
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-          Backup System
+    <Box sx={{ bgcolor: '#1a1d23', color: '#fff', height: '100%' }}>
+      <Toolbar sx={{ justifyContent: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: '#4fc3f7', letterSpacing: 1 }}>
+          BACKUP SYSTEM
         </Typography>
       </Toolbar>
-      <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+
+      <Box sx={{ overflowY: 'auto', py: 1 }}>
+        {navSections.map((section) => (
+          <Box key={section.label}>
             <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => toggleSection(section.label)}
+              sx={{ px: 2, py: 0.75 }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <Typography variant="caption" sx={{ color: '#8b92a5', fontWeight: 600, letterSpacing: 1, fontSize: '0.7rem' }}>
+                {section.label}
+              </Typography>
+              <Box sx={{ ml: 'auto' }}>
+                {expandedSections[section.label] ? <ExpandLess sx={{ fontSize: 16, color: '#8b92a5' }} /> : <ExpandMore sx={{ fontSize: 16, color: '#8b92a5' }} />}
+              </Box>
             </ListItemButton>
-          </ListItem>
+            <Collapse in={expandedSections[section.label] !== false} timeout={200} unmountOnExit={false}>
+              <List sx={{ py: 0 }}>
+                {section.items.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding>
+                      <ListItemButton
+                        selected={isActive}
+                        onClick={() => { navigate(item.path); setMobileOpen(false); }}
+                        sx={{
+                          py: 0.7,
+                          px: 3,
+                          '&.Mui-selected': { bgcolor: 'rgba(79, 195, 247, 0.15)', borderRight: '3px solid #4fc3f7' },
+                          '&.Mui-selected:hover': { bgcolor: 'rgba(79, 195, 247, 0.25)' },
+                          '& .MuiListItemIcon-root': { color: isActive ? '#4fc3f7' : '#8b92a5', minWidth: 36 },
+                          '& .MuiListItemText-primary': { color: isActive ? '#fff' : '#c0c6d4', fontSize: '0.875rem' },
+                        }}
+                      >
+                        <ListItemIcon>{item.icon}</ListItemIcon>
+                        <ListItemText primary={item.text} />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </Box>
         ))}
-      </List>
-    </div>
+      </Box>
+    </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#fff', color: '#333', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}>
         <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
+          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: 'none' } }}>
             <MenuIcon />
           </IconButton>
-          <Box sx={{ flexGrow: 1 }} />
-          <IconButton color="inherit">
-            <Badge badgeContent={3} color="error">
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 500, color: '#333', fontSize: '1rem' }}>
+            {navSections.flatMap(s => s.items).find(i => i.path === location.pathname)?.text || 'Dashboard'}
+          </Typography>
+          <IconButton sx={{ color: '#666' }}>
+            <Badge badgeContent={0} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <IconButton onClick={handleMenu} color="inherit" sx={{ ml: 2 }}>
-            <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
+          <IconButton onClick={handleMenu} sx={{ ml: 1, color: '#666' }}>
+            <Avatar sx={{ width: 32, height: 32, bgcolor: '#4fc3f7', fontSize: '0.875rem' }}>
+              {(username || 'A').charAt(0).toUpperCase()}
+            </Avatar>
           </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
-          >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleLogout}>
-              <LogoutIcon sx={{ mr: 1 }} /> Logout
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
+            <MenuItem onClick={handleClose} sx={{ fontSize: '0.875rem' }}>Profile</MenuItem>
+            <MenuItem onClick={handleLogout} sx={{ fontSize: '0.875rem' }}>
+              <LogoutIcon sx={{ mr: 1, fontSize: 18 }} /> Logout
             </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
+
       <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
-          sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+          sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', border: 'none' } }}
         >
           {drawer}
         </Drawer>
         <Drawer
           variant="permanent"
-          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', border: 'none', top: 64, height: 'calc(100% - 64px)' } }}
           open
         >
           {drawer}
         </Drawer>
       </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
+
+      <Box component="main" sx={{ flexGrow: 1, bgcolor: '#f5f6f8', width: { sm: `calc(100% - ${drawerWidth}px)` }, minHeight: '100vh' }}>
         <Toolbar />
-        <Outlet />
+        <Box sx={{ p: 3 }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

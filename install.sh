@@ -255,7 +255,7 @@ configure_nginx() {
         
         cat > /etc/nginx/sites-available/backup << EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name _;
     
     root $INSTALL_DIR/ui;
@@ -276,6 +276,7 @@ server {
 }
 EOF
 
+        rm -f /etc/nginx/sites-enabled/default
         ln -sf /etc/nginx/sites-available/backup /etc/nginx/sites-enabled/backup
         nginx -t && systemctl reload nginx
     else
