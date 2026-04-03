@@ -47,7 +47,6 @@ public class BackupsController : ControllerBase
     public async Task<ActionResult> GetBackup(string backupId)
     {
         var backup = await _db.BackupPoints
-            .Include(b => b.Repository)
             .FirstOrDefaultAsync(b => b.BackupId == backupId);
 
         if (backup == null) return NotFound();

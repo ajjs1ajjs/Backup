@@ -194,7 +194,6 @@ public class RestoreService
         try
         {
             var backup = await _db.BackupPoints
-                .Include(b => b.Repository)
                 .FirstOrDefaultAsync(b => b.BackupId == request.BackupId);
 
             if (backup == null)
