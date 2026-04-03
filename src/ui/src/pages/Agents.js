@@ -1,13 +1,13 @@
 import React from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, IconButton, CircularProgress } from '@mui/material';
 import { Add as AddIcon, Computer as ComputerIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Agents() {
   const { data, loading, refetch } = useApi('/api/agents');
 
   const handleDelete = async (agentId) => {
-    try { await fetch(`/api/agents/${agentId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/agents/${agentId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
   };
 
   if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;

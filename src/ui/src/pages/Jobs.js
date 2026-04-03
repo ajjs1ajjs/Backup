@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, CircularProgress, Paper } from '@mui/material';
 import { PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Delete as DeleteIcon, CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon, Backup as BackupIcon } from '@mui/icons-material';
 import { useApi } from '../services/ApiContext';
+import { fetchWithAuth } from '../services/ApiContext';
 
 export default function Jobs() {
   const { data, loading, refetch } = useApi('/api/jobs');
@@ -9,20 +10,20 @@ export default function Jobs() {
   const [formData, setFormData] = useState({ name: '', jobType: 'full_backup', sourceId: '', destinationId: '', schedule: '0 2 * * *' });
 
   const handleRunJob = async (jobId) => {
-    try { await fetch(`/api/jobs/${jobId}/run`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/jobs/${jobId}/run`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleStopJob = async (jobId) => {
-    try { await fetch(`/api/jobs/${jobId}/stop`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/jobs/${jobId}/stop`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleDeleteJob = async (jobId) => {
-    try { await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/jobs/${jobId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleCreateJob = async () => {
     try {
-      await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      await fetchWithAuth('/api/jobs', { method: 'POST', body: JSON.stringify(formData) });
       setOpen(false);
       setFormData({ name: '', jobType: 'full_backup', sourceId: '', destinationId: '', schedule: '0 2 * * *' });
       refetch();

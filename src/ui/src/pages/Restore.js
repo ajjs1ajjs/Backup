@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress, CircularProgress } from '@mui/material';
 import { Restore as RestoreIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Restore() {
   const { data, loading } = useApi('/api/restore');
@@ -14,9 +14,8 @@ export default function Restore() {
   const handleStartRestore = async () => {
     if (!selectedBackup) return;
     try {
-      await fetch('/api/restore', {
+      await fetchWithAuth('/api/restore', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupId: selectedBackup, restoreType, targetHost })
       });
       setOpen(false);

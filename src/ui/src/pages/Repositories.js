@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Button, TextField, Select, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, IconButton, CircularProgress } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, CheckCircle as TestIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Repositories() {
   const { data, loading, refetch } = useApi('/api/repositories');
@@ -9,16 +9,16 @@ export default function Repositories() {
   const [formData, setFormData] = useState({ name: '', type: 'local', path: '' });
 
   const handleTest = async (repoId) => {
-    try { await fetch(`/api/repositories/${repoId}/test`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/repositories/${repoId}/test`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleDelete = async (repoId) => {
-    try { await fetch(`/api/repositories/${repoId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/repositories/${repoId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleAddRepository = async () => {
     try {
-      await fetch('/api/repositories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      await fetchWithAuth('/api/repositories', { method: 'POST', body: JSON.stringify(formData) });
       setOpen(false);
       setFormData({ name: '', type: 'local', path: '' });
       refetch();

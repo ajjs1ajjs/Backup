@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Card, CardContent, Typography, TextField, Button, Select, MenuItem, Switch, FormControlLabel, CircularProgress, Alert } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Settings() {
   const { data: settings, loading, refetch } = useApi('/api/settings');
@@ -19,10 +19,9 @@ export default function Settings() {
   const handleSave = async () => {
     try {
       for (const [key, value] of Object.entries(localSettings)) {
-        await fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, value })
+        await fetchWithAuth('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ key, value, type: 'string' })
         });
       }
       setSaved(true);

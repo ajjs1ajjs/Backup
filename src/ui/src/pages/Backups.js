@@ -1,17 +1,17 @@
 import React from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, IconButton, CircularProgress } from '@mui/material';
 import { Delete as DeleteIcon, CheckCircle as VerifyIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Backups() {
   const { data, loading, refetch } = useApi('/api/backups');
 
   const handleVerify = async (backupId) => {
-    try { await fetch(`/api/backups/${backupId}/verify`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/backups/${backupId}/verify`, { method: 'POST' }); refetch(); } catch (e) { refetch(); }
   };
 
   const handleDelete = async (backupId) => {
-    try { await fetch(`/api/backups/${backupId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
+    try { await fetchWithAuth(`/api/backups/${backupId}`, { method: 'DELETE' }); refetch(); } catch (e) { refetch(); }
   };
 
   if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;
