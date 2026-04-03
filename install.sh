@@ -6,7 +6,6 @@ VERSION="1.0.0"
 INSTALL_DIR="/opt/backup"
 BUILD_DIR="/tmp/backup-build"
 JWT_KEY=""
-POSTGRES_PASSWORD="postgres"
 AUTO_START=true
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
@@ -14,15 +13,14 @@ error() { echo "[ERROR] $1" >&2; exit 1; }
 
 show_help() {
     cat << EOF
-Backup System v$VERSION - Universal Installer
+Backup System v$VERSION - Universal Installer (SQLite)
 
 Usage: $0 [OPTIONS]
 
 Options:
-    --auto-start         Start services after installation (default: true)
-    --jwt-key KEY        JWT secret key (auto-generated if not provided)
-    --postgres-password PASSWORD  PostgreSQL password (default: postgres)
-    -h, --help           Show this help
+    --auto-start    Start services after installation (default: true)
+    --jwt-key KEY   JWT secret key (auto-generated if not provided)
+    -h, --help     Show this help
 
 Example:
     $0 --auto-start
@@ -35,7 +33,6 @@ parse_args() {
         case $1 in
             --auto-start) AUTO_START=true; shift ;;
             --jwt-key) JWT_KEY="$2"; shift 2 ;;
-            --postgres-password) POSTGRES_PASSWORD="$2"; shift 2 ;;
             -h|--help) show_help; exit 0 ;;
             *) shift ;;
         esac
@@ -48,44 +45,11 @@ check_root() {
     fi
 }
 
-install_postgres() {
-    log "Installing PostgreSQL..."
-    
-    if command -v pg_isready &> /dev/null; then
-        log "PostgreSQL already installed"
-        systemctl enable postgresql 2>/dev/null || true
-        systemctl start postgresql 2>/dev/null || true
-        return 0
-    fi
-    
-    if command -v apt-get &> /dev/null; then
-        apt-get update -qq
-        apt-get install -y -qq postgresql postgresql-contrib
-    elif command -v yum &> /dev/null; then
-        yum install -y postgresql-server postgresql
-    elif command -v dnf &> /dev/null; then
-        dnf install -y postgresql-server postgresql
-    fi
-    
-    systemctl enable postgresql 2>/dev/null || true
-    systemctl start postgresql 2>/dev/null || true
-    
-    sleep 3
-    
-    if command -v psql &> /dev/null; then
-        log "Configuring PostgreSQL..."
-        sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PASSWORD';" 2>/dev/null || true
-        sudo -u postgres psql -c "CREATE DATABASE backup;" 2>/dev/null || true
-    fi
-    
-    log "PostgreSQL ready"
-}
-
 install_dependencies() {
     log "Installing dependencies..."
     
     local missing=()
-    for cmd in dotnet node npm git cmake make g++; do
+    for cmd in dotnet node npm git; do
         if ! command -v $cmd &> /dev/null; then
             missing+=($cmd)
         fi
@@ -94,7 +58,7 @@ install_dependencies() {
     if [[ ${#missing[@]} -gt 0 ]]; then
         if command -v apt-get &> /dev/null; then
             apt-get update -qq
-            apt-get install -y -qq wget curl git cmake build-essential
+            apt-get install -y -qq wget curl git
         fi
     fi
     
@@ -145,7 +109,7 @@ install_server() {
     cat > "$server_install/publish/appsettings.json" << EOF
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=backup;Username=postgres;Password=$POSTGRES_PASSWORD"
+    "DefaultConnection": "Data Source=$server_install/publish/backup.db"
   },
   "Jwt": {
     "Key": "$JWT_KEY",
@@ -165,10 +129,11 @@ EOF
 
     chmod 644 "$server_install/publish/appsettings.json"
 
-    cat > /etc/systemd/system/backup-server.service << EOF
+    if command -v systemctl &> /dev/null; then
+        cat > /etc/systemd/system/backup-server.service << EOF
 [Unit]
 Description=Backup Server
-After=network.target postgresql.service
+After=network.target
 
 [Service]
 Type=simple
@@ -177,19 +142,23 @@ WorkingDirectory=$server_install/publish
 ExecStart=$server_install/publish/Backup.Server --urls=http://0.0.0.0:8000
 Restart=on-failure
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
+        systemctl daemon-reload
 
-    if [[ "$AUTO_START" == "true" ]]; then
+        if [[ "$AUTO_START" == "true" ]]; then
+            log "Starting server..."
+            systemctl enable backup-server
+            systemctl start backup-server
+            sleep 5
+        fi
+    else
         log "Starting server..."
-        systemctl enable backup-server
-        systemctl start backup-server
+        cd "$server_install/publish"
+        nohup ./Backup.Server --urls=http://0.0.0.0:8000 > /var/log/backup-server.log 2>&1 &
         sleep 5
     fi
 
@@ -237,10 +206,6 @@ server {
         proxy_set_header Host \$host;
         proxy_cache_bypass \$http_upgrade;
     }
-    
-    location /grpc {
-        grpc_pass localhost:8000;
-    }
 }
 EOF
 
@@ -262,7 +227,6 @@ main() {
     log "Installing Backup System v$VERSION..."
     log "========================================="
     
-    install_postgres
     install_dependencies
     clone_repo
     install_server
@@ -275,7 +239,6 @@ main() {
     log "========================================="
     log ""
     log "Access the application:"
-    log "  UI: http://localhost:80"
     log "  API: http://localhost:8000"
     log "  Swagger: http://localhost:8000/swagger"
     log ""
@@ -284,8 +247,6 @@ main() {
     log "  Password: admin123"
     log ""
     log "IMPORTANT: Change password on first login!"
-    log ""
-    log "Check status: systemctl status backup-server"
     log ""
 }
 
