@@ -7,13 +7,14 @@ INSTALL_DIR="/opt/backup"
 BUILD_DIR="/tmp/backup-build"
 JWT_KEY=""
 AUTO_START=true
+PG_PASSWORD="postgres"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 error() { echo "[ERROR] $1" >&2; exit 1; }
 
 show_help() {
     cat << EOF
-Backup System v$VERSION - Universal Installer (SQLite)
+Backup System v$VERSION - Universal Installer (PostgreSQL)
 
 Usage: $0 [OPTIONS]
 
@@ -33,6 +34,7 @@ parse_args() {
         case $1 in
             --auto-start) AUTO_START=true; shift ;;
             --jwt-key) JWT_KEY="$2"; shift 2 ;;
+            --postgres-password) PG_PASSWORD="$2"; shift 2 ;;
             -h|--help) show_help; exit 0 ;;
             *) shift ;;
         esac
@@ -59,6 +61,10 @@ install_dependencies() {
         if command -v apt-get &> /dev/null; then
             apt-get update -qq
             apt-get install -y -qq wget curl git
+        elif command -v yum &> /dev/null; then
+            yum install -y -q wget curl git
+        elif command -v dnf &> /dev/null; then
+            dnf install -y -q wget curl git
         fi
     fi
     
@@ -75,6 +81,40 @@ install_dependencies() {
         if command -v apt-get &> /dev/null; then
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
             apt-get install -y -qq nodejs
+        elif command -v yum &> /dev/null; then
+            curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+            yum install -y -q nodejs
+        elif command -v dnf &> /dev/null; then
+            curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+            dnf install -y -q nodejs
+        fi
+    fi
+    
+    if ! command -v nginx &> /dev/null; then
+        log "Installing Nginx..."
+        if command -v apt-get &> /dev/null; then
+            apt-get install -y -qq nginx
+        elif command -v yum &> /dev/null; then
+            yum install -y -q nginx
+        elif command -v dnf &> /dev/null; then
+            dnf install -y -q nginx
+        fi
+    fi
+    
+    if ! command -v psql &> /dev/null; then
+        log "Installing PostgreSQL..."
+        if command -v apt-get &> /dev/null; then
+            apt-get install -y -qq postgresql postgresql-contrib
+        elif command -v yum &> /dev/null; then
+            yum install -y -q postgresql-server postgresql-contrib
+            if command -v postgresql-setup &> /dev/null; then
+                postgresql-setup --initdb
+            fi
+        elif command -v dnf &> /dev/null; then
+            dnf install -y -q postgresql-server postgresql-contrib
+            if command -v postgresql-setup &> /dev/null; then
+                postgresql-setup --initdb
+            fi
         fi
     fi
     
@@ -84,17 +124,39 @@ install_dependencies() {
 clone_repo() {
     log "Cloning repository..."
     rm -rf "$BUILD_DIR"
-    git clone https://github.com/ajjs1ajjs/Backup.git "$BUILD_DIR"
-    
-    log "Stopping old server..."
+
+    log "Stopping old server and removing old files..."
     pkill -9 -f Backup.Server 2>/dev/null || true
+    rm -rf /opt/backup/server/publish 2>/dev/null || true
     sleep 2
+
+    local current_dir="$(cd "$(dirname "$0")" && pwd)"
+    cp -r "$current_dir" "$BUILD_DIR"
 }
 
 generate_jwt_key() {
     if [[ -z "$JWT_KEY" ]]; then
         JWT_KEY=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
     fi
+}
+
+setup_postgresql() {
+    log "Setting up PostgreSQL..."
+    
+    if command -v systemctl &> /dev/null; then
+        systemctl start postgresql 2>/dev/null || true
+        systemctl enable postgresql 2>/dev/null || true
+    else
+        pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start 2>/dev/null || true
+    fi
+    
+    sleep 3
+    
+    su - postgres -c "psql -c \"SELECT 1 FROM pg_roles WHERE rolname='backup_user'\" | grep -q 1 || psql -c \"CREATE USER backup_user WITH PASSWORD '$PG_PASSWORD';\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"SELECT 1 FROM pg_database WHERE datname='backup'\" | grep -q 1 || psql -c \"CREATE DATABASE backup OWNER backup_user;\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE backup TO backup_user;\"" 2>/dev/null || true
+    
+    log "PostgreSQL ready"
 }
 
 install_server() {
@@ -113,7 +175,7 @@ install_server() {
     cat > "$server_install/publish/appsettings.json" << EOF
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=$server_install/publish/backup.db"
+    "DefaultConnection": "Host=localhost;Database=backup;Username=backup_user;Password=$PG_PASSWORD"
   },
   "Jwt": {
     "Key": "$JWT_KEY",
@@ -176,7 +238,7 @@ install_ui() {
     mkdir -p "$INSTALL_DIR/ui"
     
     cd "$ui_src"
-    npm install --production 2>/dev/null || npm install
+    npm install
     npm run build
     
     if [[ -d "build" ]]; then
@@ -233,6 +295,7 @@ main() {
     
     install_dependencies
     clone_repo
+    setup_postgresql
     install_server
     install_ui
     configure_nginx
