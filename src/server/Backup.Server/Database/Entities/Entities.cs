@@ -227,9 +227,6 @@ public class BackupPoint
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? CompletedAt { get; set; }
-
-    [ForeignKey("RepositoryId")]
-    public Repository? Repository { get; set; }
 }
 
 [Table("restores")]
