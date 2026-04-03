@@ -74,8 +74,8 @@ install_postgres() {
     
     if command -v psql &> /dev/null; then
         log "Configuring PostgreSQL..."
-        su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD '$POSTGRES_PASSWORD';\"" 2>/dev/null || true
-        su - postgres -c "psql -c \"CREATE DATABASE backup;\"" 2>/dev/null || true
+        sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PASSWORD';" 2>/dev/null || true
+        sudo -u postgres psql -c "CREATE DATABASE backup;" 2>/dev/null || true
     fi
     
     log "PostgreSQL ready"
