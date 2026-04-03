@@ -33,7 +33,8 @@
   <ItemGroup>
     <Protobuf Include="..\protos\*.proto" Link="protos\%(Filename).proto">
       <Generator>MSBuild:Compile</Generator>
-      <OutputDir>$(IntermediateOutputPath)</OutputDir>
+      <OutputDir>$(IntermediateOutputPath)protos</OutputDir>
+      <PublicOutput>$(IntermediateOutputPath)protos/%(Filename).grpc.cs</PublicOutput>
     </Protobuf>
   </ItemGroup>
 
