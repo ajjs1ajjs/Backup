@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, IconButton, Button } from '@mui/material';
-import { Delete as DeleteIcon, Download as DownloadIcon, Verify as VerifyIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Download as DownloadIcon, CheckCircle as VerifyIcon } from '@mui/icons-material';
 import { useApi } from '../services/ApiContext';
 
 export default function Backups() {
