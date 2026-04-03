@@ -86,7 +86,7 @@ namespace Backup.Server.Services
             if (string.IsNullOrEmpty(webhookUrl)) { return; }
             try
             {
-                var content = new { event = subject, message = body, timestamp = DateTime.UtcNow };
+                var content = new { @event = subject, message = body, timestamp = DateTime.UtcNow };
                 await _httpClient.PostAsJsonAsync(webhookUrl, content);
                 _logger.LogInformation("Webhook notification sent to " + webhookUrl);
             }
