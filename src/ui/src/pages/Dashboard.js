@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Card, CardContent, Grid, Typography, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, IconButton, Tooltip } from '@mui/material';
-import { CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon, Storage as StorageIcon, Backup as BackupIcon, Restore as RestoreIcon, Computer as ComputerIcon } from '@mui/icons-material';
+import { CheckCircle as CheckCircleIcon, Warning as WarningIcon, Error as ErrorIcon, Storage as StorageIcon, Backup as BackupIcon, Restore as RestoreIcon, Computer as ComputerIcon } from '@mui/icons-material';
 import { useApi } from '../services/ApiContext';
 
 export default function Dashboard() {
@@ -141,7 +141,7 @@ export default function Dashboard() {
                         <TableCell><Chip label={job.jobType || 'full'} size="small" sx={{ fontSize: '0.7rem', height: 22 }} /></TableCell>
                         <TableCell>
                           <Chip
-                            icon={job.enabled ? <CheckIcon sx={{ fontSize: 14 }} /> : <WarningIcon sx={{ fontSize: 14 }} />}
+                            icon={job.enabled ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <WarningIcon sx={{ fontSize: 14 }} />}
                             label={job.enabled ? 'Active' : 'Disabled'}
                             color={job.enabled ? 'success' : 'default'}
                             size="small"
@@ -196,7 +196,7 @@ export default function Dashboard() {
                 <Box display="flex" flexDirection="column" gap={1.5}>
                   {recentActivity.slice(0, 8).map((item, index) => (
                     <Box key={index} display="flex" alignItems="center" gap={1.5} py={0.5} borderBottom="1px solid #f0f0f0">
-                      {item.status === 'completed' ? <CheckIcon sx={{ color: '#66bb6a', fontSize: 18 }} /> :
+                      {item.status === 'completed' ? <CheckCircleIcon sx={{ color: '#66bb6a', fontSize: 18 }} /> :
                        item.status === 'failed' ? <ErrorIcon sx={{ color: '#ef5350', fontSize: 18 }} /> :
                        <WarningIcon sx={{ color: '#ffa726', fontSize: 18 }} />}
                       <Box flexGrow={1}>

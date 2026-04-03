@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, CircularProgress, Paper } from '@mui/material';
-import { PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon } from '@mui/icons-material';
+import { PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon, Backup as BackupIcon } from '@mui/icons-material';
 import { useApi, useApiMutation } from '../services/ApiContext';
 
 export default function Jobs() {

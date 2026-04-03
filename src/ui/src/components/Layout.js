@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
+  Storage as StorageIcon,
   Storage as InventoryIcon,
   Backup as BackupIcon,
   Restore as RestoreIcon,
