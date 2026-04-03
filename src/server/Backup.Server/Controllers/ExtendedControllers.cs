@@ -353,3 +353,25 @@ public class RestoreRequest
     public string TargetHost { get; set; } = string.Empty;
     public Dictionary<string, string> Options { get; set; } = new();
 }
+
+[ApiController]
+[Route("api/[controller]")]
+[Microsoft.AspNetCore.Authorization.Authorize]
+public class ReplicationController : ControllerBase
+{
+    private readonly BackupDbContext _db;
+    private readonly ILogger<ReplicationController> _logger;
+
+    public ReplicationController(BackupDbContext db, ILogger<ReplicationController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult> GetReplications()
+    {
+        var replications = await _db.Replications.ToListAsync();
+        return Ok(new { replications });
+    }
+}

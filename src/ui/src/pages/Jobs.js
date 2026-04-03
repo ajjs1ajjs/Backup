@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, CircularProgress, Paper } from '@mui/material';
-import { PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon, Backup as BackupIcon } from '@mui/icons-material';
-import { useApi, useApiMutation } from '../services/ApiContext';
+import { PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Delete as DeleteIcon, CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon, Backup as BackupIcon } from '@mui/icons-material';
+import { useApi } from '../services/ApiContext';
 
 export default function Jobs() {
   const { data, loading, refetch } = useApi('/api/jobs');
@@ -31,7 +31,7 @@ export default function Jobs() {
 
   if (loading) return <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>;
 
-  const jobs = data?.jobs || [];
+  const jobs = data?.jobs || data || [];
 
   const statusIcon = (job) => {
     if (job.status === 'running' || job.status === 'active') return <WarningIcon sx={{ color: '#ffa726', fontSize: 18 }} />;
@@ -76,7 +76,7 @@ export default function Jobs() {
             </TableHead>
             <TableBody>
               {jobs.map((job) => (
-                <TableRow key={job.id || job.jobId} sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
+                <TableRow key={job.jobId || job.id} sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
                   <TableCell>{statusIcon(job)}</TableCell>
                   <TableCell sx={{ fontWeight: 500 }}>{job.name}</TableCell>
                   <TableCell><Chip label={job.jobType || 'full_backup'} size="small" sx={{ fontSize: '0.7rem', height: 22 }} /></TableCell>
@@ -86,9 +86,9 @@ export default function Jobs() {
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.lastRun ? new Date(job.lastRun).toLocaleString() : '-'}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.nextRun ? new Date(job.nextRun).toLocaleString() : '-'}</TableCell>
                   <TableCell>
-                    <Button size="small" onClick={() => handleRunJob(job.id || job.jobId)} sx={{ minWidth: 32, p: 0.5 }}><PlayIcon fontSize="small" sx={{ color: '#66bb6a' }} /></Button>
-                    <Button size="small" onClick={() => handleStopJob(job.id || job.jobId)} sx={{ minWidth: 32, p: 0.5 }}><StopIcon fontSize="small" sx={{ color: '#ffa726' }} /></Button>
-                    <Button size="small" onClick={() => handleDeleteJob(job.id || job.jobId)} sx={{ minWidth: 32, p: 0.5 }}><DeleteIcon fontSize="small" sx={{ color: '#ef5350' }} /></Button>
+                    <Button size="small" onClick={() => handleRunJob(job.jobId || job.id)} sx={{ minWidth: 32, p: 0.5 }}><PlayIcon fontSize="small" sx={{ color: '#66bb6a' }} /></Button>
+                    <Button size="small" onClick={() => handleStopJob(job.jobId || job.id)} sx={{ minWidth: 32, p: 0.5 }}><StopIcon fontSize="small" sx={{ color: '#ffa726' }} /></Button>
+                    <Button size="small" onClick={() => handleDeleteJob(job.jobId || job.id)} sx={{ minWidth: 32, p: 0.5 }}><DeleteIcon fontSize="small" sx={{ color: '#ef5350' }} /></Button>
                   </TableCell>
                 </TableRow>
               ))}

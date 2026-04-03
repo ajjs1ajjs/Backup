@@ -18,9 +18,9 @@ export default function Dashboard() {
   const totalRepos = summary?.totalRepositories || 0;
   const totalAgents = summary?.totalAgents || 0;
 
-  const jobsList = jobs?.jobs || [];
-  const backupsList = backups?.backups || [];
-  const recentActivity = activity?.items || activity || [];
+  const jobsList = jobs?.jobs || (jobs && Array.isArray(jobs) ? jobs : []);
+  const backupsList = backups?.backups || backups || [];
+  const recentActivity = activity || [];
 
   const successCount = backupsList.filter(b => b.status === 'completed').length;
   const failedCount = backupsList.filter(b => b.status === 'failed').length;

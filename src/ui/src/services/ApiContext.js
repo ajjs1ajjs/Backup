@@ -12,10 +12,16 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  try {
+    const raw = localStorage.getItem('auth-storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const token = parsed?.state?.token;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch (e) { /* ignore parse errors */ }
   return config;
 });
 
@@ -28,6 +34,26 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const fetchWithAuth = async (url, options = {}) => {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  try {
+    const raw = localStorage.getItem('auth-storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const token = parsed?.state?.token;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+  return response;
+};
 
 export const useApi = (url) => {
   const [data, setData] = useState(null);

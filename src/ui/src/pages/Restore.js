@@ -4,7 +4,7 @@ import { Restore as RestoreIcon } from '@mui/icons-material';
 import { useApi } from '../services/ApiContext';
 
 export default function Restore() {
-  const { data, loading } = useApi('/api/restore/history');
+  const { data, loading } = useApi('/api/restore');
   const { data: backups } = useApi('/api/backups');
   const [open, setOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState('');
