@@ -5,12 +5,12 @@ import { useApi, useApiMutation } from '../services/ApiContext';
 
 export default function Settings() {
   const { data: settings } = useApi('/api/settings');
-  const [localSettings, setLocalSettings] = useState<any>({});
+  const [localSettings, setLocalSettings] = useState({});
 
   React.useEffect(() => {
     if (settings) {
-      const obj: any = {};
-      settings.forEach((s: any) => { obj[s.key] = s.value; });
+      const obj = {};
+      settings.forEach((s) => { obj[s.key] = s.value; });
       setLocalSettings(obj);
     }
   }, [settings]);

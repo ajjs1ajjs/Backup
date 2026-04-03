@@ -6,9 +6,9 @@ import { useApi, useApiMutation } from '../services/ApiContext';
 export default function Jobs() {
   const { data, loading, refetch } = useApi('/api/jobs');
   const [open, setOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedJob, setSelectedJob] = useState(null);
 
-  const handleRunJob = async (jobId: string) => {
+  const handleRunJob = async (jobId) => {
     await fetch(`/api/jobs/${jobId}/run`, { method: 'POST' });
     refetch();
   };
