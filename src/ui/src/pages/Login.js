@@ -15,19 +15,26 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (username && password) {
+      setError('');
       const success = await login(username, password);
       if (success) {
         navigate('/dashboard');
-      } else if (authError === 'PASSWORD_CHANGE_REQUIRED') {
-        setShowChangePassword(true);
-        setError('Потрібно змінити пароль при першому вході');
-      } else {
-        setError('Invalid credentials');
       }
     } else {
       setError('Please enter username and password');
     }
   };
+
+  React.useEffect(() => {
+    if (authError === 'PASSWORD_CHANGE_REQUIRED') {
+      setShowChangePassword(true);
+      setError('Потрібно змінити пароль при першому вході');
+    } else if (authError === 'INVALID_CREDENTIALS') {
+      setError('Invalid credentials');
+    } else if (authError === 'NETWORK_ERROR') {
+      setError('Network error. Check server connection.');
+    }
+  }, [authError]);
 
   const handleFirstLoginPasswordChange = async (e) => {
     e.preventDefault();
