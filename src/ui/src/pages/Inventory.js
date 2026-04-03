@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, CircularProgress, Paper, Tabs, Tab } from '@mui/material';
-import { Add as AddIcon, DesktopWindows as VmIcon, LaptopIcon, CloudIcon, StorageIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, DesktopWindows as VmIcon, LaptopMac as LaptopIcon, Cloud as CloudIcon, Storage as StorageIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useApi } from '../services/ApiContext';
 
 export default function Inventory() {
