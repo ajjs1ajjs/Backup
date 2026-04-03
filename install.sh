@@ -163,6 +163,8 @@ install_server() {
 }
 EOF
 
+    chmod 644 "$server_install/publish/appsettings.json"
+
     cat > /etc/systemd/system/backup-server.service << EOF
 [Unit]
 Description=Backup Server
@@ -172,7 +174,7 @@ After=network.target postgresql.service
 Type=simple
 User=root
 WorkingDirectory=$server_install/publish
-ExecStart=/opt/dotnet/dotnet $server_install/publish/Backup.Server.dll --urls=http://0.0.0.0:8000
+ExecStart=$server_install/publish/Backup.Server --urls=http://0.0.0.0:8000
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
