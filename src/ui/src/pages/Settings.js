@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { Box, Card, CardContent, Typography, TextField, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, FormControlLabel, Divider } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Card, CardContent, Typography, TextField, Button, Select, MenuItem, Switch, FormControlLabel, CircularProgress, Alert } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
-import { useApi, useApiMutation } from '../services/ApiContext';
+import { useApi } from '../services/ApiContext';
 
 export default function Settings() {
-  const { data: settings } = useApi('/api/settings');
+  const { data: settings, loading, refetch } = useApi('/api/settings');
   const [localSettings, setLocalSettings] = useState({});
+  const [saved, setSaved] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (settings) {
       const obj = {};
       settings.forEach((s) => { obj[s.key] = s.value; });
@@ -15,38 +16,56 @@ export default function Settings() {
     }
   }, [settings]);
 
+  const handleSave = async () => {
+    try {
+      for (const [key, value] of Object.entries(localSettings)) {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value })
+        });
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      refetch();
+    } catch (e) { console.error(e); }
+  };
+
+  if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Settings</Typography>
+
+      {saved && <Alert severity="success" sx={{ mb: 2 }}>Settings saved successfully</Alert>}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>Backup Settings</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
-            <TextField 
-              label="Default Compression" 
-              select 
-              fullWidth 
-              SelectProps={{ native: true }}
+            <TextField
+              label="Default Compression"
+              select
+              fullWidth
               value={localSettings['backup.compression'] || 'zstd'}
               onChange={(e) => setLocalSettings({...localSettings, 'backup.compression': e.target.value})}
             >
-              <option value="zstd">Zstd (Recommended)</option>
-              <option value="lz4">LZ4 (Fast)</option>
-              <option value="gzip">Gzip</option>
-              <option value="none">None</option>
+              <MenuItem value="zstd">Zstd (Recommended)</MenuItem>
+              <MenuItem value="lz4">LZ4 (Fast)</MenuItem>
+              <MenuItem value="gzip">Gzip</MenuItem>
+              <MenuItem value="none">None</MenuItem>
             </TextField>
-            <TextField 
-              label="Default Retention Days" 
-              type="number" 
-              fullWidth 
+            <TextField
+              label="Default Retention Days"
+              type="number"
+              fullWidth
               value={localSettings['backup.retention_days'] || '30'}
               onChange={(e) => setLocalSettings({...localSettings, 'backup.retention_days': e.target.value})}
             />
-            <TextField 
-              label="Block Size (KB)" 
-              type="number" 
-              fullWidth 
+            <TextField
+              label="Block Size (KB)"
+              type="number"
+              fullWidth
               value={localSettings['backup.block_size_kb'] || '64'}
               onChange={(e) => setLocalSettings({...localSettings, 'backup.block_size_kb': e.target.value})}
             />
@@ -58,16 +77,16 @@ export default function Settings() {
         <CardContent>
           <Typography variant="h6" gutterBottom>Network Settings</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
-            <TextField 
-              label="Server Port" 
-              type="number" 
-              fullWidth 
+            <TextField
+              label="Server Port"
+              type="number"
+              fullWidth
               value={localSettings['network.port'] || '8000'}
               onChange={(e) => setLocalSettings({...localSettings, 'network.port': e.target.value})}
             />
-            <FormControlLabel 
-              control={<Switch defaultChecked />} 
-              label="Enable TLS" 
+            <FormControlLabel
+              control={<Switch checked={localSettings['network.tls'] === 'true'} onChange={(e) => setLocalSettings({...localSettings, 'network.tls': e.target.checked.toString()})} />}
+              label="Enable TLS"
             />
           </Box>
         </CardContent>
@@ -77,24 +96,25 @@ export default function Settings() {
         <CardContent>
           <Typography variant="h6" gutterBottom>Security</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
-            <TextField 
-              label="Encryption Algorithm" 
-              select 
-              fullWidth 
-              SelectProps={{ native: true }}
+            <TextField
+              label="Encryption Algorithm"
+              select
+              fullWidth
+              value={localSettings['security.encryption'] || 'aes256'}
+              onChange={(e) => setLocalSettings({...localSettings, 'security.encryption': e.target.value})}
             >
-              <option value="aes256">AES-256</option>
-              <option value="aes128">AES-128</option>
+              <MenuItem value="aes256">AES-256</MenuItem>
+              <MenuItem value="aes128">AES-128</MenuItem>
             </TextField>
-            <FormControlLabel 
-              control={<Switch defaultChecked />} 
-              label="Require Two-Factor Authentication" 
+            <FormControlLabel
+              control={<Switch checked={localSettings['security.2fa'] === 'true'} onChange={(e) => setLocalSettings({...localSettings, 'security.2fa': e.target.checked.toString()})} />}
+              label="Require Two-Factor Authentication"
             />
           </Box>
         </CardContent>
       </Card>
 
-      <Button variant="contained" startIcon={<SaveIcon />}>
+      <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave}>
         Save Settings
       </Button>
     </Box>
