@@ -40,48 +40,29 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 - **Shared Contracts**: `src/protos` (Protocol Buffers)
 - **Storage Targets**: Local, NFS/SMB, S3-compatible, Azure Blob, GCS
 
-## 🚀 Quick Start
-
-### 1. Start Server
+## 🚀 Quick Install (Linux Only)
 
 ```bash
-# Using Docker
-docker run -d \
-  -p 8000:8000 \
-  -e POSTGRES_HOST=localhost \
-  -e Jwt__Key="CHANGE_ME_TO_A_STRONG_SECRET" \
-  backupsystem/server:latest
-
-# Or from source
-cd src/server/Backup.Server
-dotnet run
+# One command to install everything
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --auto-start
 ```
 
-### 2. Install Agent
-
-**Linux:**
+Or save script first:
 ```bash
-# One-line installation (recommended)
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --server localhost:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
-
-# Download script first, then run
 curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --server localhost:8000 --token "YOUR_TOKEN" --agent-type hyperv --auto-start
+sudo chmod +x install.sh && sudo ./install.sh --auto-start
 ```
 
-**Windows (PowerShell):**
-```powershell
-# One-line installation (recommended)
-irm https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 | iex -Server "localhost:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
+## Access After Installation
 
-# Download script first, then run
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1" -OutFile install.ps1
-.\install.ps1 -Server "localhost:8000" -Token "YOUR_TOKEN" -AgentType hyperv -AutoStart
-```
+- **UI**: http://localhost
+- **API**: http://localhost:8000
+- **Swagger**: http://localhost:8000/swagger
 
-### 3. Access UI
+## Login
 
-Open `http://localhost:8000/swagger` for API and configure UI API URL (see Configuration section).
+- Username: `admin`
+- Password: `admin123`
 
 ## 📁 Project Structure
 
