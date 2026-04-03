@@ -18,13 +18,15 @@ INSTALL_MODE="agent"
 SKIP_SSL=false
 SOURCE_URL=""
 LOCAL_SOURCE=""
+REPO_URL="https://github.com/ajjs1ajjs/Backup.git"
+BUILD_DIR="/tmp/backup-build"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 error() { echo "[ERROR] $1" >&2; exit 1; }
 
 show_help() {
     cat << EOF
-Backup Agent Installer v$VERSION
+Backup System Installer v$VERSION
 
 Usage: $0 [OPTIONS]
 
@@ -34,43 +36,24 @@ Options:
     --agent-type TYPE     Agent type: hyperv, vmware, kvm, mssql, postgres, oracle
     --install-dir DIR     Installation directory (default: $INSTALL_DIR)
     --mode MODE           Installation mode: agent, server, all (default: agent)
-    --auto-start         Start agent after installation
+    --auto-start         Start service after installation
     --force              Force reinstallation
-    --uninstall          Uninstall agent
-    --skip-ssl           Skip SSL certificate verification (insecure)
-    --source-url URL     Alternative URL for install script
-    --local-source PATH  Use local source code instead of downloading
+    --uninstall          Uninstall
+    --skip-ssl           Skip SSL certificate verification
+    --local-source PATH  Use local source code
     -h, --help           Show this help
 
 Examples:
-    $0 --server 10.0.0.1:8000 --token ABCD-1234 --agent-type hyperv --auto-start
-    $0 --mode server --install-dir /opt/backup-server
-    $0 --skip-ssl --server 10.0.0.1:8000 --token ABCD --auto-start
-    $0 --local-source /path/to/source --server 10.0.0.1:8000 --token ABCD
-    curl -fsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --server 10.0.0.1:8000 --token ABCD --auto-start
-    curl -kfsSL https://get.backupsystem.com/agent/install.sh | sudo bash -s -- --skip-ssl --server 10.0.0.1:8000 --token ABCD
+    # Install agent only
+    $0 --server localhost:8000 --token ABCD-1234 --agent-type hyperv --auto-start
+
+    # Install server only
+    $0 --mode server --auto-start
+
+    # Install both server and agent
+    $0 --mode all --server localhost:8000 --token ABCD-1234 --agent-type hyperv --auto-start
 
 EOF
-}
-
-download_script() {
-    local url="${SOURCE_URL:-https://get.backupsystem.com/agent/install.sh}"
-    local tmp_script="/tmp/backup-install.sh"
-    
-    log "Downloading install script from $url..."
-    
-    local curl_opts="-fsSL"
-    if [[ "$SKIP_SSL" == "true" ]]; then
-        log "WARNING: SSL verification disabled"
-        curl_opts="-kfsSL"
-    fi
-    
-    if ! curl $curl_opts -o "$tmp_script" "$url"; then
-        error "Failed to download install script. Use --source-url to specify alternative location"
-    fi
-    
-    chmod +x "$tmp_script"
-    exec sudo bash "$tmp_script" "$@"
 }
 
 parse_args() {
@@ -85,7 +68,6 @@ parse_args() {
             --force) FORCE=true; shift ;;
             --uninstall) UNINSTALL=true; shift ;;
             --skip-ssl) SKIP_SSL=true; shift ;;
-            --source-url) SOURCE_URL="$2"; shift 2 ;;
             --local-source) LOCAL_SOURCE="$2"; shift 2 ;;
             -h|--help) show_help; exit 0 ;;
             *) error "Unknown option: $1" ;;
@@ -99,150 +81,138 @@ check_root() {
     fi
 }
 
-check_deps() {
+install_dotnet() {
+    if command -v dotnet &> /dev/null; then
+        log ".NET SDK already installed: $(dotnet --version)"
+        return 0
+    fi
+
+    log "Installing .NET SDK 8.0..."
+    wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh
+    chmod +x /tmp/dotnet-install.sh
+    /tmp/dotnet-install.sh --channel 8.0 --install-dir /opt/dotnet
+    export DOTNET_ROOT=/opt/dotnet
+    export PATH="$PATH:/opt/dotnet"
+    ln -sf /opt/dotnet/dotnet /usr/local/bin/dotnet
+    log ".NET SDK installed successfully"
+}
+
+clone_repo() {
+    if [[ -n "$LOCAL_SOURCE" && -d "$LOCAL_SOURCE" ]]; then
+        log "Using local source: $LOCAL_SOURCE"
+        rm -rf "$BUILD_DIR"
+        cp -r "$LOCAL_SOURCE" "$BUILD_DIR"
+        return 0
+    fi
+
+    if [[ -d "$BUILD_DIR/.git" && "$FORCE" == "false" ]]; then
+        log "Updating existing repository..."
+        cd "$BUILD_DIR"
+        git pull || true
+        return 0
+    fi
+
+    log "Cloning repository..."
+    rm -rf "$BUILD_DIR"
+    git clone "$REPO_URL" "$BUILD_DIR"
+}
+
+install_server() {
+    log "Installing Backup Server..."
+
+    install_dotnet
+
+    local server_src="$BUILD_DIR/src/server/Backup.Server"
+    local server_install="/opt/backup-server"
+
+    if [[ ! -f "$server_src/Backup.Server.csproj" ]]; then
+        error "Server source not found at $server_src"
+    fi
+
+    log "Building server..."
+    cd "$server_src"
+    dotnet restore
+    dotnet publish -c Release -o "$server_install/publish"
+
+    # Create service file
+    cat > /etc/systemd/system/backup-server.service << EOF
+[Unit]
+Description=Backup Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$server_install/publish
+ExecStart=/opt/dotnet/dotnet $server_install/publish/Backup.Server.dll --urls=http://localhost:8000
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=Jwt__Key=CHANGE_ME_TO_A_STRONG_SECRET_KEY_12345
+Environment=Server__PublicUrl=http://localhost:8000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+
+    if [[ "$AUTO_START" == "true" ]]; then
+        log "Starting server..."
+        systemctl enable backup-server
+        systemctl start backup-server
+        sleep 5
+
+        if systemctl is-active --quiet backup-server; then
+            log "Server started successfully on http://localhost:8000"
+        else
+            log "Warning: Server failed to start. Check logs: journalctl -u backup-server"
+        fi
+    fi
+
+    log "Server installed at: $server_install"
+}
+
+install_agent() {
+    log "Installing Backup Agent..."
+
+    # Check dependencies
     local missing=()
-    
-    log "Checking dependencies..."
-    
-    for cmd in cmake make g++ git pkg-config unzip; do
+    for cmd in cmake make g++ git; do
         if ! command -v $cmd &> /dev/null; then
             missing+=($cmd)
         fi
     done
-    
-    for lib in ssl curl xml2 zstd; do
-        if ! pkg-config --exists lib$lib 2>/dev/null && ! ldconfig -p | grep -q lib$lib; then
-            missing+=(lib$lib-dev)
-        fi
-    done
-    
+
     if [[ ${#missing[@]} -gt 0 ]]; then
-        log "Installing missing dependencies: ${missing[*]}"
-        apt-get update
-        apt-get install -y --no-install-recommends \
-            cmake \
-            build-essential \
-            git \
-            pkg-config \
-            unzip \
-            libssl-dev \
-            libcurl4-openssl-dev \
-            libxml2-dev \
-            libzstd-dev \
-            wget \
-            curl \
-            ca-certificates
+        log "Installing build dependencies: ${missing[*]}"
+        apt-get update -qq
+        apt-get install -y -qq cmake build-essential git pkg-config libssl-dev libcurl4-openssl-dev
     fi
-    
-    if ! command -v systemctl &> /dev/null; then
-        log "Warning: systemd not found - service installation will be skipped"
-    fi
-    
-    if ! command -v dotnet &> /dev/null; then
-        log "Warning: .NET SDK not found - server installation will be skipped"
-    fi
-    
-    if ! command -v node &> /dev/null; then
-        log "Warning: Node.js not found - UI build will be skipped"
-    fi
-    
-    case "$AGENT_TYPE" in
-        kvm)
-            if ! command -v virsh &> /dev/null && ! dpkg -l | grep -q libvirt; then
-                log "Warning: libvirt not found - KVM backups may not work"
-            fi
-            ;;
-        postgres)
-            if ! command -v psql &> /dev/null; then
-                log "Warning: PostgreSQL client not found - PostgreSQL backups may not work"
-            fi
-            ;;
-    esac
-    
-    log "All dependencies satisfied"
-}
 
-create_dirs() {
-    log "Creating directories..."
+    # Create directories
     mkdir -p "$BIN_DIR" "$CONFIG_DIR" "$LOG_DIR" "$DATA_DIR"
-    chmod 755 "$INSTALL_DIR"
-}
 
-download_source() {
-    local src_dir="/tmp/backup-agent-build"
-    
-    if [[ -f "$BIN_DIR/backup-agent" && "$FORCE" == "false" ]]; then
-        log "Agent already installed. Use --force to reinstall"
-        return 0
-    fi
-    
-    log "Building agent..."
-    
-    rm -rf "$src_dir"
-    mkdir -p "$src_dir"
-    cd "$src_dir"
-    
-    if [[ -n "$LOCAL_SOURCE" && -d "$LOCAL_SOURCE" ]]; then
-        log "Using local source: $LOCAL_SOURCE"
-        cp -r "$LOCAL_SOURCE/"* .
-    elif [[ -d ".git" ]]; then
-        log "Using existing source"
-    else
-        log "Downloading agent source from GitHub..."
-        local archive_url="https://github.com/ajjs1ajjs/Backup/archive/refs/heads/main.zip"
-        
-        if [[ "$SKIP_SSL" == "true" ]]; then
-            curl -kfsSL -o source.zip "$archive_url" || error "Failed to download source"
-        else
-            curl -fsSL -o source.zip "$archive_url" || error "Failed to download source"
-        fi
-        
-        unzip -q source.zip
-        
-        if [[ -d "Backup-main/src/agent/Backup.Agent" ]]; then
-            cp -r Backup-main/src/agent/Backup.Agent/* .
-            log "Agent source extracted to $(pwd)"
-        elif [[ -d "Backup-main/src/agent" ]]; then
-            cp -r Backup-main/src/agent/* .
-        else
-            cp -r Backup-main/* .
-        fi
-        rm -rf source.zip Backup-main
-    fi
-    
-    log "Compiling agent..."
-    mkdir -p build && cd build
-    
-    if cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" 2>&1 | tee cmake.log; then
-        log "CMake configuration successful"
-    else
-        log "CMake failed - checking log..."
-        cat cmake.log
-        error "Build failed. Please provide source with --local-source"
-    fi
-    
-    if make -j$(nproc) 2>&1 | tee make.log; then
-        log "Make successful"
-    else
-        log "Make failed - checking log..."
-        cat make.log
-        error "Build failed"
-    fi
-    
-    mkdir -p "$BIN_DIR"
-    cp backup-agent "$BIN_DIR/" 2>/dev/null || cp *backup-agent* "$BIN_DIR/" 2>/dev/null || {
-        log "Looking for agent binary..."
-        find . -name "backup-agent*" -type f -executable -exec cp {} "$BIN_DIR/" \;
-    }
-    
-    chmod +x "$BIN_DIR/backup-agent"
-    log "Agent built successfully"
-}
+    # Build agent from source
+    local agent_src="$BUILD_DIR/src/agent/Backup.Agent"
 
-generate_config() {
-    local config_file="$CONFIG_DIR/agent.conf"
-    
-    cat > "$config_file" << EOF
+    if [[ -f "$agent_src/CMakeLists.txt" ]]; then
+        log "Building agent from source..."
+        cd "$agent_src"
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
+        make -j$(nproc)
+        cp backup-agent "$BIN_DIR/" 2>/dev/null || find . -name "backup-agent*" -type f -executable -exec cp {} "$BIN_DIR/" \;
+        chmod +x "$BIN_DIR/backup-agent"
+    else
+        log "Warning: Agent source not found, skipping agent build"
+    fi
+
+    # Generate config
+    if [[ -n "$SERVER_ADDR" && -n "$AGENT_TOKEN" ]]; then
+        cat > "$CONFIG_DIR/agent.conf" << EOF
 # Backup Agent Configuration
 server=$SERVER_ADDR
 token=$AGENT_TOKEN
@@ -251,17 +221,12 @@ log_dir=$LOG_DIR
 data_dir=$DATA_DIR
 log_level=info
 EOF
+        chmod 600 "$CONFIG_DIR/agent.conf"
+        log "Configuration generated at $CONFIG_DIR/agent.conf"
+    fi
 
-    chmod 600 "$config_file"
-    chown root:root "$config_file"
-    
-    log "Configuration generated at $config_file"
-}
-
-create_service() {
-    local service_file="/etc/systemd/system/backup-agent.service"
-    
-    cat > "$service_file" << EOF
+    # Create service
+    cat > /etc/systemd/system/backup-agent.service << EOF
 [Unit]
 Description=Backup Agent Service
 After=network.target
@@ -275,172 +240,103 @@ Restart=on-failure
 RestartSec=10
 StandardOutput=append:$LOG_DIR/agent.log
 StandardError=append:$LOG_DIR/agent.log
-Environment=LD_LIBRARY_PATH=$INSTALL_DIR/lib
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    chmod 644 "$service_file"
     systemctl daemon-reload
-    
-    log "Service file created at $service_file"
-}
 
-verify_installation() {
-    log "Verifying installation..."
-    
-    if [[ ! -f "$BIN_DIR/backup-agent" ]]; then
-        error "Binary not found at $BIN_DIR/backup-agent"
-    fi
-    
-    if [[ ! -x "$BIN_DIR/backup-agent" ]]; then
-        error "Binary not executable"
-    fi
-    
-    if ! "$BIN_DIR/backup-agent" --version &>/dev/null && ! "$BIN_DIR/backup-agent" --help &>/dev/null; then
-        log "Warning: Agent failed to run. This may be expected if not fully configured."
-    else
-        log "Agent binary verified"
-    fi
-    
-    log "Installation verified successfully"
-}
+    if [[ "$AUTO_START" == "true" ]]; then
+        log "Starting agent..."
+        systemctl enable backup-agent
+        systemctl start backup-agent
+        sleep 2
 
-start_agent() {
-    log "Starting agent..."
-    
-    systemctl enable backup-agent 2>/dev/null || true
-    systemctl start backup-agent
-    
-    sleep 2
-    
-    if systemctl is-active --quiet backup-agent; then
-        log "Agent started successfully"
-        systemctl status backup-agent --no-pager
-        return 0
-    else
-        log "Warning: Failed to start agent via systemd, trying direct start..."
-        log "Checking service status..."
-        systemctl status backup-agent --no-pager || true
-        
-        log "Trying to start agent directly..."
-        if $BIN_DIR/backup-agent --config "$CONFIG_DIR/agent.conf"; then
-            log "Agent started successfully (direct mode)"
-            return 0
+        if systemctl is-active --quiet backup-agent; then
+            log "Agent started successfully"
+        else
+            log "Warning: Agent failed to start. Check logs: journalctl -u backup-agent"
         fi
-        
-        log "Agent returned non-zero but may still be running. Checking..."
-        sleep 1
-        if pgrep -x "backup-agent" > /dev/null; then
-            log "Agent is running"
-            return 0
-        fi
-        
-        log "Agent failed to start"
-        return 1
     fi
+
+    log "Agent installed at: $INSTALL_DIR"
 }
 
-uninstall_agent() {
-    log "Uninstalling agent..."
-    
+uninstall() {
+    log "Uninstalling..."
+
+    # Stop and remove server
+    if systemctl is-active --quiet backup-server 2>/dev/null; then
+        systemctl stop backup-server
+    fi
+    systemctl disable backup-server 2>/dev/null || true
+    rm -f /etc/systemd/system/backup-server.service
+
+    # Stop and remove agent
     if systemctl is-active --quiet backup-agent 2>/dev/null; then
-        log "Stopping agent..."
         systemctl stop backup-agent
     fi
-    
     systemctl disable backup-agent 2>/dev/null || true
     rm -f /etc/systemd/system/backup-agent.service
-    systemctl daemon-reload
-    
-    rm -rf "$INSTALL_DIR"
-    
-    log "Agent uninstalled successfully"
-}
 
-install_server() {
-    log "Installing Backup Server..."
-    
-    local server_dir="$INSTALL_DIR/server"
-    local ui_dir="$server_dir/ui"
-    
-    if ! command -v dotnet &> /dev/null; then
-        log "Installing .NET SDK 8.0..."
-        wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh
-        chmod +x /tmp/dotnet-install.sh
-        /tmp/dotnet-install.sh --channel 8.0 --install-dir /opt/dotnet
-        export DOTNET_ROOT=/opt/dotnet
-        export PATH="$PATH:/opt/dotnet"
-    fi
-    
-    mkdir -p "$server_dir"
-    cd "$server_dir"
-    
-    log "Building server..."
-    if [[ -f "src/server/Backup.Server/Backup.Server.csproj" ]]; then
-        dotnet restore src/server/Backup.Server/Backup.Server.csproj
-        dotnet publish src/server/Backup.Server/Backup.Server.csproj -c Release -o "$server_dir/publish"
-    else
-        log "Warning: Server source not found, skipping server build"
-    fi
-    
-    if command -v node &> /dev/null; then
-        log "Building UI..."
-        if [[ -f "src/ui/package.json" ]]; then
-            cd src/ui
-            npm install --production
-            npm run build
-            mv build "$ui_dir"
-        else
-            log "Warning: UI source not found, skipping UI build"
-        fi
-    else
-        log "Warning: Node.js not found, skipping UI build"
-    fi
-    
-    log "Server installation complete"
+    systemctl daemon-reload
+
+    # Remove files
+    rm -rf /opt/backup-server
+    rm -rf "$INSTALL_DIR"
+    rm -rf "$BUILD_DIR"
+
+    log "Uninstall complete"
 }
 
 main() {
+    parse_args "$@"
+
     if [[ "$UNINSTALL" == "true" ]]; then
         check_root
-        uninstall_agent
+        uninstall
         exit 0
     fi
-    
-    parse_args "$@"
-    
-    if [[ "$INSTALL_MODE" == "server" || "$INSTALL_MODE" == "all" ]]; then
-        check_root
-        check_deps
-        install_server
-        exit 0
-    fi
-    
-    if [[ -z "$SERVER_ADDR" || -z "$AGENT_TOKEN" ]]; then
-        show_help
-        error "Server and Token are required"
-    fi
-    
+
     check_root
-    check_deps
-    create_dirs
-    download_source
-    generate_config
-    create_service
-    verify_installation
-    
-    if [[ "$AUTO_START" == "true" ]]; then
-        start_agent || log "Warning: Could not start agent - may need manual start"
-    else
-        log "Installation complete. To start agent manually:"
-        log "  systemctl start backup-agent"
-    fi
-    
+
+    # Clone repository first
+    clone_repo
+
+    case "$INSTALL_MODE" in
+        server)
+            install_server
+            ;;
+        all)
+            install_server
+            install_agent
+            ;;
+        agent|*)
+            if [[ -z "$SERVER_ADDR" || -z "$AGENT_TOKEN" ]]; then
+                show_help
+                error "--server and --token are required for agent installation"
+            fi
+            install_agent
+            ;;
+    esac
+
+    log ""
+    log "========================================="
     log "Installation completed successfully!"
-    log "Agent installed at: $INSTALL_DIR"
-    log "Config: $CONFIG_DIR/agent.conf"
+    log "========================================="
+
+    if [[ "$INSTALL_MODE" == "server" || "$INSTALL_MODE" == "all" ]]; then
+        log "Server: http://localhost:8000"
+        log "Swagger: http://localhost:8000/swagger"
+        log "Check status: systemctl status backup-server"
+    fi
+
+    if [[ "$INSTALL_MODE" == "agent" || "$INSTALL_MODE" == "all" ]]; then
+        log "Agent: $INSTALL_DIR"
+        log "Config: $CONFIG_DIR/agent.conf"
+        log "Check status: systemctl status backup-agent"
+    fi
 }
 
 main "$@"
