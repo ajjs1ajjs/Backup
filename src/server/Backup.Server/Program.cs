@@ -176,15 +176,6 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapGrpcService<AgentServiceImpl>();
-    app.MapGrpcService<JobServiceImpl>();
-    app.MapGrpcService<BackupServiceImpl>();
-    app.MapGrpcService<RestoreServiceImpl>();
-    app.MapGrpcService<RepositoryServiceImpl>();
-    app.MapGrpcService<FileTransferServiceImpl>();
-    app.MapGrpcService<LogServiceImpl>();
-    app.MapGrpcService<DashboardServiceImpl>();
-
     app.MapControllers();
 
     app.MapGet("/", () => "Backup Server v1.0.0");
