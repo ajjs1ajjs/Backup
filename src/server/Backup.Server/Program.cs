@@ -26,10 +26,10 @@ try
     builder.Host.UseSerilog();
 
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Data Source=backup.db";
+        ?? "Host=localhost;Database=backup;Username=backup_user;Password=postgres";
 
     builder.Services.AddDbContext<BackupDbContext>(options =>
-        options.UseSqlite(connectionString));
+        options.UseNpgsql(connectionString));
 
     var jwtKey = builder.Configuration["Jwt:Key"];
     if (string.IsNullOrWhiteSpace(jwtKey))
