@@ -154,6 +154,8 @@ setup_postgresql() {
     su - postgres -c "psql -c \"SELECT 1 FROM pg_roles WHERE rolname='backup_user'\" | grep -q 1 || psql -c \"CREATE USER backup_user WITH PASSWORD '$PG_PASSWORD';\"" 2>/dev/null || true
     su - postgres -c "psql -c \"SELECT 1 FROM pg_database WHERE datname='backup'\" | grep -q 1 || psql -c \"CREATE DATABASE backup OWNER backup_user;\"" 2>/dev/null || true
     su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE backup TO backup_user;\"" 2>/dev/null || true
+    su - postgres -c "psql -d backup -c \"GRANT ALL ON SCHEMA public TO backup_user;\"" 2>/dev/null || true
+    su - postgres -c "psql -d backup -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO backup_user;\"" 2>/dev/null || true
     
     log "PostgreSQL ready"
 }
