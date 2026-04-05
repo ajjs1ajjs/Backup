@@ -389,3 +389,46 @@ public class Setting
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
+
+[Table("hypervisors")]
+public class Hypervisor
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public long Id { get; set; }
+
+    [Required]
+    [MaxLength(64)]
+    public string HypervisorId { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(255)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(32)]
+    public string Type { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(255)]
+    public string Host { get; set; } = string.Empty;
+
+    public int Port { get; set; }
+
+    [MaxLength(255)]
+    public string? Username { get; set; }
+
+    [MaxLength(255)]
+    public string? Password { get; set; }
+
+    [MaxLength(32)]
+    public string Status { get; set; } = "offline";
+
+    public int VmCount { get; set; }
+
+    public DateTime? LastConnectedAt { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}

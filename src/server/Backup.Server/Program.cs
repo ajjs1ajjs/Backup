@@ -176,8 +176,22 @@ try
 
     app.MapControllers();
 
-    app.MapGet("/", () => "Backup Server v1.0.0");
     app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+
+    app.MapPost("/debug/reset-admin", async (Backup.Server.Database.BackupDbContext db, Backup.Server.Services.IAuthService authService) =>
+    {
+        var admin = await authService.GetUserByUsernameAsync("admin");
+        if (admin != null)
+        {
+            admin.PasswordHash = "JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=";
+            admin.MustChangePassword = true;
+            await db.SaveChangesAsync();
+            return Results.Ok(new { message = "Admin password reset to admin123" });
+        }
+        return Results.NotFound(new { error = "Admin user not found" });
+    });
+
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }

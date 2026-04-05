@@ -1,89 +1,150 @@
-import React from 'react';
-import { Box, Card, CardContent, Grid, Typography, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, IconButton, Tooltip } from '@mui/material';
-import { CheckCircle as CheckCircleIcon, Warning as WarningIcon, Error as ErrorIcon, Storage as StorageIcon, Backup as BackupIcon, Restore as RestoreIcon, Computer as ComputerIcon } from '@mui/icons-material';
-import { useApi } from '../services/ApiContext';
+import React, { useEffect, useState } from 'react';
+import { Box, Card, CardContent, Grid, Typography, Chip, CircularProgress, LinearProgress, Table, TableBody, TableCell, TableHead, TableRow, Avatar } from '@mui/material';
+import { CheckCircle as CheckCircleIcon, Warning as WarningIcon, Error as ErrorIcon, Storage as StorageIcon, Backup as BackupIcon, Restore as RestoreIcon, Computer as ComputerIcon, Dns as DnsIcon, DeveloperBoard as VMIcon, Database as DatabaseIcon } from '@mui/icons-material';
+import { fetchWithAuth } from '../services/ApiContext';
 
 export default function Dashboard() {
-  const { data: summary, loading: summaryLoading } = useApi('/api/reports/summary');
-  const { data: activity, loading: activityLoading } = useApi('/api/reports/activity');
-  const { data: jobs } = useApi('/api/jobs');
-  const { data: backups } = useApi('/api/backups');
+  const [summary, setSummary] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [backups, setBackups] = useState([]);
+  const [repos, setRepos] = useState([]);
+  const [vms, setVMs] = useState([]);
+  const [hypervisors, setHypervisors] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (summaryLoading) {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [summaryRes, activityRes, jobsRes, backupsRes, reposRes, vmsRes, hypRes] = await Promise.all([
+        fetchWithAuth('/api/reports/summary'),
+        fetchWithAuth('/api/reports/activity'),
+        fetchWithAuth('/api/jobs'),
+        fetchWithAuth('/api/backups'),
+        fetchWithAuth('/api/repositories'),
+        fetchWithAuth('/api/virtualmachines'),
+        fetchWithAuth('/api/hypervisors'),
+      ]);
+
+      const [summaryData, activityData, jobsData, backupsData, reposData, vmsData, hypData] = await Promise.all([
+        summaryRes.json().catch(() => ({})),
+        activityRes.json().catch(() => []),
+        jobsRes.json().catch(() => ({ jobs: [] })),
+        backupsRes.json().catch(() => []),
+        reposRes.json().catch(() => []),
+        vmsRes.json().catch(() => []),
+        hypRes.json().catch(() => []),
+      ]);
+
+      setSummary(summaryData);
+      setActivity(Array.isArray(activityData) ? activityData : []);
+      setJobs(jobsData.jobs || (Array.isArray(jobsData) ? jobsData : []));
+      setBackups(Array.isArray(backupsData) ? backupsData : []);
+      setRepos(Array.isArray(reposData) ? reposData : []);
+      setVMs(Array.isArray(vmsData) ? vmsData : []);
+      setHypervisors(Array.isArray(hypData) ? hypData : []);
+    } catch (e) {
+      console.error('Dashboard load error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>;
   }
 
-  const totalJobs = summary?.totalJobs || 0;
-  const totalBackups = summary?.totalBackups || 0;
-  const totalRepos = summary?.totalRepositories || 0;
+  const totalJobs = summary?.totalJobs || jobs.length;
+  const totalBackups = summary?.totalBackups || backups.length;
+  const totalRepos = summary?.totalRepositories || repos.length;
   const totalAgents = summary?.totalAgents || 0;
 
-  const jobsList = jobs?.jobs || (jobs && Array.isArray(jobs) ? jobs : []);
-  const backupsList = backups?.backups || backups || [];
-  const recentActivity = activity || [];
-
-  const successCount = backupsList.filter(b => b.status === 'completed').length;
-  const failedCount = backupsList.filter(b => b.status === 'failed').length;
-  const runningCount = jobsList.filter(j => j.status === 'running' || j.status === 'active').length;
+  const successCount = backups.filter(b => b.status === 'completed' || b.status === 'verified').length;
+  const failedCount = backups.filter(b => b.status === 'failed').length;
+  const runningJobs = jobs.filter(j => j.enabled && j.lastRun).length;
 
   const protectionRate = totalBackups > 0 ? Math.round((successCount / totalBackups) * 100) : 100;
+
+  const formatBytes = (bytes) => {
+    if (!bytes) return '—';
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
 
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, color: '#1a1d23' }}>Dashboard</Typography>
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ borderLeft: '4px solid #4fc3f7', borderRadius: 2 }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Protected Workloads</Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalAgents}</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>VMs</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{vms.length}</Typography>
                 </Box>
-                <ComputerIcon sx={{ fontSize: 48, color: '#4fc3f7', opacity: 0.3 }} />
+                <VMIcon sx={{ fontSize: 48, color: '#4fc3f7', opacity: 0.3 }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ borderLeft: '4px solid #66bb6a', borderRadius: 2 }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Hypervisors</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{hypervisors.length}</Typography>
+                </Box>
+                <DnsIcon sx={{ fontSize: 48, color: '#66bb6a', opacity: 0.3 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ borderLeft: '4px solid #ffa726', borderRadius: 2 }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Backup Jobs</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalJobs}</Typography>
                 </Box>
-                <BackupIcon sx={{ fontSize: 48, color: '#66bb6a', opacity: 0.3 }} />
+                <BackupIcon sx={{ fontSize: 48, color: '#ffa726', opacity: 0.3 }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: '4px solid #ffa726', borderRadius: 2 }}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ borderLeft: '4px solid #ab47bc', borderRadius: 2 }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Backup Points</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalBackups}</Typography>
                 </Box>
-                <RestoreIcon sx={{ fontSize: 48, color: '#ffa726', opacity: 0.3 }} />
+                <RestoreIcon sx={{ fontSize: 48, color: '#ab47bc', opacity: 0.3 }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: '4px solid #ab47bc', borderRadius: 2 }}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ borderLeft: '4px solid #ef5350', borderRadius: 2 }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Repositories</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalRepos}</Typography>
                 </Box>
-                <StorageIcon sx={{ fontSize: 48, color: '#ab47bc', opacity: 0.3 }} />
+                <StorageIcon sx={{ fontSize: 48, color: '#ef5350', opacity: 0.3 }} />
               </Box>
             </CardContent>
           </Card>
@@ -113,7 +174,7 @@ export default function Dashboard() {
                   </Box>
                   <Box display="flex" alignItems="center" gap={1}>
                     <WarningIcon sx={{ color: '#ffa726', fontSize: 18 }} />
-                    <Typography variant="body2">Running: {runningCount}</Typography>
+                    <Typography variant="body2">Active Jobs: {runningJobs}</Typography>
                   </Box>
                 </Box>
               </Box>
@@ -123,7 +184,7 @@ export default function Dashboard() {
           <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Recent Backup Jobs</Typography>
-              {jobsList.length > 0 ? (
+              {jobs.length > 0 ? (
                 <Table>
                   <TableHead>
                     <TableRow sx={{ borderBottom: '1px solid #e8eaed' }}>
@@ -135,7 +196,7 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {jobsList.slice(0, 8).map((job) => (
+                    {jobs.slice(0, 8).map((job) => (
                       <TableRow key={job.id || job.jobId} sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
                         <TableCell sx={{ fontWeight: 500 }}>{job.name}</TableCell>
                         <TableCell><Chip label={job.jobType || 'full'} size="small" sx={{ fontSize: '0.7rem', height: 22 }} /></TableCell>
@@ -167,21 +228,24 @@ export default function Dashboard() {
           <Card sx={{ borderRadius: 2, mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Storage Overview</Typography>
-              {totalRepos > 0 ? (
+              {repos.length > 0 ? (
                 <Box display="flex" flexDirection="column" gap={2}>
-                  {[
-                    { name: 'Local Storage', used: 65, color: '#4fc3f7' },
-                    { name: 'Cloud Storage', used: 35, color: '#66bb6a' },
-                    { name: 'Archive', used: 15, color: '#ab47bc' },
-                  ].map((s) => (
-                    <Box key={s.name}>
-                      <Box display="flex" justifyContent="space-between" mb={0.5}>
-                        <Typography variant="body2">{s.name}</Typography>
-                        <Typography variant="body2" sx={{ color: '#8b92a5' }}>{s.used}%</Typography>
+                  {repos.map((repo) => {
+                    const pct = repo.capacityBytes > 0 ? Math.round((repo.usedBytes / repo.capacityBytes) * 100) : 0;
+                    const color = pct > 90 ? '#ef5350' : pct > 70 ? '#ffa726' : '#66bb6a';
+                    return (
+                      <Box key={repo.repositoryId}>
+                        <Box display="flex" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="body2" fontWeight="medium">{repo.name}</Typography>
+                          <Typography variant="body2" sx={{ color: '#8b92a5' }}>
+                            {formatBytes(repo.usedBytes)} / {formatBytes(repo.capacityBytes)} ({pct}%)
+                          </Typography>
+                        </Box>
+                        <LinearProgress variant="determinate" value={pct} sx={{ height: 6, borderRadius: 3, bgcolor: '#e8eaed', '& .MuiLinearProgress-bar': { bgcolor: color } }} />
+                        <Typography variant="caption" color="text.secondary">{repo.type?.toUpperCase()} — {repo.path}</Typography>
                       </Box>
-                      <LinearProgress variant="determinate" value={s.used} sx={{ height: 6, borderRadius: 3, bgcolor: '#e8eaed', '& .MuiLinearProgress-bar': { bgcolor: s.color } }} />
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Box>
               ) : (
                 <Typography variant="body2" color="text.secondary">No repositories configured</Typography>
@@ -192,9 +256,9 @@ export default function Dashboard() {
           <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Recent Activity</Typography>
-              {recentActivity.length > 0 ? (
+              {activity.length > 0 ? (
                 <Box display="flex" flexDirection="column" gap={1.5}>
-                  {recentActivity.slice(0, 8).map((item, index) => (
+                  {activity.slice(0, 8).map((item, index) => (
                     <Box key={index} display="flex" alignItems="center" gap={1.5} py={0.5} borderBottom="1px solid #f0f0f0">
                       {item.status === 'completed' ? <CheckCircleIcon sx={{ color: '#66bb6a', fontSize: 18 }} /> :
                        item.status === 'failed' ? <ErrorIcon sx={{ color: '#ef5350', fontSize: 18 }} /> :

@@ -17,6 +17,7 @@ public class BackupDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<Hypervisor> Hypervisors => Set<Hypervisor>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -91,6 +92,12 @@ public class BackupDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<Hypervisor>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.HypervisorId).IsUnique();
         });
     }
 }

@@ -21,7 +21,9 @@ import {
   ExpandLess,
   Warning as WarningIcon,
   Cloud as CloudIcon,
-  Security as SecurityIcon
+  Dns as DnsIcon,
+  DeveloperBoard as VMIcon,
+  Storage as DatabaseIcon
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 
@@ -45,6 +47,8 @@ const navSections = [
   {
     label: 'INFRASTRUCTURE',
     items: [
+      { text: 'Hypervisors', icon: <DnsIcon />, path: '/hypervisors' },
+      { text: 'Virtual Machines', icon: <VMIcon />, path: '/virtual-machines' },
       { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
       { text: 'Repositories', icon: <StorageIcon />, path: '/repositories' },
       { text: 'Agents', icon: <ComputerIcon />, path: '/agents' },

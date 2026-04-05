@@ -17,6 +17,8 @@ import Agents from './pages/Agents';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
 import Alerts from './pages/Alerts';
+import VirtualMachines from './pages/VirtualMachines';
+import Hypervisors from './pages/Hypervisors';
 
 const theme = createTheme({
   palette: {
@@ -67,6 +69,8 @@ function App() {
               <Route path="alerts" element={<Alerts />} />
               <Route path="settings" element={<Settings />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="virtual-machines" element={<VirtualMachines />} />
+              <Route path="hypervisors" element={<Hypervisors />} />
             </Route>
           </Routes>
         </BrowserRouter>
