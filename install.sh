@@ -7,14 +7,13 @@ INSTALL_DIR="/opt/backup"
 BUILD_DIR="/tmp/backup-build-$$"
 JWT_KEY=""
 AUTO_START=true
-PG_PASSWORD="postgres"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 error() { echo "[ERROR] $1" >&2; exit 1; }
 
 show_help() {
     cat << EOF
-Backup System v$VERSION - Universal Installer (PostgreSQL)
+Backup System v$VERSION - Universal Installer (SQLite)
 
 Usage: $0 [OPTIONS]
 
@@ -34,7 +33,6 @@ parse_args() {
         case $1 in
             --auto-start) AUTO_START=true; shift ;;
             --jwt-key) JWT_KEY="$2"; shift 2 ;;
-            --postgres-password) PG_PASSWORD="$2"; shift 2 ;;
             -h|--help) show_help; exit 0 ;;
             *) shift ;;
         esac
@@ -48,34 +46,25 @@ check_root() {
 }
 
 install_dependencies() {
-    log "Installing dependencies..."
-    
-    local missing=()
-    for cmd in dotnet node npm git; do
-        if ! command -v $cmd &> /dev/null; then
-            missing+=($cmd)
-        fi
-    done
-    
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        if command -v apt-get &> /dev/null; then
-            apt-get update -qq
-            apt-get install -y -qq wget curl git
-        elif command -v yum &> /dev/null; then
-            yum install -y -q wget curl git
-        elif command -v dnf &> /dev/null; then
-            dnf install -y -q wget curl git
-        fi
+    log "Installing minimal dependencies..."
+
+    if command -v apt-get &> /dev/null; then
+        apt-get update -qq
+        apt-get install -y -qq wget curl git nginx 2>/dev/null || true
+    elif command -v yum &> /dev/null; then
+        yum install -y -q wget curl git nginx 2>/dev/null || true
+    elif command -v dnf &> /dev/null; then
+        dnf install -y -q wget curl git nginx 2>/dev/null || true
     fi
-    
+
     if ! command -v dotnet &> /dev/null; then
-        log "Installing .NET SDK 8.0..."
+        log "Installing .NET SDK 8.0 (for building self-contained binary)..."
         wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh
         chmod +x /tmp/dotnet-install.sh
         /tmp/dotnet-install.sh --channel 8.0 --install-dir /opt/dotnet
         ln -sf /opt/dotnet/dotnet /usr/local/bin/dotnet
     fi
-    
+
     if ! command -v node &> /dev/null; then
         log "Installing Node.js 18..."
         if command -v apt-get &> /dev/null; then
@@ -89,35 +78,7 @@ install_dependencies() {
             dnf install -y -q nodejs
         fi
     fi
-    
-    if ! command -v nginx &> /dev/null; then
-        log "Installing Nginx..."
-        if command -v apt-get &> /dev/null; then
-            apt-get install -y -qq nginx
-        elif command -v yum &> /dev/null; then
-            yum install -y -q nginx
-        elif command -v dnf &> /dev/null; then
-            dnf install -y -q nginx
-        fi
-    fi
-    
-    if ! command -v psql &> /dev/null; then
-        log "Installing PostgreSQL..."
-        if command -v apt-get &> /dev/null; then
-            apt-get install -y -qq postgresql postgresql-contrib
-        elif command -v yum &> /dev/null; then
-            yum install -y -q postgresql-server postgresql-contrib
-            if command -v postgresql-setup &> /dev/null; then
-                postgresql-setup --initdb
-            fi
-        elif command -v dnf &> /dev/null; then
-            dnf install -y -q postgresql-server postgresql-contrib
-            if command -v postgresql-setup &> /dev/null; then
-                postgresql-setup --initdb
-            fi
-        fi
-    fi
-    
+
     log "Dependencies ready"
 }
 
@@ -139,44 +100,27 @@ generate_jwt_key() {
     fi
 }
 
-setup_postgresql() {
-    log "Setting up PostgreSQL..."
-    
-    if command -v systemctl &> /dev/null; then
-        systemctl start postgresql 2>/dev/null || true
-        systemctl enable postgresql 2>/dev/null || true
-    else
-        pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start 2>/dev/null || true
-    fi
-    
-    sleep 3
-    
-    su - postgres -c "psql -c \"SELECT 1 FROM pg_roles WHERE rolname='backup_user'\" | grep -q 1 || psql -c \"CREATE USER backup_user WITH PASSWORD '$PG_PASSWORD';\"" 2>/dev/null || true
-    su - postgres -c "psql -c \"SELECT 1 FROM pg_database WHERE datname='backup'\" | grep -q 1 || psql -c \"CREATE DATABASE backup OWNER backup_user;\"" 2>/dev/null || true
-    su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE backup TO backup_user;\"" 2>/dev/null || true
-    su - postgres -c "psql -d backup -c \"GRANT ALL ON SCHEMA public TO backup_user;\"" 2>/dev/null || true
-    su - postgres -c "psql -d backup -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO backup_user;\"" 2>/dev/null || true
-    
-    log "PostgreSQL ready"
-}
-
 install_server() {
-    log "Building Backup Server..."
-    
+    log "Building self-contained Backup Server (no .NET runtime needed)..."
+
     local server_src="$BUILD_DIR/src/server/Backup.Server"
     local server_install="$INSTALL_DIR/server"
     mkdir -p "$server_install"
-    
+
     cd "$server_src"
     dotnet restore
-    dotnet publish -c Release -o "$server_install/publish"
+    dotnet publish -c Release -r linux-x64 --self-contained true \
+        -p:PublishSingleFile=true \
+        -p:EnableCompressionInSingleFile=true \
+        -p:IncludeNativeLibrariesForSelfExtract=true \
+        -o "$server_install/publish"
 
     local public_url="http://$(hostname -I | awk '{print $1}'):8000"
-    
+
     cat > "$server_install/publish/appsettings.json" << EOF
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=backup;Username=backup_user;Password=$PG_PASSWORD"
+    "DefaultConnection": "Data Source=/opt/backup/server/backup.db"
   },
   "Jwt": {
     "Key": "$JWT_KEY",
@@ -190,6 +134,13 @@ install_server() {
     "Username": "admin",
     "Email": "admin@backupsystem.com",
     "Password": "admin123"
+  },
+  "AllowedOrigins": [],
+  "Encryption": {
+    "KeyFilePath": ""
+  },
+  "Serilog": {
+    "MinimumLevel": "Information"
   }
 }
 EOF
@@ -229,42 +180,42 @@ EOF
         sleep 5
     fi
 
-    log "Server installed"
+    log "Server installed (self-contained, no .NET runtime required)"
 }
 
 install_ui() {
     log "Building Backup UI..."
-    
+
     local ui_src="$BUILD_DIR/src/ui"
     mkdir -p "$INSTALL_DIR/ui"
-    
+
     cd "$ui_src"
     npm install
     npm run build
-    
+
     if [[ -d "build" ]]; then
         cp -r build/* "$INSTALL_DIR/ui/"
     fi
-    
+
     log "UI installed"
 }
 
 configure_nginx() {
     if command -v nginx &> /dev/null; then
         log "Configuring Nginx..."
-        
+
         cat > /etc/nginx/sites-available/backup << EOF
 server {
     listen 80 default_server;
     server_name _;
-    
+
     root $INSTALL_DIR/ui;
     index index.html;
-    
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
-    
+
     location /api {
         proxy_pass http://localhost:8000;
         proxy_http_version 1.1;
@@ -278,7 +229,7 @@ EOF
 
         rm -f /etc/nginx/sites-enabled/default
         ln -sf /etc/nginx/sites-available/backup /etc/nginx/sites-enabled/backup
-        nginx -t && systemctl reload nginx
+        nginx -t && systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
     else
         log "Nginx not found, UI available at $INSTALL_DIR/ui"
     fi
@@ -287,27 +238,27 @@ EOF
 main() {
     parse_args "$@"
     check_root
-    
+
     generate_jwt_key
-    
+
     log ""
     log "========================================="
     log "Installing Backup System v$VERSION..."
     log "========================================="
-    
+
     install_dependencies
     clone_repo
-    setup_postgresql
     install_server
     install_ui
     configure_nginx
-    
+
     log ""
     log "========================================="
     log "Installation Complete!"
     log "========================================="
     log ""
     log "Access the application:"
+    log "  UI: http://localhost"
     log "  API: http://localhost:8000"
     log "  Swagger: http://localhost:8000/swagger"
     log ""
