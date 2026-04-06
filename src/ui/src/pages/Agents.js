@@ -17,17 +17,17 @@ export default function Agents() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Agents</Typography>
+        <Typography variant="h4">Агенти</Typography>
         <Button variant="contained" startIcon={<AddIcon />}>
-          Deploy Agent
+          Розгорнути агент
         </Button>
       </Box>
 
       {agents.length === 0 ? (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>No agents deployed</Typography>
-            <Typography variant="body2" color="text.secondary">Deploy an agent on a target machine to start managing backups</Typography>
+            <Typography variant="h6" color="text.secondary" gutterBottom>Немає розгорнутих агентів</Typography>
+            <Typography variant="body2" color="text.secondary">Розгорніть агент на цільовій машині для керування бекапами</Typography>
           </CardContent>
         </Card>
       ) : (
@@ -35,26 +35,26 @@ export default function Agents() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Hostname</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>OS</TableCell>
-                <TableCell>IP Address</TableCell>
-                <TableCell>Version</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Last Heartbeat</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell>Ім'я хоста</TableCell>
+                <TableCell>Тип</TableCell>
+                <TableCell>ОС</TableCell>
+                <TableCell>IP-адреса</TableCell>
+                <TableCell>Версія</TableCell>
+                <TableCell>Статус</TableCell>
+                <TableCell>Остання активність</TableCell>
+                <TableCell>Дії</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {agents.map((agent) => (
                 <TableRow key={agent.id || agent.agentId}>
                   <TableCell><ComputerIcon sx={{ mr: 1, verticalAlign: 'middle' }} />{agent.hostname || '-'}</TableCell>
-                  <TableCell><Chip label={agent.agentType || 'unknown'} size="small" /></TableCell>
+                  <TableCell><Chip label={agent.agentType || 'невідомо'} size="small" /></TableCell>
                   <TableCell>{agent.osType || '-'}</TableCell>
                   <TableCell>{agent.ipAddress || '-'}</TableCell>
                   <TableCell>{agent.agentVersion || '-'}</TableCell>
                   <TableCell>
-                    <Chip label={agent.status || 'offline'} color={agent.status === 'idle' ? 'success' : agent.status === 'backing_up' ? 'warning' : 'error'} size="small" />
+                    <Chip label={agent.status || 'офлайн'} color={agent.status === 'idle' ? 'success' : agent.status === 'backing_up' ? 'warning' : 'error'} size="small" />
                   </TableCell>
                   <TableCell>{agent.lastHeartbeat ? new Date(agent.lastHeartbeat).toLocaleString() : '-'}</TableCell>
                   <TableCell>

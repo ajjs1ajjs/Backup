@@ -30,16 +30,16 @@ export default function Alerts() {
   const filteredItems = tab === 0 ? items : items.filter(i => getSeverity(i) === ['error', 'warning', 'success', 'info'][tab]);
 
   const tabs = [
-    { label: 'All', count: items.length },
-    { label: 'Errors', count: items.filter(i => getSeverity(i) === 'error').length },
-    { label: 'Warnings', count: items.filter(i => getSeverity(i) === 'warning').length },
-    { label: 'Success', count: items.filter(i => getSeverity(i) === 'success').length },
-    { label: 'Info', count: items.filter(i => getSeverity(i) === 'info').length },
+    { label: 'Всі', count: items.length },
+    { label: 'Помилки', count: items.filter(i => getSeverity(i) === 'error').length },
+    { label: 'Попередження', count: items.filter(i => getSeverity(i) === 'warning').length },
+    { label: 'Успішно', count: items.filter(i => getSeverity(i) === 'success').length },
+    { label: 'Інфо', count: items.filter(i => getSeverity(i) === 'info').length },
   ];
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>Monitoring & Alerts</Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>Моніторинг та сповіщення</Typography>
 
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3, borderBottom: '1px solid #e8eaed' }}>
         {tabs.map((t) => (
@@ -51,8 +51,8 @@ export default function Alerts() {
         <Card sx={{ borderRadius: 2 }}>
           <CardContent sx={{ textAlign: 'center', py: 8 }}>
             <CheckIcon sx={{ fontSize: 64, color: '#e0e0e0', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>No alerts</Typography>
-            <Typography variant="body2" color="text.secondary">Everything is running smoothly</Typography>
+            <Typography variant="h6" color="text.secondary" gutterBottom>Немає сповіщень</Typography>
+            <Typography variant="body2" color="text.secondary">Все працює у штатному режимі</Typography>
           </CardContent>
         </Card>
       ) : (
@@ -60,11 +60,11 @@ export default function Alerts() {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f6f8' }}>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SEVERITY</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>MESSAGE</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>JOB</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>TIME</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ACTIONS</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>РІВЕНЬ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ПОВІДОМЛЕННЯ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ЗАВДАННЯ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ЧАС</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДІЇ</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
