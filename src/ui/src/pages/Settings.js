@@ -34,35 +34,35 @@ export default function Settings() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Settings</Typography>
+      <Typography variant="h4" gutterBottom>Налаштування</Typography>
 
-      {saved && <Alert severity="success" sx={{ mb: 2 }}>Settings saved successfully</Alert>}
+      {saved && <Alert severity="success" sx={{ mb: 2 }}>Налаштування успішно збережено</Alert>}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>Backup Settings</Typography>
+          <Typography variant="h6" gutterBottom>Налаштування бекапу</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="Default Compression"
+              label="Тип стиснення за замовчуванням"
               select
               fullWidth
               value={localSettings['backup.compression'] || 'zstd'}
               onChange={(e) => setLocalSettings({...localSettings, 'backup.compression': e.target.value})}
             >
-              <MenuItem value="zstd">Zstd (Recommended)</MenuItem>
-              <MenuItem value="lz4">LZ4 (Fast)</MenuItem>
+              <MenuItem value="zstd">Zstd (Рекомендовано)</MenuItem>
+              <MenuItem value="lz4">LZ4 (Швидко)</MenuItem>
               <MenuItem value="gzip">Gzip</MenuItem>
-              <MenuItem value="none">None</MenuItem>
+              <MenuItem value="none">Відсутнє</MenuItem>
             </TextField>
             <TextField
-              label="Default Retention Days"
+              label="Термін зберігання (днів)"
               type="number"
               fullWidth
               value={localSettings['backup.retention_days'] || '30'}
               onChange={(e) => setLocalSettings({...localSettings, 'backup.retention_days': e.target.value})}
             />
             <TextField
-              label="Block Size (KB)"
+              label="Розмір блоку (КБ)"
               type="number"
               fullWidth
               value={localSettings['backup.block_size_kb'] || '64'}
@@ -74,10 +74,10 @@ export default function Settings() {
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>Network Settings</Typography>
+          <Typography variant="h6" gutterBottom>Мережеві налаштування</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="Server Port"
+              label="Порт сервера"
               type="number"
               fullWidth
               value={localSettings['network.port'] || '8000'}
@@ -85,7 +85,7 @@ export default function Settings() {
             />
             <FormControlLabel
               control={<Switch checked={localSettings['network.tls'] === 'true'} onChange={(e) => setLocalSettings({...localSettings, 'network.tls': e.target.checked.toString()})} />}
-              label="Enable TLS"
+              label="Увімкнути TLS"
             />
           </Box>
         </CardContent>
@@ -93,10 +93,10 @@ export default function Settings() {
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>Security</Typography>
+          <Typography variant="h6" gutterBottom>Безпека</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="Encryption Algorithm"
+              label="Алгоритм шифрування"
               select
               fullWidth
               value={localSettings['security.encryption'] || 'aes256'}
@@ -107,14 +107,14 @@ export default function Settings() {
             </TextField>
             <FormControlLabel
               control={<Switch checked={localSettings['security.2fa'] === 'true'} onChange={(e) => setLocalSettings({...localSettings, 'security.2fa': e.target.checked.toString()})} />}
-              label="Require Two-Factor Authentication"
+              label="Вимагати двофакторну автентифікацію"
             />
           </Box>
         </CardContent>
       </Card>
 
       <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave}>
-        Save Settings
+        Зберегти налаштування
       </Button>
     </Box>
   );
