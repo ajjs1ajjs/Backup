@@ -223,27 +223,35 @@ export default function Repositories() {
 
             {formData.type === 'local' && (
               <Grid item xs={12}>
-                <TextField fullWidth label="Local Path" value={formData.path}
-                  onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                  size="small" placeholder="e.g. D:\Backups or /mnt/backups" />
+                <Tooltip title="Локальний шлях до папки (напр. D:\Backups або /mnt/backups)">
+                  <TextField fullWidth label="Локальний шлях" value={formData.path}
+                    onChange={(e) => setFormData({ ...formData, path: e.target.value })}
+                    size="small" placeholder="напр. D:\Backups або /mnt/backups" />
+                </Tooltip>
               </Grid>
             )}
 
             {(formData.type === 'nfs' || formData.type === 'smb') && (
               <>
                 <Grid item xs={12} sm={8}>
-                  <TextField fullWidth label="Server IP / Hostname" value={formData.host}
-                    onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                    size="small" placeholder="e.g. 192.168.1.100" />
+                  <Tooltip title="IP-адреса або ім'я сервера (напр. 192.168.1.100 або nas.local)">
+                    <TextField fullWidth label="Сервер / IP" value={formData.host}
+                      onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                      size="small" placeholder="напр. 192.168.1.100" />
+                  </Tooltip>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <TextField fullWidth label="Port (optional)" type="number" value={formData.port}
-                    onChange={(e) => setFormData({ ...formData, port: e.target.value })} size="small" />
+                  <Tooltip title="Порт (залиште порожнім для стандартного)">
+                    <TextField fullWidth label="Порт (опціонально)" type="number" value={formData.port}
+                      onChange={(e) => setFormData({ ...formData, port: e.target.value })} size="small" />
+                  </Tooltip>
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField fullWidth label={formData.type === 'nfs' ? 'Export Path' : 'Share Name'} value={formData.share}
-                    onChange={(e) => setFormData({ ...formData, share: e.target.value })}
-                    size="small" placeholder={formData.type === 'nfs' ? '/exports/backups' : 'Backups'} />
+                  <Tooltip title="Назва спільної папки або шлях експорту (напр. Backups або /exports/backups)">
+                    <TextField fullWidth label={formData.type === 'nfs' ? 'Шлях експорту' : 'Назва папки'} value={formData.share}
+                      onChange={(e) => setFormData({ ...formData, share: e.target.value })}
+                      size="small" placeholder={formData.type === 'nfs' ? '/exports/backups' : 'Backups'} />
+                  </Tooltip>
                 </Grid>
                 {formData.type === 'smb' && (
                   <>
