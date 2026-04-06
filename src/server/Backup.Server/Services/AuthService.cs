@@ -200,20 +200,30 @@ private string GenerateJwtToken(User user)
 
     private static bool VerifyPassword(string password, string storedHash)
     {
-        var parts = storedHash.Split('.', 2);
-        if (parts.Length != 2) return false;
+        if (string.IsNullOrEmpty(storedHash) || !storedHash.Contains('.')) return false;
 
-        byte[] salt = Convert.FromBase64String(parts[0]);
-        byte[] hash = Convert.FromBase64String(parts[1]);
+        try
+        {
+            var parts = storedHash.Split('.', 2);
+            if (parts.Length != 2) return false;
 
-        byte[] newHash = Rfc2898DeriveBytes.Pbkdf2(
-            Encoding.UTF8.GetBytes(password),
-            salt,
-            100000,
-            HashAlgorithmName.SHA256,
-            32);
+            byte[] salt = Convert.FromBase64String(parts[0]);
+            byte[] hash = Convert.FromBase64String(parts[1]);
 
-        return CryptographicOperations.FixedTimeEquals(hash, newHash);
+            byte[] newHash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(password),
+                salt,
+                100000,
+                HashAlgorithmName.SHA256,
+                32);
+
+            return CryptographicOperations.FixedTimeEquals(hash, newHash);
+        }
+        catch (Exception)
+        {
+            // Якщо формат хешу не є валідним Base64, повертаємо false замість 500 помилки
+            return false;
+        }
     }
 }
 

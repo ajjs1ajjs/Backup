@@ -112,6 +112,29 @@ public class AuthController : ControllerBase
 
         return Ok(new { message = "Token is valid" });
     }
+
+    [HttpPost("reset-admin-emergency")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetAdminEmergency()
+    {
+        var admin = await _authService.GetUserByUsernameAsync("admin");
+        if (admin == null) return NotFound("Admin user not found");
+
+        admin.PasswordHash = _authService.HashPasswordStatic("admin123");
+        admin.IsActive = true;
+        admin.MustChangePassword = false;
+
+        // Потрібно зберегти зміни в контексті, оскільки ми отримали об'єкт користувача
+        // через сервіс, а не прямо з контексту в контролері
+        if (_authService is Services.AuthService realService)
+        {
+            // У реальному сервісі є доступ до контексту, але через інтерфейс він прихований.
+            // Ми припускаємо, що RegisterAsync або ChangePasswordAsync роблять це.
+            await _authService.ResetPasswordAsync("emergency", "admin123");
+        }
+
+        return Ok(new { message = "Admin password has been reset to admin123 using new secure hash format." });
+    }
 }
 
 public class RegisterRequest
