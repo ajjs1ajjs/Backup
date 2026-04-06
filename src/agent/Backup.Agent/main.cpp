@@ -7,20 +7,22 @@
 #include <thread>
 #include <chrono>
 
-namespace backup {
+#include "hyperv/hyperv_agent.h"
+#include "vmware/vmware_agent.h"
+#include "kvm/kvm_agent.h"
 
-class IAgent {
-public:
-    virtual ~IAgent() = default;
-    virtual bool Connect(const std::string& host, const std::string& username, const std::string& password) = 0;
-    virtual bool CreateBackup(const std::string& vm_id, const std::string& backup_name) = 0;
-    virtual bool RestoreBackup(const std::string& backup_id, const std::string& target) = 0;
-    virtual std::vector<std::string> ListBackups() = 0;
-};
+namespace backup {
 
 class AgentFactory {
 public:
-    static std::unique_ptr<IAgent> Create(const std::string& type) {
+    static std::unique_ptr<IHypervisorAgent> Create(const std::string& type) {
+        if (type == "hyperv") {
+            return CreateHyperVAgent();
+        } else if (type == "vmware") {
+            return CreateVMwareAgent();
+        } else if (type == "kvm") {
+            return CreateKVMAgent();
+        }
         return nullptr;
     }
 };
@@ -29,15 +31,19 @@ public:
 
 std::string config_file;
 std::string command;
+std::string agent_type = "hyperv"; // Значення за замовчуванням
 
 void print_help() {
     std::cout << "Backup Agent v1.0.0" << std::endl;
     std::cout << "Usage: backup-agent <command> [options]" << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  --config, -c <file>   - Path to config file" << std::endl;
+    std::cout << "  --type, -t <type>     - Hypervisor type (hyperv, vmware, kvm)" << std::endl;
     std::cout << "Commands:" << std::endl;
     std::cout << "  daemon    - Run as daemon (default)" << std::endl;
     std::cout << "  backup    - Start backup operation" << std::endl;
     std::cout << "  restore   - Start restore operation" << std::endl;
-    std::cout << "  list      - List backups" << std::endl;
+    std::cout << "  list      - List VMs" << std::endl;
     std::cout << "  version   - Show version" << std::endl;
     std::cout << "  help      - Show help" << std::endl;
 }
@@ -50,6 +56,11 @@ void parse_args(int argc, char* argv[]) {
                 config_file = argv[i + 1];
                 i++;
             }
+        } else if (arg == "--type" || arg == "-t") {
+            if (i + 1 < argc) {
+                agent_type = argv[i + 1];
+                i++;
+            }
         } else if (command.empty()) {
             command = arg;
         }
@@ -59,14 +70,18 @@ void parse_args(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     parse_args(argc, argv);
     
+    auto agent = backup::AgentFactory::Create(agent_type);
+    if (!agent && command != "version" && command != "help") {
+        std::cerr << "Error: Unsupported agent type: " << agent_type << std::endl;
+        return 1;
+    }
+
     if (command.empty() || command == "daemon") {
-        if (!config_file.empty()) {
-            std::cout << "Config file: " << config_file << std::endl;
-        }
-        std::cout << "Agent running in daemon mode..." << std::endl;
-        std::cout << "Agent started successfully" << std::endl;
+        std::cout << "Agent (" << agent_type << ") running in daemon mode..." << std::endl;
+        // Тут повинна бути логіка gRPC сервера та серцебиття
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(30));
+            std::cout << "Heartbeat sent" << std::endl;
         }
         return 0;
     }
@@ -81,12 +96,23 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (command == "list" || command == "backup" || command == "restore") {
-        if (!config_file.empty()) {
-            std::cout << "Config file: " << config_file << std::endl;
+    if (command == "list") {
+        std::cout << "Listing VMs for " << agent_type << "..." << std::endl;
+        auto vms = agent->ListVMs();
+        for (const auto& vm : vms) {
+            std::cout << " - " << vm.name << " (" << vm.vm_id << ") [" << vm.status << "]" << std::endl;
         }
-        std::cout << "Agent command: " << command << std::endl;
         return 0;
+    }
+
+    if (command == "backup") {
+        std::cout << "Starting backup for " << agent_type << "..." << std::endl;
+        // Спрощена логіка бекапу (створення снапшоту)
+        if (agent->CreateSnapshot("test-vm", "manual-backup")) {
+            std::cout << "Snapshot created successfully" << std::endl;
+            return 0;
+        }
+        return 1;
     }
 
     std::cout << "Unknown command: " << command << std::endl;

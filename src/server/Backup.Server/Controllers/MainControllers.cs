@@ -223,9 +223,13 @@ public class RepositoriesController : ControllerBase
     }
 
     [HttpPost("{repositoryId}/test")]
-    public async Task<ActionResult> TestRepository(string repositoryId)
+    public async Task<ActionResult> TestRepository(string repositoryId, [FromServices] Services.RepositoryService repoService)
     {
-        return Ok(new { success = true, message = "Connection successful" });
+        var success = await repoService.TestConnectionAsync(repositoryId);
+        if (success)
+            return Ok(new { success = true, message = "Connection successful" });
+        else
+            return BadRequest(new { success = false, message = "Connection failed" });
     }
 
     [HttpDelete("{repositoryId}")]

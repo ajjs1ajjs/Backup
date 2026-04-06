@@ -29,7 +29,7 @@ public class FastCloneService
                 .ToListAsync();
 
             var incrementalBackups = backups
-                .Where(b => b.BackupType is "incremental" or "differential")
+                .Where(b => b.BackupType == Database.Entities.JobType.Incremental || b.BackupType == Database.Entities.JobType.Differential)
                 .ToList();
 
             if (!incrementalBackups.Any())
@@ -41,11 +41,11 @@ public class FastCloneService
             var latestBackup = backups.First();
             var repository = await _db.Repositories.FindAsync(repositoryId);
 
-            if (_platform == "windows" && repository?.Type == "local")
+            if (_platform == "windows" && repository?.Type == Database.Entities.RepositoryType.Local)
             {
                 result = await CreateReFSCloneAsync(repository.Path, latestBackup.BackupId);
             }
-            else if (_platform == "linux" && repository?.Type == "local")
+            else if (_platform == "linux" && repository?.Type == Database.Entities.RepositoryType.Local)
             {
                 result = await CreateXFSCopyAsync(repository.Path, latestBackup.BackupId);
             }
@@ -61,14 +61,14 @@ public class FastCloneService
                     BackupId = Guid.NewGuid().ToString(),
                     JobId = latestBackup.JobId,
                     VmId = vmId,
-                    BackupType = "synthetic_full",
+                    BackupType = Database.Entities.JobType.Full,
                     RepositoryId = repositoryId,
                     FilePath = result.NewBackupPath,
                     SizeBytes = latestBackup.SizeBytes,
                     OriginalSizeBytes = latestBackup.OriginalSizeBytes,
                     IsSynthetic = true,
                     ParentBackupId = incrementalBackups.First().BackupId,
-                    Status = "completed",
+                    Status = Database.Entities.BackupStatus.Completed,
                     CreatedAt = DateTime.UtcNow,
                     CompletedAt = DateTime.UtcNow
                 };
@@ -97,15 +97,23 @@ public class FastCloneService
             var sourcePath = Path.Combine(repoPath, backupId);
             var destPath = Path.Combine(repoPath, $"{backupId}_synthetic");
 
-            var cmd = $"powershell -Command \"Copy-Item -Path '{sourcePath}' -Destination '{destPath}' -Force\"";
-
+            // Використовуємо PowerShell для клонування, але передаємо аргументи безпечно
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/c {cmd}",
+                FileName = "powershell.exe",
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
             };
+
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add("Copy-Item");
+            psi.ArgumentList.Add("-Path");
+            psi.ArgumentList.Add(sourcePath);
+            psi.ArgumentList.Add("-Destination");
+            psi.ArgumentList.Add(destPath);
+            psi.ArgumentList.Add("-Force");
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process != null)
@@ -113,6 +121,11 @@ public class FastCloneService
                 await process.WaitForExitAsync();
                 result.Success = process.ExitCode == 0;
                 result.NewBackupPath = destPath;
+                
+                if (!result.Success)
+                {
+                    result.Message = await process.StandardError.ReadToEndAsync();
+                }
             }
         }
         catch (Exception ex)
@@ -135,10 +148,15 @@ public class FastCloneService
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cp",
-                Arguments = $"--reflink=always {sourcePath} {destPath}",
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
             };
+
+            psi.ArgumentList.Add("--reflink=always");
+            psi.ArgumentList.Add(sourcePath);
+            psi.ArgumentList.Add(destPath);
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process != null)
@@ -146,6 +164,11 @@ public class FastCloneService
                 await process.WaitForExitAsync();
                 result.Success = process.ExitCode == 0;
                 result.NewBackupPath = destPath;
+
+                if (!result.Success)
+                {
+                    result.Message = await process.StandardError.ReadToEndAsync();
+                }
             }
         }
         catch (Exception ex)

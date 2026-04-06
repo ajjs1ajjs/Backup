@@ -3,6 +3,35 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backup.Server.Database.Entities;
 
+public enum RepositoryType
+{
+    Local,
+    NFS,
+    SMB,
+    S3,
+    AzureBlob,
+    GCS
+}
+
+public enum JobType
+{
+    Full,
+    Incremental,
+    Differential,
+    Replication,
+    Restore
+}
+
+public enum BackupStatus
+{
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+    Verified,
+    Expired
+}
+
 [Table("agents")]
 public class Agent
 {
@@ -109,8 +138,7 @@ public class Repository
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(32)]
-    public string Type { get; set; } = string.Empty;
+    public RepositoryType Type { get; set; }
 
     [Required]
     [MaxLength(1024)]
@@ -149,8 +177,7 @@ public class Job
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(32)]
-    public string JobType { get; set; } = string.Empty;
+    public JobType JobType { get; set; }
 
     [Required]
     [MaxLength(64)]
@@ -198,8 +225,7 @@ public class BackupPoint
     public string? VmId { get; set; }
 
     [Required]
-    [MaxLength(32)]
-    public string BackupType { get; set; } = string.Empty;
+    public JobType BackupType { get; set; }
 
     [Required]
     [MaxLength(64)]
@@ -222,7 +248,7 @@ public class BackupPoint
 
     public string Metadata { get; set; } = "{}";
 
-    public string Status { get; set; } = "in_progress";
+    public BackupStatus Status { get; set; } = BackupStatus.InProgress;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

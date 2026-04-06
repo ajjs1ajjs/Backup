@@ -41,7 +41,39 @@ public class SchedulerService
 
     private DateTime? CalculateFromCron(string cronExpression, DateTime? lastRun)
     {
-        return lastRun?.AddHours(24);
+        // Спрощена реалізація Cron парсингу для форматів: "* * * * *" (min hour dom month dow)
+        try
+        {
+            var parts = cronExpression.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 5) return lastRun?.AddHours(24) ?? DateTime.UtcNow.AddHours(24);
+
+            var now = DateTime.UtcNow;
+            var next = lastRun ?? now;
+
+            // Додаємо хоча б одну хвилину, щоб не зациклитись
+            next = next.AddMinutes(1);
+
+            // Дуже базовий підхід: якщо вказано годину та хвилину (наприклад, "0 2 * * *")
+            if (int.TryParse(parts[0], out int min) && int.TryParse(parts[1], out int hour))
+            {
+                var target = new DateTime(next.Year, next.Month, next.Day, hour, min, 0, DateTimeKind.Utc);
+                if (target < next) target = target.AddDays(1);
+                
+                // Перевірка дня тижня (якщо вказано, наприклад "0 2 * * 1" для понеділка)
+                if (parts[4] != "*" && int.TryParse(parts[4], out int dow))
+                {
+                    while ((int)target.DayOfWeek != dow) target = target.AddDays(1);
+                }
+
+                return target;
+            }
+
+            return next.AddHours(24);
+        }
+        catch
+        {
+            return DateTime.UtcNow.AddHours(24);
+        }
     }
 
     public bool IsWithinTimeWindow(string? timeWindow)
@@ -174,30 +206,39 @@ public class RepositoryService
 
     private bool TestNfsPath(string path)
     {
-        return !string.IsNullOrEmpty(path);
+        // Перевірка формату nfs (server:/path або IP:/path)
+        if (string.IsNullOrEmpty(path)) return false;
+        return path.Contains(':') && (path.Contains('/') || path.Contains('\\'));
     }
 
     private bool TestSmbPath(string path)
     {
-        return !string.IsNullOrEmpty(path);
+        // Перевірка формату smb (\\server\share або //server/share)
+        if (string.IsNullOrEmpty(path)) return false;
+        return path.StartsWith(@"\\") || path.StartsWith("//");
     }
 
     private async Task<bool> TestS3Async(string bucket, string? credentials)
     {
         await Task.CompletedTask;
-        return !string.IsNullOrEmpty(bucket);
+        if (string.IsNullOrEmpty(bucket)) return false;
+        // Назва бакета S3 повинна бути від 3 до 63 символів
+        return bucket.Length >= 3 && bucket.Length <= 63;
     }
 
     private async Task<bool> TestAzureBlobAsync(string container, string? credentials)
     {
         await Task.CompletedTask;
-        return !string.IsNullOrEmpty(container);
+        if (string.IsNullOrEmpty(container)) return false;
+        // Назва контейнера Azure: лише маленькі літери, цифри та дефіс, не може починатися/закінчуватися дефісом
+        return System.Text.RegularExpressions.Regex.IsMatch(container, "^[a-z0-9](?!.*--)[a-z0-9-]{1,61}[a-z0-9]$");
     }
 
     private async Task<bool> TestGcsAsync(string bucket, string? credentials)
     {
         await Task.CompletedTask;
-        return !string.IsNullOrEmpty(bucket);
+        // Google Cloud Storage bucket зазвичай містить крапку для доменних назв
+        return !string.IsNullOrEmpty(bucket) && bucket.Length >= 3;
     }
 
     public async Task UpdateStorageMetricsAsync(string repositoryId)
