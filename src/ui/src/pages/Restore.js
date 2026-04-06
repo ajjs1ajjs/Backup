@@ -32,17 +32,17 @@ export default function Restore() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Restore</Typography>
+        <Typography variant="h4">Відновлення</Typography>
         <Button variant="contained" startIcon={<RestoreIcon />} onClick={() => setOpen(true)}>
-          Start Restore
+          Розпочати відновлення
         </Button>
       </Box>
 
       {restores.length === 0 ? (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>No restore operations</Typography>
-            <Typography variant="body2" color="text.secondary">Start a restore operation to see progress here</Typography>
+            <Typography variant="h6" color="text.secondary" gutterBottom>Немає операцій відновлення</Typography>
+            <Typography variant="body2" color="text.secondary">Запустіть відновлення, щоб побачити прогрес тут</Typography>
           </CardContent>
         </Card>
       ) : (
@@ -50,12 +50,12 @@ export default function Restore() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Restore ID</TableCell>
-                <TableCell>Backup ID</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Progress</TableCell>
-                <TableCell>Created</TableCell>
+                <TableCell>ID відновлення</TableCell>
+                <TableCell>ID бекапу</TableCell>
+                <TableCell>Тип</TableCell>
+                <TableCell>Статус</TableCell>
+                <TableCell>Прогрес</TableCell>
+                <TableCell>Створено</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -85,26 +85,26 @@ export default function Restore() {
         <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bgcolor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300 }} onClick={() => setOpen(false)}>
           <Card sx={{ width: 500, maxWidth: '90%' }} onClick={(e) => e.stopPropagation()}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Start Restore</Typography>
+              <Typography variant="h6" gutterBottom>Розпочати відновлення</Typography>
               <Box display="flex" flexDirection="column" gap={2} pt={1}>
                 <Select fullWidth value={selectedBackup} onChange={(e) => setSelectedBackup(e.target.value)} displayEmpty>
-                  <MenuItem value="" disabled>Select Backup</MenuItem>
+                  <MenuItem value="" disabled>Виберіть бекап</MenuItem>
                   {backupList.map((b) => (
                     <MenuItem key={b.id || b.backupId} value={b.id || b.backupId}>
-                      {(b.id || b.backupId).substring(0, 8)} - {b.backupType || 'backup'}
+                      {(b.id || b.backupId).substring(0, 8)} - {b.backupType || 'бекап'}
                     </MenuItem>
                   ))}
                 </Select>
                 <Select fullWidth value={restoreType} onChange={(e) => setRestoreType(e.target.value)}>
-                  <MenuItem value="full_vm">Full VM Restore</MenuItem>
-                  <MenuItem value="instant">Instant Restore</MenuItem>
-                  <MenuItem value="file_level">File Level Restore</MenuItem>
+                  <MenuItem value="full_vm">Повне відновлення ВМ</MenuItem>
+                  <MenuItem value="instant">Миттєве відновлення</MenuItem>
+                  <MenuItem value="file_level">Відновлення файлів</MenuItem>
                 </Select>
-                <TextField label="Target Host" fullWidth value={targetHost} onChange={(e) => setTargetHost(e.target.value)} />
+                <TextField label="Цільовий хост" fullWidth value={targetHost} onChange={(e) => setTargetHost(e.target.value)} />
               </Box>
               <Box display="flex" justifyContent="flex-end" gap={1} sx={{ mt: 2 }}>
-                <Button onClick={() => setOpen(false)}>Cancel</Button>
-                <Button variant="contained" onClick={handleStartRestore} disabled={!selectedBackup}>Start</Button>
+                <Button onClick={() => setOpen(false)}>Скасувати</Button>
+                <Button variant="contained" onClick={handleStartRestore} disabled={!selectedBackup}>Розпочати</Button>
               </Box>
             </CardContent>
           </Card>
