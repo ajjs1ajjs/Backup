@@ -182,12 +182,12 @@ public class RepositoryService
 
         return repo.Type switch
         {
-            "local" => TestLocalPath(repo.Path),
-            "nfs" => TestNfsPath(repo.Path),
-            "smb" => TestSmbPath(repo.Path),
-            "s3" => await TestS3Async(repo.Path, repo.Credentials),
-            "azure_blob" => await TestAzureBlobAsync(repo.Path, repo.Credentials),
-            "gcs" => await TestGcsAsync(repo.Path, repo.Credentials),
+            RepositoryType.Local => TestLocalPath(repo.Path),
+            RepositoryType.NFS => TestNfsPath(repo.Path),
+            RepositoryType.SMB => TestSmbPath(repo.Path),
+            RepositoryType.S3 => await TestS3Async(repo.Path, repo.Credentials),
+            RepositoryType.AzureBlob => await TestAzureBlobAsync(repo.Path, repo.Credentials),
+            RepositoryType.GCS => await TestGcsAsync(repo.Path, repo.Credentials),
             _ => false
         };
     }
@@ -257,14 +257,14 @@ public class RepositoryService
         await _db.SaveChangesAsync();
     }
 
-    public async Task<long> GetAvailableSpaceAsync(string repositoryId)
+    public async Task UpdateStorageMetricsAsync(string repositoryId)
     {
         var repo = await _db.Repositories.FindAsync(repositoryId);
-        if (repo == null) return 0;
-        
-        return (repo.CapacityBytes ?? 0) - repo.UsedBytes;
-    }
+        if (repo == null) return;
 
+        if (repo.Type == RepositoryType.Local && Directory.Exists(repo.Path))
+        {
+    ...
     public async Task<List<string>> GetExpiredBackupsAsync(string repositoryId, RetentionPolicy policy)
     {
         var cutoffDates = new Dictionary<string, DateTime>
@@ -276,7 +276,7 @@ public class RepositoryService
         };
 
         var expired = await _db.BackupPoints
-            .Where(b => b.RepositoryId == repositoryId && b.Status != "expired")
+            .Where(b => b.RepositoryId == repositoryId && b.Status != BackupStatus.Expired)
             .ToListAsync();
 
         var toExpire = expired

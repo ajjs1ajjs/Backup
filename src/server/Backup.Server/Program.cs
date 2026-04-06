@@ -221,6 +221,14 @@ try
 
             Log.Information("Bootstrap admin user created and marked for first-login password change");
         }
+        else if (!adminUser.PasswordHash.Contains('.'))
+        {
+            // Міграція старого SHA256 хешу на новий PBKDF2
+            Log.Warning("Legacy password hash detected for user {Username}. Migrating to PBKDF2...", bootstrapAdminUsername);
+            adminUser.PasswordHash = authService.HashPasswordStatic(bootstrapAdminPassword);
+            await db.SaveChangesAsync();
+            Log.Information("Password migrated successfully for {Username}", bootstrapAdminUsername);
+        }
 
         var publicUrlSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "server.public_url");
         if (publicUrlSetting == null)

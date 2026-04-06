@@ -73,7 +73,7 @@ public class BackupsController : ControllerBase
         var backup = await _db.BackupPoints.FindAsync(backupId);
         if (backup == null) return NotFound();
 
-        backup.Status = "verified";
+        backup.Status = BackupStatus.Verified;
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Verified backup {BackupId}", backupId);
@@ -271,7 +271,7 @@ public class ReportsController : ControllerBase
         var totalJobs = await _db.Jobs.CountAsync();
         var activeJobs = await _db.Jobs.CountAsync(j => j.Enabled);
         var totalBackups = await _db.BackupPoints.CountAsync();
-        var successfulBackups = await _db.BackupPoints.CountAsync(b => b.Status == "completed");
+        var successfulBackups = await _db.BackupPoints.CountAsync(b => b.Status == BackupStatus.Completed);
         var totalRepositories = await _db.Repositories.CountAsync();
         var totalAgents = await _db.Agents.CountAsync();
         var onlineAgents = await _db.Agents.CountAsync(a => a.Status != "offline");

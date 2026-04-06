@@ -20,6 +20,7 @@ public interface IAuthService
     Task UpdateLastLoginAsync(string userId);
     Task<string> GeneratePasswordResetTokenAsync(string email);
     Task<bool> ResetPasswordAsync(string token, string newPassword);
+    string HashPasswordStatic(string password);
 }
 
 public class AuthService : IAuthService
@@ -133,24 +134,29 @@ public class AuthService : IAuthService
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         return Task.FromResult(token);
     }
+public async Task<bool> ResetPasswordAsync(string token, string newPassword)
+{
+    // У реальній системі ми б перевіряли токен у базі даних або розкодовували JWT.
+    // Оскільки таблиці для токенів немає, ми припускаємо, що токен валідний для демонстрації виправлення,
+    // але додаємо логіку зміни пароля.
+    if (string.IsNullOrWhiteSpace(token)) return false;
 
-    public async Task<bool> ResetPasswordAsync(string token, string newPassword)
-    {
-        // У реальній системі ми б перевіряли токен у базі даних або розкодовували JWT.
-        // Оскільки таблиці для токенів немає, ми припускаємо, що токен валідний для демонстрації виправлення,
-        // але додаємо логіку зміни пароля.
-        if (string.IsNullOrWhiteSpace(token)) return false;
+    var user = await _context.Users.FirstOrDefaultAsync(u => u.IsActive);
+    if (user == null) return false;
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.IsActive);
-        if (user == null) return false;
+    user.PasswordHash = HashPassword(newPassword);
+    user.MustChangePassword = false;
+    await _context.SaveChangesAsync();
+    return true;
+}
 
-        user.PasswordHash = HashPassword(newPassword);
-        user.MustChangePassword = false;
-        await _context.SaveChangesAsync();
-        return true;
-    }
+public string HashPasswordStatic(string password)
+{
+    return HashPassword(password);
+}
 
-    private string GenerateJwtToken(User user)
+private string GenerateJwtToken(User user)
+...
     {
         var jwtKey = _configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey))

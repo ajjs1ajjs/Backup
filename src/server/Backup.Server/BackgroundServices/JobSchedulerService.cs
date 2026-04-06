@@ -146,13 +146,13 @@ public class RetentionPolicyService : BackgroundService
                 
                 var cutoffDate = DateTime.UtcNow.AddDays(-int.Parse(retentionDays));
                 var expiredBackups = await db.BackupPoints
-                    .Where(b => b.CreatedAt < cutoffDate && b.Status != "expired")
+                    .Where(b => b.CreatedAt < cutoffDate && b.Status != BackupStatus.Expired)
                     .ToListAsync(stoppingToken);
 
                 foreach (var backup in expiredBackups)
                 {
                     _logger.LogInformation("Marking backup {BackupId} as expired", backup.BackupId);
-                    backup.Status = "expired";
+                    backup.Status = BackupStatus.Expired;
                 }
 
                 if (expiredBackups.Any())
