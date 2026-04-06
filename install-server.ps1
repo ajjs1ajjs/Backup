@@ -172,7 +172,7 @@ function Build-UI {
         Join-Path (Split-Path $LocalSource -Parent) "ui"
     } else {
         $buildDir = Join-Path $env:TEMP "backup-server-build"
-        Join-Path $buildDir "src" "ui"
+        Join-Path $buildDir (Join-Path "src" "ui")
     }
 
     if (-not (Test-Path $uiSource)) {
