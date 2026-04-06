@@ -218,104 +218,52 @@ export default function Jobs() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })} size="small" required />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Тип бекапу</InputLabel>
-                <Select value={formData.jobType} label="Тип бекапу"
-                  onChange={(e) => setFormData({ ...formData, jobType: e.target.value })}>
-                  <MenuItem value="Full">Повний</MenuItem>
-                  <MenuItem value="Incremental">Інкрементальний</MenuItem>
-                  <MenuItem value="Differential">Диференціальний</MenuItem>
-                </Select>
-              </FormControl>
+              <Tooltip title="Наприклад: 'Full' для повного бекапу, 'Incremental' для інкрементального">
+                <FormControl fullWidth size="small">
+                  <InputLabel>Тип бекапу</InputLabel>
+                  <Select value={formData.jobType} label="Тип бекапу"
+                    onChange={(e) => setFormData({ ...formData, jobType: e.target.value })}>
+                    <MenuItem value="Full">Повний</MenuItem>
+                    <MenuItem value="Incremental">Інкрементальний</MenuItem>
+                    <MenuItem value="Differential">Диференціальний</MenuItem>
+                  </Select>
+                </FormControl>
+              </Tooltip>
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Тип джерела</InputLabel>
-                <Select value={formData.sourceType} label="Тип джерела"
-                  onChange={(e) => setFormData({ ...formData, sourceType: e.target.value, sourceId: '' })}>
-                  <MenuItem value="vm">Віртуальна машина</MenuItem>
-                  <MenuItem value="agent">Агент / Сервер</MenuItem>
-                  <MenuItem value="folder">Папка / Файли</MenuItem>
-                  <MenuItem value="database">База даних</MenuItem>
-                </Select>
-              </FormControl>
+              <Tooltip title="Виберіть тип джерела: ВМ, агент, папка або база даних">
+                <FormControl fullWidth size="small">
+                  <InputLabel>Тип джерела</InputLabel>
+                  <Select value={formData.sourceType} label="Тип джерела"
+                    onChange={(e) => setFormData({ ...formData, sourceType: e.target.value, sourceId: '' })}>
+                    <MenuItem value="vm">Віртуальна машина</MenuItem>
+                    <MenuItem value="agent">Агент / Сервер</MenuItem>
+                    <MenuItem value="folder">Папка / Файли</MenuItem>
+                    <MenuItem value="database">База даних</MenuItem>
+                  </Select>
+                </FormControl>
+              </Tooltip>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Джерело</InputLabel>
-                <Select value={formData.sourceId} label="Джерело"
-                  onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}>
-                  {formData.sourceType === 'vm' && vms.length > 0 && vms.map(vm => (
-                    <MenuItem key={vm.vmId} value={vm.vmId}>{vm.name} — {vm.ipAddress || 'без IP'} [{vm.hypervisorType?.toUpperCase()}]</MenuItem>
-                  ))}
-                  {formData.sourceType === 'agent' && agents.length > 0 && agents.map(a => (
-                    <MenuItem key={a.agentId} value={a.agentId}>{a.hostname} — {a.ipAddress || 'без IP'} [{a.agentType}]</MenuItem>
-                  ))}
-                  {formData.sourceType === 'vm' && vms.length === 0 && (
-                    <MenuItem value="__manual__" disabled>Немає зареєстрованих ВМ</MenuItem>
-                  )}
-                  {formData.sourceType === 'agent' && agents.length === 0 && (
-                    <MenuItem value="__manual__" disabled>Немає зареєстрованих агентів</MenuItem>
-                  )}
-                  {formData.sourceType === 'database' && (
-                    <MenuItem value="__manual__" disabled>Немає зареєстрованих БД</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-              {(formData.sourceType === 'vm' && vms.length === 0) ||
-              (formData.sourceType === 'agent' && agents.length === 0) ||
-              formData.sourceType === 'database' ? (
-                <>
-                  <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="IP-адреса / Хост"
-                    value={formData.sourceHost || ''}
-                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value, sourceHost: e.target.value })}
-                    placeholder="напр. 192.168.1.50"
-                  />
-                  <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label={formData.sourceType === 'database' ? 'Назва БД / Рядок підключення' : 'ID джерела'}
-                    value={formData.sourceId === formData.sourceHost ? '' : formData.sourceId}
-                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                    placeholder={formData.sourceType === 'database' ? 'MyDB' : 'ID'}
-                  />
-                </>
-              ) : formData.sourceType === 'folder' ? (
-                <>
-                  <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="Віддалений хост (опціонально)"
-                    value={formData.sourceHost || ''}
-                    onChange={(e) => setFormData({ ...formData, sourceHost: e.target.value })}
-                    placeholder="IP або ім'я сервера"
-                  />
-                  <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="Шлях до папки"
-                    value={formData.sourceId}
-                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                    placeholder="C:\\Data або /home/user"
-                  />
-                </>
-              ) : null}
+              <Tooltip title="Вкажіть шлях до файлів або IP-адресу (напр. C:\\Backups або 192.168.1.50)">
+                <TextField fullWidth size="small" sx={{ mt: 1 }}
+                  label="Шлях або ID джерела"
+                  value={formData.sourceId}
+                  onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
+                  placeholder="напр. C:\\Data або 192.168.1.50"
+                />
+              </Tooltip>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Сховище призначення</InputLabel>
-                <Select value={formData.destinationId} label="Сховище призначення"
-                  onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}>
-                  {repos.length > 0 && repos.map(r => (
-                    <MenuItem key={r.repositoryId} value={r.repositoryId}>{r.name} ({r.type}) — {r.path}</MenuItem>
-                  ))}
-                  {repos.length === 0 && (
-                    <MenuItem value="__manual__" disabled>Немає налаштованих сховищ</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-              <TextField fullWidth size="small" sx={{ mt: 1 }}
-                label="Шлях або ID сховища"
-                value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
-                onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
-                placeholder="напр. D:\\Backups або виберіть вище"
-              />
+              <Tooltip title="Вкажіть локальний шлях (напр. D:\\Backups) або мережевий шлях (напр. \\\\Server\\Share)">
+                <TextField fullWidth size="small" sx={{ mt: 1 }}
+                  label="Шлях або ID сховища"
+                  value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
+                  onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
+                  placeholder="напр. D:\\Backups або \\\\Server\\Share"
+                />
+              </Tooltip>
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControlLabel
@@ -342,9 +290,11 @@ export default function Jobs() {
                   ))}
                 </Box>
               ) : (
-                <TextField fullWidth label="Cron вираз" value={formData.schedule}
-                  onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                  size="small" placeholder="0 2 * * *" helperText="хв год день місяць день_тижня" />
+                <Tooltip title="Формат: хвилини (0-59) години (0-23) дні (1-31) місяці (1-12) дні_тижня (0-6)">
+                  <TextField fullWidth label="Cron вираз" value={formData.schedule}
+                    onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+                    size="small" placeholder="0 2 * * *" helperText="хв год день місяць день_тижня" />
+                </Tooltip>
               )}
             </Grid>
           </Grid>
