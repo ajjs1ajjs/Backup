@@ -41,7 +41,7 @@ export default function Jobs() {
   const [scheduleTab, setScheduleTab] = useState(0);
   const [formData, setFormData] = useState({
     name: '', jobType: 'full_backup', sourceId: '', sourceType: 'vm',
-    destinationId: '', schedule: '0 2 * * *', enabled: true,
+    sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
     options: JSON.stringify({ compression: 'zstd', retention: 7 })
   });
 
@@ -87,7 +87,7 @@ export default function Jobs() {
     setScheduleTab(0);
     setFormData({
       name: '', jobType: 'full_backup', sourceId: '', sourceType: 'vm',
-      destinationId: '', schedule: '0 2 * * *', enabled: true,
+      sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
       options: JSON.stringify({ compression: 'zstd', retention: 7 })
     });
     setOpen(true);
@@ -101,6 +101,7 @@ export default function Jobs() {
       jobType: job.jobType || 'full_backup',
       sourceId: job.sourceId || '',
       sourceType: job.sourceType || 'vm',
+      sourceHost: job.sourceHost || '',
       destinationId: job.destinationId || '',
       schedule: job.schedule || '0 2 * * *',
       enabled: job.enabled !== false,
@@ -180,7 +181,9 @@ export default function Jobs() {
                     <Chip label={job.jobType?.replace('_', ' ') || 'full'} size="small"
                       sx={{ fontSize: '0.7rem', height: 22, bgcolor: (jobTypeColors[job.jobType] || '#999') + '20', color: jobTypeColors[job.jobType] || '#999', fontWeight: 'bold' }} />
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.85rem' }}>{job.sourceId || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.85rem' }}>
+                    {job.sourceHost ? `${job.sourceId} (${job.sourceHost})` : job.sourceId || '-'}
+                  </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.destinationId || '-'}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{formatSchedule(job.schedule)}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.lastRun ? new Date(job.lastRun).toLocaleString() : '-'}</TableCell>
@@ -244,10 +247,10 @@ export default function Jobs() {
                 <Select value={formData.sourceId} label="Source"
                   onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}>
                   {formData.sourceType === 'vm' && vms.length > 0 && vms.map(vm => (
-                    <MenuItem key={vm.vmId} value={vm.vmId}>{vm.name} ({vm.ipAddress || 'no IP'})</MenuItem>
+                    <MenuItem key={vm.vmId} value={vm.vmId}>{vm.name} — {vm.ipAddress || 'no IP'} [{vm.hypervisorType?.toUpperCase()}]</MenuItem>
                   ))}
                   {formData.sourceType === 'agent' && agents.length > 0 && agents.map(a => (
-                    <MenuItem key={a.agentId} value={a.agentId}>{a.hostname} ({a.ipAddress || 'no IP'})</MenuItem>
+                    <MenuItem key={a.agentId} value={a.agentId}>{a.hostname} — {a.ipAddress || 'no IP'} [{a.agentType}]</MenuItem>
                   ))}
                   {formData.sourceType === 'vm' && vms.length === 0 && (
                     <MenuItem value="__manual__" disabled>No VMs registered — add manually below</MenuItem>
@@ -260,18 +263,42 @@ export default function Jobs() {
                   )}
                 </Select>
               </FormControl>
-              {(formData.sourceType === 'folder' ||
-                (formData.sourceType === 'vm' && vms.length === 0) ||
-                (formData.sourceType === 'agent' && agents.length === 0) ||
-                formData.sourceType === 'database') && (
-                <TextField fullWidth size="small" sx={{ mt: 1 }}
-                  label={formData.sourceType === 'folder' ? 'Folder Path' : 'Source ID / Name'}
-                  value={formData.sourceId === '__manual__' ? '' : formData.sourceId}
-                  onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                  placeholder={formData.sourceType === 'vm' ? 'VM name or ID' : formData.sourceType === 'folder' ? 'C:\\Data or /home/user' : 'Source identifier'}
-                  helperText={formData.sourceType === 'vm' ? 'Or register VMs via Hypervisors page' : formData.sourceType === 'folder' ? 'Path to files/folder to backup' : 'Enter source identifier'}
-                />
-              )}
+              {(formData.sourceType === 'vm' && vms.length === 0) ||
+              (formData.sourceType === 'agent' && agents.length === 0) ||
+              formData.sourceType === 'database' ? (
+                <>
+                  <TextField fullWidth size="small" sx={{ mt: 1 }}
+                    label="IP Address / Hostname"
+                    value={formData.sourceHost || ''}
+                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value, sourceHost: e.target.value })}
+                    placeholder="e.g. 192.168.1.50 or db-server"
+                    helperText="Enter the IP or hostname of the source"
+                  />
+                  <TextField fullWidth size="small" sx={{ mt: 1 }}
+                    label={formData.sourceType === 'database' ? 'Database Name / Connection String' : 'Source ID / Name'}
+                    value={formData.sourceId === formData.sourceHost ? '' : formData.sourceId}
+                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
+                    placeholder={formData.sourceType === 'database' ? 'MyDB or Server\\Instance' : 'Source identifier'}
+                  />
+                </>
+              ) : formData.sourceType === 'folder' ? (
+                <>
+                  <TextField fullWidth size="small" sx={{ mt: 1 }}
+                    label="Remote Host IP / Hostname (optional)"
+                    value={formData.sourceHost || ''}
+                    onChange={(e) => setFormData({ ...formData, sourceHost: e.target.value })}
+                    placeholder="Leave empty for local path, or enter remote server IP"
+                    helperText="For remote folders, enter the server IP or hostname"
+                  />
+                  <TextField fullWidth size="small" sx={{ mt: 1 }}
+                    label="Folder Path"
+                    value={formData.sourceId}
+                    onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
+                    placeholder="C:\\Data or /home/user or \\\\server\\share\\path"
+                    helperText="Path to files/folder to backup"
+                  />
+                </>
+              ) : null}
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
@@ -279,34 +306,20 @@ export default function Jobs() {
                 <Select value={formData.destinationId} label="Destination Repository"
                   onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}>
                   {repos.length > 0 && repos.map(r => (
-                    <MenuItem key={r.repositoryId} value={r.repositoryId}>{r.name} ({r.type})</MenuItem>
+                    <MenuItem key={r.repositoryId} value={r.repositoryId}>{r.name} ({r.type}) — {r.path}</MenuItem>
                   ))}
                   {repos.length === 0 && (
-                    <MenuItem value="__manual__" disabled>No repositories — add manually below</MenuItem>
+                    <MenuItem value="__manual__" disabled>No repositories configured — enter path below</MenuItem>
                   )}
                 </Select>
               </FormControl>
-              {repos.length === 0 && (
-                <TextField fullWidth size="small" sx={{ mt: 1 }}
-                  label="Destination Path / Repository ID"
-                  value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
-                  onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
-                  placeholder="e.g. D:\Backups or /mnt/backups or repo-id"
-                  helperText="Or add a repository via Repositories page"
-                />
-              )}
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Destination Repository</InputLabel>
-                <Select value={formData.destinationId} label="Destination Repository"
-                  onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}>
-                  {repos.map(r => (
-                    <MenuItem key={r.repositoryId} value={r.repositoryId}>{r.name} ({r.type})</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <TextField fullWidth size="small" sx={{ mt: 1 }}
+                label="Destination Path or Repository ID"
+                value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
+                onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
+                placeholder="e.g. D:\Backups, /mnt/backups, or select a repository above"
+                helperText="Enter a local/remote path or select a configured repository"
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControlLabel
