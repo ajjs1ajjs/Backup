@@ -168,6 +168,9 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 
+    // Примусово встановлюємо JWT ключ в конфігурацію, щоб AuthService міг його прочитати
+    builder.Configuration["Jwt:Key"] = jwtKey;
+
     builder.Services.AddHostedService<JobSchedulerService>();
     builder.Services.AddHostedService<AgentHealthCheckService>();
     builder.Services.AddHostedService<RetentionPolicyService>();

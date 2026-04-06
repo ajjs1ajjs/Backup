@@ -157,6 +157,15 @@ public class AuthService : IAuthService
     {
         var jwtKey = _configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey))
+        {
+            var jwtKeyPath = Path.Combine(AppContext.BaseDirectory, "jwt.key");
+            if (File.Exists(jwtKeyPath))
+            {
+                jwtKey = File.ReadAllText(jwtKeyPath).Trim();
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtKey))
             throw new InvalidOperationException("Jwt:Key is not configured");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
