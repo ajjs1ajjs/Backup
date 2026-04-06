@@ -12,22 +12,52 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
+using System.ServiceProcess;
 
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateLogger();
+var isService = Environment.UserInteractive == false
+    || Environment.CommandLine.Contains("--service")
+    || AppDomain.CurrentDomain.FriendlyName.Contains("Backup.Server", StringComparison.OrdinalIgnoreCase);
+
+var logConfig = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+if (isService)
+{
+    var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+    Directory.CreateDirectory(logDir);
+    logConfig.WriteTo.File(
+        Path.Combine(logDir, "backup-server-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
+}
+
+Log.Logger = logConfig.CreateLogger();
 
 try
 {
-    Log.Information("Starting Backup Server...");
+    if (isService)
+        Log.Information("Starting Backup Server as Windows Service...");
+    else
+        Log.Information("Starting Backup Server (console mode)...");
+
     const int defaultServerPort = 8000;
 
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog();
 
+    if (isService)
+    {
+        builder.Host.UseWindowsService(options =>
+        {
+            options.ServiceName = "BackupServer";
+        });
+    }
+
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Host=localhost;Database=backup;Username=backup_user;Password=postgres";
+        ?? "Data Source=backup.db";
 
     builder.Services.AddDbContext<BackupDbContext>(options =>
         options.UseSqlite(connectionString));
@@ -148,7 +178,6 @@ try
         .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
         ?.ToString() ?? "localhost";
 
-    // Bind to both localhost and server IP unless explicit URL config is provided.
     if (!app.Urls.Any())
     {
         app.Urls.Add($"http://localhost:{defaultServerPort}");
@@ -167,7 +196,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
         db.Database.Migrate();
         Log.Information("Database migrations applied");
-        
+
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
         var bootstrapAdminUsername = builder.Configuration["BootstrapAdmin:Username"] ?? "admin";
         var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
