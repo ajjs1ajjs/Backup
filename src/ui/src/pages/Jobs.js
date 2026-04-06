@@ -141,9 +141,9 @@ export default function Jobs() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>Backup Jobs</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>Завдання бекапу</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}>
-          New Job
+          Створити завдання
         </Button>
       </Box>
 
@@ -151,9 +151,9 @@ export default function Jobs() {
         <Card sx={{ borderRadius: 2 }}>
           <CardContent sx={{ textAlign: 'center', py: 8 }}>
             <BackupIcon sx={{ fontSize: 64, color: '#e0e0e0', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>No backup jobs configured</Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>Create your first backup job to start protecting your data</Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7' }}>Create Job</Button>
+            <Typography variant="h6" color="text.secondary" gutterBottom>Немає налаштованих завдань</Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>Створіть своє перше завдання, щоб почати захист даних</Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7' }}>Створити завдання</Button>
           </CardContent>
         </Card>
       ) : (
@@ -161,15 +161,15 @@ export default function Jobs() {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f6f8' }}>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>STATUS</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>JOB NAME</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>TYPE</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SOURCE</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>DESTINATION</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SCHEDULE</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>LAST RUN</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NEXT RUN</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ACTIONS</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>СТАТУС</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАЗВА</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ТИП</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДЖЕРЕЛО</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ПРИЗНАЧЕННЯ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>РОЗКЛАД</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ОСТАННІЙ ЗАПУСК</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАСТУПНИЙ ЗАПУСК</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДІЇ</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -210,11 +210,11 @@ export default function Jobs() {
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>{editJob ? 'Edit' : 'Create'} Backup Job</DialogTitle>
+        <DialogTitle>{editJob ? 'Редагувати' : 'Створити'} завдання бекапу</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Job Name" value={formData.name}
+              <TextField fullWidth label="Назва завдання" value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })} size="small" required />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -231,35 +231,35 @@ export default function Jobs() {
 
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
-                <InputLabel>Source Type</InputLabel>
-                <Select value={formData.sourceType} label="Source Type"
+                <InputLabel>Тип джерела</InputLabel>
+                <Select value={formData.sourceType} label="Тип джерела"
                   onChange={(e) => setFormData({ ...formData, sourceType: e.target.value, sourceId: '' })}>
-                  <MenuItem value="vm">Virtual Machine</MenuItem>
-                  <MenuItem value="agent">Agent / Physical Server</MenuItem>
-                  <MenuItem value="folder">Folder / Files</MenuItem>
-                  <MenuItem value="database">Database</MenuItem>
+                  <MenuItem value="vm">Віртуальна машина</MenuItem>
+                  <MenuItem value="agent">Агент / Сервер</MenuItem>
+                  <MenuItem value="folder">Папка / Файли</MenuItem>
+                  <MenuItem value="database">База даних</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
-                <InputLabel>Source</InputLabel>
-                <Select value={formData.sourceId} label="Source"
+                <InputLabel>Джерело</InputLabel>
+                <Select value={formData.sourceId} label="Джерело"
                   onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}>
                   {formData.sourceType === 'vm' && vms.length > 0 && vms.map(vm => (
-                    <MenuItem key={vm.vmId} value={vm.vmId}>{vm.name} — {vm.ipAddress || 'no IP'} [{vm.hypervisorType?.toUpperCase()}]</MenuItem>
+                    <MenuItem key={vm.vmId} value={vm.vmId}>{vm.name} — {vm.ipAddress || 'без IP'} [{vm.hypervisorType?.toUpperCase()}]</MenuItem>
                   ))}
                   {formData.sourceType === 'agent' && agents.length > 0 && agents.map(a => (
-                    <MenuItem key={a.agentId} value={a.agentId}>{a.hostname} — {a.ipAddress || 'no IP'} [{a.agentType}]</MenuItem>
+                    <MenuItem key={a.agentId} value={a.agentId}>{a.hostname} — {a.ipAddress || 'без IP'} [{a.agentType}]</MenuItem>
                   ))}
                   {formData.sourceType === 'vm' && vms.length === 0 && (
-                    <MenuItem value="__manual__" disabled>No VMs registered — add manually below</MenuItem>
+                    <MenuItem value="__manual__" disabled>Немає зареєстрованих ВМ</MenuItem>
                   )}
                   {formData.sourceType === 'agent' && agents.length === 0 && (
-                    <MenuItem value="__manual__" disabled>No agents registered — add manually below</MenuItem>
+                    <MenuItem value="__manual__" disabled>Немає зареєстрованих агентів</MenuItem>
                   )}
                   {formData.sourceType === 'database' && (
-                    <MenuItem value="__manual__" disabled>No databases registered — add manually below</MenuItem>
+                    <MenuItem value="__manual__" disabled>Немає зареєстрованих БД</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -268,71 +268,67 @@ export default function Jobs() {
               formData.sourceType === 'database' ? (
                 <>
                   <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="IP Address / Hostname"
+                    label="IP-адреса / Хост"
                     value={formData.sourceHost || ''}
                     onChange={(e) => setFormData({ ...formData, sourceId: e.target.value, sourceHost: e.target.value })}
-                    placeholder="e.g. 192.168.1.50 or db-server"
-                    helperText="Enter the IP or hostname of the source"
+                    placeholder="напр. 192.168.1.50"
                   />
                   <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label={formData.sourceType === 'database' ? 'Database Name / Connection String' : 'Source ID / Name'}
+                    label={formData.sourceType === 'database' ? 'Назва БД / Рядок підключення' : 'ID джерела'}
                     value={formData.sourceId === formData.sourceHost ? '' : formData.sourceId}
                     onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                    placeholder={formData.sourceType === 'database' ? 'MyDB or Server\\Instance' : 'Source identifier'}
+                    placeholder={formData.sourceType === 'database' ? 'MyDB' : 'ID'}
                   />
                 </>
               ) : formData.sourceType === 'folder' ? (
                 <>
                   <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="Remote Host IP / Hostname (optional)"
+                    label="Віддалений хост (опціонально)"
                     value={formData.sourceHost || ''}
                     onChange={(e) => setFormData({ ...formData, sourceHost: e.target.value })}
-                    placeholder="Leave empty for local path, or enter remote server IP"
-                    helperText="For remote folders, enter the server IP or hostname"
+                    placeholder="IP або ім'я сервера"
                   />
                   <TextField fullWidth size="small" sx={{ mt: 1 }}
-                    label="Folder Path"
+                    label="Шлях до папки"
                     value={formData.sourceId}
                     onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                    placeholder="C:\\Data or /home/user or \\\\server\\share\\path"
-                    helperText="Path to files/folder to backup"
+                    placeholder="C:\\Data або /home/user"
                   />
                 </>
               ) : null}
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
-                <InputLabel>Destination Repository</InputLabel>
-                <Select value={formData.destinationId} label="Destination Repository"
+                <InputLabel>Сховище призначення</InputLabel>
+                <Select value={formData.destinationId} label="Сховище призначення"
                   onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}>
                   {repos.length > 0 && repos.map(r => (
                     <MenuItem key={r.repositoryId} value={r.repositoryId}>{r.name} ({r.type}) — {r.path}</MenuItem>
                   ))}
                   {repos.length === 0 && (
-                    <MenuItem value="__manual__" disabled>No repositories configured — enter path below</MenuItem>
+                    <MenuItem value="__manual__" disabled>Немає налаштованих сховищ</MenuItem>
                   )}
                 </Select>
               </FormControl>
               <TextField fullWidth size="small" sx={{ mt: 1 }}
-                label="Destination Path or Repository ID"
+                label="Шлях або ID сховища"
                 value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
                 onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
-                placeholder="e.g. D:\Backups, /mnt/backups, or select a repository above"
-                helperText="Enter a local/remote path or select a configured repository"
+                placeholder="напр. D:\\Backups або виберіть вище"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControlLabel
                 control={<Switch checked={formData.enabled} onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })} />}
-                label="Job Enabled"
+                label="Завдання активне"
               />
             </Grid>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Schedule</Typography>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Розклад</Typography>
               <Tabs value={scheduleTab} onChange={(e, v) => setScheduleTab(v)} sx={{ mb: 2 }}>
-                <Tab label="Preset" icon={<ScheduleIcon fontSize="small" />} iconPosition="start" />
-                <Tab label="Custom Cron" />
+                <Tab label="Пресети" />
+                <Tab label="Cron" />
               </Tabs>
 
               {scheduleTab === 0 ? (
@@ -346,18 +342,18 @@ export default function Jobs() {
                   ))}
                 </Box>
               ) : (
-                <TextField fullWidth label="Cron Expression" value={formData.schedule}
+                <TextField fullWidth label="Cron вираз" value={formData.schedule}
                   onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                  size="small" placeholder="0 2 * * *" helperText="min hour day month weekday" />
+                  size="small" placeholder="0 2 * * *" helperText="хв год день місяць день_тижня" />
               )}
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)}>Скасувати</Button>
           <Button variant="contained" onClick={handleSaveJob} disabled={!formData.name || !formData.sourceId || formData.sourceId === '__manual__' || !formData.destinationId || formData.destinationId === '__manual__'}
             sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}>
-            {editJob ? 'Save' : 'Create'}
+            {editJob ? 'Зберегти' : 'Створити'}
           </Button>
         </DialogActions>
       </Dialog>
