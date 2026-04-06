@@ -1,4 +1,6 @@
+using Backup.Server.Database;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Backup.Server.Migrations;
 
