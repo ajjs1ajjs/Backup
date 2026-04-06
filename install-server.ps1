@@ -143,7 +143,7 @@ function Build-Server {
 
         Write-Log "Cloning repository..."
         git clone https://github.com/ajjs1ajjs/Backup.git $buildDir
-        Join-Path $buildDir "src" "server" "Backup.Server"
+        Join-Path $buildDir (Join-Path "src" (Join-Path "server" "Backup.Server"))
     }
 
     if (-not (Test-Path $sourceDir)) {
