@@ -30,7 +30,7 @@ try
         ?? "Host=localhost;Database=backup;Username=backup_user;Password=postgres";
 
     builder.Services.AddDbContext<BackupDbContext>(options =>
-        options.UseNpgsql(connectionString));
+        options.UseSqlite(connectionString));
 
     var jwtKey = builder.Configuration["Jwt:Key"];
     if (string.IsNullOrWhiteSpace(jwtKey))

@@ -11,62 +11,58 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "8.0.0")
-            .HasAnnotation("Relational:MaxIdentifierLength", 63);
-
-        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            .HasAnnotation("ProductVersion", "8.0.0");
 
         modelBuilder.Entity("Backup.Server.Database.Entities.Agent", b =>
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<string>("AgentId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("AgentType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("AgentVersion")
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Capabilities")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Hostname")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("IpAddress")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("LastHeartbeat")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("OsType")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Status")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
 
@@ -80,37 +76,36 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Action")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Details")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("EntityId")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("EntityType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("IpAddress")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("UserId")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
             b.ToTable("audit_logs");
@@ -120,67 +115,66 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<string>("BackupId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("BackupType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Checksum")
                 .HasMaxLength(128)
-                .HasColumnType("character varying(128)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("CompletedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("FilePath")
                 .HasMaxLength(1024)
-                .HasColumnType("character varying(1024)");
+                .HasColumnType("TEXT");
 
             b.Property<bool>("IsSynthetic")
-                .HasColumnType("boolean");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("JobId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Metadata")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<long>("OriginalSizeBytes")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("ParentBackupId")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("RepositoryId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<long>("SizeBytes")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Status")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("VmId")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
 
@@ -196,56 +190,55 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Host")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("HypervisorId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("LastConnectedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Name")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Password")
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<int>("Port")
-                .HasColumnType("integer");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Status")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Type")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Username")
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<int>("VmCount")
-                .HasColumnType("integer");
+                .HasColumnType("INTEGER");
 
             b.HasKey("Id");
 
@@ -259,60 +252,59 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("DestinationId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<bool>("Enabled")
-                .HasColumnType("boolean");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("JobId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("JobType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("LastRun")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Name")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("NextRun")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Options")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Schedule")
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("SourceId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("SourceType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
 
@@ -326,40 +318,39 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<long>("BytesProcessed")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime?>("EndTime")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<long>("FilesProcessed")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("JobId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("RunId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<double>("SpeedMbps")
-                .HasColumnType("double precision");
+                .HasColumnType("REAL");
 
             b.Property<DateTime>("StartTime")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Status")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("ErrorMessage")
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
             b.ToTable("job_run_history");
@@ -369,54 +360,53 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<long?>("CapacityBytes")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Credentials")
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("LastUsedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Name")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Options")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Path")
                 .IsRequired()
                 .HasMaxLength(1024)
-                .HasColumnType("character varying(1024)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("RepositoryId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Status")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Type")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<long>("UsedBytes")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.HasKey("Id");
 
@@ -430,57 +420,56 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<string>("BackupId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("CompletedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("DestinationPath")
                 .HasMaxLength(1024)
-                .HasColumnType("character varying(1024)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("ErrorMessage")
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Options")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("RestoreId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("RestoreType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("StartedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Status")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("TargetHost")
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<long>("TotalBytes")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<long>("BytesRestored")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.HasKey("Id");
 
@@ -494,27 +483,26 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Description")
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Key")
                 .IsRequired()
                 .HasMaxLength(128)
-                .HasColumnType("character varying(128)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Type")
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Value")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
             b.ToTable("settings");
@@ -524,48 +512,47 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Email")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<bool>("IsActive")
-                .HasColumnType("boolean");
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime?>("LastLoginAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<bool>("MustChangePassword")
-                .HasColumnType("boolean");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("PasswordHash")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Role")
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("TwoFactorSecret")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("UserId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Username")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
 
@@ -579,68 +566,67 @@ partial class BackupDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id")
                 .ValueGeneratedOnAdd()
-                .HasColumnType("bigint");
-            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                .HasColumnType("INTEGER");
 
             b.Property<int?>("CpuCores")
-                .HasColumnType("integer");
+                .HasColumnType("INTEGER");
 
             b.Property<DateTime>("CreatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Disks")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<string>("HypervisorHost")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("HypervisorType")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("IpAddress")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime?>("LastBackupAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("LastBackupId")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<long?>("MemoryMb")
-                .HasColumnType("bigint");
+                .HasColumnType("INTEGER");
 
             b.Property<string>("Name")
                 .IsRequired()
                 .HasMaxLength(255)
-                .HasColumnType("character varying(255)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("OsType")
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Status")
                 .IsRequired()
                 .HasMaxLength(32)
-                .HasColumnType("character varying(32)");
+                .HasColumnType("TEXT");
 
             b.Property<string>("Tags")
                 .IsRequired()
-                .HasColumnType("text");
+                .HasColumnType("TEXT");
 
             b.Property<DateTime>("UpdatedAt")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType("TEXT");
 
             b.Property<string>("VmId")
                 .IsRequired()
                 .HasMaxLength(64)
-                .HasColumnType("character varying(64)");
+                .HasColumnType("TEXT");
 
             b.HasKey("Id");
 
