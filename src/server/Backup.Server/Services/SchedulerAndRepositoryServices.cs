@@ -41,7 +41,6 @@ public class SchedulerService
 
     private DateTime? CalculateFromCron(string cronExpression, DateTime? lastRun)
     {
-        // Спрощена реалізація Cron парсингу для форматів: "* * * * *" (min hour dom month dow)
         try
         {
             var parts = cronExpression.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -50,16 +49,13 @@ public class SchedulerService
             var now = DateTime.UtcNow;
             var next = lastRun ?? now;
 
-            // Додаємо хоча б одну хвилину, щоб не зациклитись
             next = next.AddMinutes(1);
 
-            // Дуже базовий підхід: якщо вказано годину та хвилину (наприклад, "0 2 * * *")
             if (int.TryParse(parts[0], out int min) && int.TryParse(parts[1], out int hour))
             {
                 var target = new DateTime(next.Year, next.Month, next.Day, hour, min, 0, DateTimeKind.Utc);
                 if (target < next) target = target.AddDays(1);
                 
-                // Перевірка дня тижня (якщо вказано, наприклад "0 2 * * 1" для понеділка)
                 if (parts[4] != "*" && int.TryParse(parts[4], out int dow))
                 {
                     while ((int)target.DayOfWeek != dow) target = target.AddDays(1);
@@ -206,14 +202,12 @@ public class RepositoryService
 
     private bool TestNfsPath(string path)
     {
-        // Перевірка формату nfs (server:/path або IP:/path)
         if (string.IsNullOrEmpty(path)) return false;
         return path.Contains(':') && (path.Contains('/') || path.Contains('\\'));
     }
 
     private bool TestSmbPath(string path)
     {
-        // Перевірка формату smb (\\server\share або //server/share)
         if (string.IsNullOrEmpty(path)) return false;
         return path.StartsWith(@"\\") || path.StartsWith("//");
     }
@@ -222,7 +216,6 @@ public class RepositoryService
     {
         await Task.CompletedTask;
         if (string.IsNullOrEmpty(bucket)) return false;
-        // Назва бакета S3 повинна бути від 3 до 63 символів
         return bucket.Length >= 3 && bucket.Length <= 63;
     }
 
@@ -230,14 +223,12 @@ public class RepositoryService
     {
         await Task.CompletedTask;
         if (string.IsNullOrEmpty(container)) return false;
-        // Назва контейнера Azure: лише маленькі літери, цифри та дефіс, не може починатися/закінчуватися дефісом
         return System.Text.RegularExpressions.Regex.IsMatch(container, "^[a-z0-9](?!.*--)[a-z0-9-]{1,61}[a-z0-9]$");
     }
 
     private async Task<bool> TestGcsAsync(string bucket, string? credentials)
     {
         await Task.CompletedTask;
-        // Google Cloud Storage bucket зазвичай містить крапку для доменних назв
         return !string.IsNullOrEmpty(bucket) && bucket.Length >= 3;
     }
 
@@ -246,7 +237,7 @@ public class RepositoryService
         var repo = await _db.Repositories.FindAsync(repositoryId);
         if (repo == null) return;
 
-        if (repo.Type == "local" && Directory.Exists(repo.Path))
+        if (repo.Type == RepositoryType.Local && Directory.Exists(repo.Path))
         {
             var driveInfo = new DriveInfo(Path.GetPathRoot(repo.Path));
             repo.CapacityBytes = driveInfo.TotalSize;
@@ -257,14 +248,14 @@ public class RepositoryService
         await _db.SaveChangesAsync();
     }
 
-    public async Task UpdateStorageMetricsAsync(string repositoryId)
+    public async Task<long> GetAvailableSpaceAsync(string repositoryId)
     {
         var repo = await _db.Repositories.FindAsync(repositoryId);
-        if (repo == null) return;
+        if (repo == null) return 0;
+        
+        return (repo.CapacityBytes ?? 0) - repo.UsedBytes;
+    }
 
-        if (repo.Type == RepositoryType.Local && Directory.Exists(repo.Path))
-        {
-    ...
     public async Task<List<string>> GetExpiredBackupsAsync(string repositoryId, RetentionPolicy policy)
     {
         var cutoffDates = new Dictionary<string, DateTime>

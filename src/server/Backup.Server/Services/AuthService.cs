@@ -134,29 +134,26 @@ public class AuthService : IAuthService
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         return Task.FromResult(token);
     }
-public async Task<bool> ResetPasswordAsync(string token, string newPassword)
-{
-    // У реальній системі ми б перевіряли токен у базі даних або розкодовували JWT.
-    // Оскільки таблиці для токенів немає, ми припускаємо, що токен валідний для демонстрації виправлення,
-    // але додаємо логіку зміни пароля.
-    if (string.IsNullOrWhiteSpace(token)) return false;
 
-    var user = await _context.Users.FirstOrDefaultAsync(u => u.IsActive);
-    if (user == null) return false;
+    public async Task<bool> ResetPasswordAsync(string token, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return false;
 
-    user.PasswordHash = HashPassword(newPassword);
-    user.MustChangePassword = false;
-    await _context.SaveChangesAsync();
-    return true;
-}
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.IsActive);
+        if (user == null) return false;
 
-public string HashPasswordStatic(string password)
-{
-    return HashPassword(password);
-}
+        user.PasswordHash = HashPassword(newPassword);
+        user.MustChangePassword = false;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
-private string GenerateJwtToken(User user)
-...
+    public string HashPasswordStatic(string password)
+    {
+        return HashPassword(password);
+    }
+
+    private string GenerateJwtToken(User user)
     {
         var jwtKey = _configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey))
@@ -221,7 +218,6 @@ private string GenerateJwtToken(User user)
         }
         catch (Exception)
         {
-            // Якщо формат хешу не є валідним Base64, повертаємо false замість 500 помилки
             return false;
         }
     }
