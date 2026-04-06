@@ -80,7 +80,9 @@ export default function Alerts() {
                     <TableCell sx={{ fontSize: '0.85rem' }}>{item.jobName || item.jobId || '-'}</TableCell>
                     <TableCell sx={{ fontSize: '0.85rem' }}>{item.startTime || item.createdAt ? new Date(item.startTime || item.createdAt).toLocaleString() : '-'}</TableCell>
                     <TableCell>
-                      <Tooltip title="Dismiss"><IconButton size="small"><DeleteIcon fontSize="small" sx={{ color: '#bdbdbd' }} /></IconButton></Tooltip>
+                      <Tooltip title="Видалити запис сповіщення">
+                        <IconButton size="small" onClick={() => {}}><DeleteIcon fontSize="small" sx={{ color: '#bdbdbd' }} /></IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 );

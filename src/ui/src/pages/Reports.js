@@ -17,9 +17,11 @@ export default function Reports() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Звіти</Typography>
-        <Button variant="outlined" startIcon={<DownloadIcon />}>
-          Експорт PDF
-        </Button>
+        <Tooltip title="Завантажити звіт у форматі PDF">
+          <Button variant="outlined" startIcon={<DownloadIcon />}>
+            Експорт PDF
+          </Button>
+        </Tooltip>
       </Box>
 
       <Grid container spacing={3}>
