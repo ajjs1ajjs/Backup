@@ -313,6 +313,18 @@ Write-Log "========================================="
 Write-Log "Installing Backup Server v$Version..."
 Write-Log "========================================="
 
+# Stop existing service and kill process to unlock files
+$existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+if ($existingService) {
+    Write-Log "Stopping existing service and unlocking files..."
+    Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+    $process = Get-Process -Name "Backup.Server" -ErrorAction SilentlyContinue
+    if ($process) {
+        Stop-Process -Name "Backup.Server" -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+}
+
 Generate-JwtKey
 Install-DotNet
 Install-Git
