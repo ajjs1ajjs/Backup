@@ -65,13 +65,21 @@ function Check-Admin {
 }
 
 function Install-DotNet {
+    $dotnetOk = $false
     if (Get-Command dotnet -ErrorAction SilentlyContinue) {
-        Write-Log ".NET SDK already installed"
-        return
+        try {
+            $sdkOutput = dotnet --list-sdks 2>&1
+            if ($sdkOutput -match '\d+\.\d+') {
+                $dotnetOk = $true
+                Write-Log ".NET SDK already installed"
+            }
+        } catch {}
     }
 
+    if ($dotnetOk) { return }
+
     Write-Log "Installing .NET SDK 8.0..."
-    $scriptPath = Join-Path $PSScriptRoot "dotnet-install.ps1"
+    $scriptPath = Join-Path $env:TEMP "dotnet-install.ps1"
     if (-not (Test-Path $scriptPath)) {
         Write-Log "Downloading dotnet-install.ps1..."
         Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $scriptPath -UseBasicParsing
