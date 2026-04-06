@@ -39,8 +39,24 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 - **Agent Runtime**: `src/agent/Backup.Agent` (C++20)
 - **Shared Contracts**: `src/protos` (Protocol Buffers)
 - **Storage Targets**: Local, NFS/SMB, S3-compatible, Azure Blob, GCS
+- **Database**: SQLite (file-based, zero configuration)
 
-## 🚀 Quick Install (Linux Only)
+## 🚀 Quick Install
+
+### Windows (PowerShell — Administrator)
+
+```powershell
+# One command to install everything
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 | iex -AutoStart
+```
+
+Or download and run:
+```powershell
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
+.\install-server.ps1 -AutoStart
+```
+
+### Linux (bash — root)
 
 ```bash
 # One command to install everything
@@ -64,6 +80,93 @@ sudo chmod +x install.sh && sudo ./install.sh --auto-start
 - Username: `admin`
 - Password: `admin123`
 
+## 📋 Installation Options
+
+### Windows
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-InstallDir DIR` | Installation directory | `C:\BackupServer` |
+| `-JwtKey KEY` | JWT secret key | auto-generated |
+| `-Port PORT` | Server port | `8000` |
+| `-AdminPassword PWD` | Admin password | `admin123` |
+| `-AutoStart` | Start service after install | off |
+| `-Force` | Force reinstallation | off |
+| `-SkipBuild` | Use existing publish folder | off |
+| `-LocalSource PATH` | Use local source code | download from GitHub |
+| `-Uninstall` | Uninstall server | off |
+
+**Examples:**
+```powershell
+# Install with custom port and password
+.\install-server.ps1 -Port 9000 -AdminPassword "MySecurePass!" -AutoStart
+
+# Install from local source
+.\install-server.ps1 -LocalSource "C:\Projects\Backup\src\server\Backup.Server" -AutoStart
+
+# Uninstall
+.\install-server.ps1 -Uninstall
+```
+
+### Linux
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--auto-start` | Start services after install | on |
+| `--jwt-key KEY` | JWT secret key | auto-generated |
+| `-h, --help` | Show help | - |
+
+**Examples:**
+```bash
+# Install with custom JWT key
+sudo ./install.sh --jwt-key "my-secret-key" --auto-start
+
+# Show help
+./install.sh --help
+```
+
+## 🔧 Service Management
+
+### Windows
+
+```powershell
+# Check status
+Get-Service -Name BackupServer
+
+# Start
+Start-Service -Name BackupServer
+
+# Stop
+Stop-Service -Name BackupServer
+
+# Restart
+Restart-Service -Name BackupServer
+
+# View logs
+Get-Content "C:\BackupServer\publish\logs\backup-server-$(Get-Date -Format 'yyyyMMdd').log" -Tail 50
+```
+
+### Linux
+
+```bash
+# Check status
+sudo systemctl status backup-server
+
+# Start
+sudo systemctl start backup-server
+
+# Stop
+sudo systemctl stop backup-server
+
+# Restart
+sudo systemctl restart backup-server
+
+# View logs
+sudo journalctl -u backup-server -f
+# or
+tail -f /var/log/backup-server.log
+```
+
 ## 📁 Project Structure
 
 ```
@@ -80,7 +183,8 @@ src/
 │   ├── Services/               # Business logic
 │   ├── Controllers/            # REST API
 │   ├── BackgroundServices/     # Scheduled tasks
-│   └── Database/               # EF Core + PostgreSQL
+│   ├── Migrations/             # EF Core migrations
+│   └── Database/               # EF Core + SQLite
 │
 ├── agent/Backup.Agent/         # C++ Agent
 │   ├── core/                  # DataMover, Compression
@@ -100,33 +204,17 @@ src/
 
 ## 🔧 Configuration
 
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_HOST` | PostgreSQL host | localhost |
-| `POSTGRES_PORT` | PostgreSQL port | 5432 |
-| `POSTGRES_DB` | Database name | backup |
-| `POSTGRES_USER` | Database user | postgres |
-| `POSTGRES_PASSWORD` | Database password | postgres |
-| `SERVER_PORT` | Server port | 8000 |
-| `Server__PublicUrl` | Public URL for agents/install scripts | auto-detected as `http://<local-ip>:8000` |
-| `Jwt__Key` | JWT signing key (required) | no default, server won't start without it |
-| `BootstrapAdmin__Username` | First admin username | admin |
-| `BootstrapAdmin__Email` | First admin email | admin@backupsystem.com |
-| `BootstrapAdmin__Password` | First admin temporary password | admin123 |
-
 ### Configuration File
 
-Create `appsettings.json`:
+Edit `appsettings.json` in the publish directory:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=backup;Username=postgres;Password=postgres"
+    "DefaultConnection": "Data Source=backup.db"
   },
   "Jwt": {
-    "Key": "CHANGE_ME_TO_A_STRONG_SECRET",
+    "Key": "",
     "Issuer": "BackupServer",
     "Audience": "BackupClients"
   },
@@ -138,28 +226,26 @@ Create `appsettings.json`:
     "Email": "admin@backupsystem.com",
     "Password": "admin123"
   },
-  "Smtp": {
-    "Host": "smtp.example.com",
-    "Port": 587,
-    "EnableSsl": true,
-    "FromAddress": "noreply@backupsystem.com"
+  "AllowedOrigins": [],
+  "Encryption": {
+    "KeyFilePath": ""
   },
-  "Telegram": {
-    "BotToken": "YOUR_BOT_TOKEN",
-    "ChatId": "YOUR_CHAT_ID"
-  },
-  "Slack": {
-    "WebhookUrl": "https://hooks.slack.com/YOUR_WEBHOOK"
+  "Serilog": {
+    "MinimumLevel": "Information"
   }
 }
 ```
 
-## 🔐 Security Defaults
+> **Note:** If `Jwt:Key` is empty, a secure key is auto-generated and saved to `jwt.key` on first startup.
 
-- `Jwt:Key` is mandatory and must be set before server startup.
-- On first installation, bootstrap admin credentials are created from `BootstrapAdmin:*`.
-- First login with bootstrap admin enforces password change before issuing a token.
-- Update `server.public_url` (Settings API) after installation if external/public endpoint changes.
+## 🔐 Security
+
+- JWT authentication (auto-generated key if not provided)
+- Role-Based Access Control: `Admin`, `Operator`, `Viewer`
+- Bootstrap admin with enforced password change on first login
+- AES-256 encryption for hypervisor credentials
+- Audit logging of all operations
+- Configurable CORS origins
 
 ## 📚 Documentation
 
@@ -212,13 +298,25 @@ Create `appsettings.json`:
 | GET | `/api/reports/activity` | Activity log |
 | GET | `/api/reports/storage` | Storage usage |
 
-## 🧪 Testing
+## 🧪 Development
+
+### Build from source
 
 ```bash
-# PostgreSQL
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:14
+# Server
+dotnet restore src/server/Backup.Server
+dotnet publish src/server/Backup.Server -c Release -r win-x64 --self-contained true \
+    -p:PublishSingleFile=true -o ./publish
 
-# Run tests
+# UI
+cd src/ui
+npm install
+npm run build
+```
+
+### Run tests
+
+```bash
 cd src/server/Backup.Server.Tests
 dotnet test
 
