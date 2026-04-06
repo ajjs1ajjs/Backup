@@ -125,14 +125,14 @@ export default function Hypervisors() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Host / IP</TableCell>
-              <TableCell>Port</TableCell>
-              <TableCell>VMs</TableCell>
-              <TableCell>Last Connected</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>Статус</TableCell>
+              <TableCell>Назва</TableCell>
+              <TableCell>Тип</TableCell>
+              <TableCell>Хост / IP</TableCell>
+              <TableCell>Порт</TableCell>
+              <TableCell>ВМ</TableCell>
+              <TableCell>Останнє підключення</TableCell>
+              <TableCell>Дії</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

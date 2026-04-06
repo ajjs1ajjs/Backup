@@ -77,7 +77,7 @@ export default function Dashboard() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, color: '#1a1d23' }}>Dashboard</Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, color: '#1a1d23' }}>Панель керування</Typography>
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -85,7 +85,7 @@ export default function Dashboard() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>VMs</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Віртуальні машини</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{vms.length}</Typography>
                 </Box>
                 <VMIcon sx={{ fontSize: 48, color: '#4fc3f7', opacity: 0.3 }} />
@@ -99,7 +99,7 @@ export default function Dashboard() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Hypervisors</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Гіпервізори</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{hypervisors.length}</Typography>
                 </Box>
                 <DnsIcon sx={{ fontSize: 48, color: '#66bb6a', opacity: 0.3 }} />
@@ -113,7 +113,7 @@ export default function Dashboard() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Backup Jobs</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Завдання бекапу</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalJobs}</Typography>
                 </Box>
                 <BackupIcon sx={{ fontSize: 48, color: '#ffa726', opacity: 0.3 }} />
@@ -127,7 +127,7 @@ export default function Dashboard() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Backup Points</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Точки відновлення</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalBackups}</Typography>
                 </Box>
                 <RestoreIcon sx={{ fontSize: 48, color: '#ab47bc', opacity: 0.3 }} />
@@ -141,7 +141,7 @@ export default function Dashboard() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Repositories</Typography>
+                  <Typography variant="body2" sx={{ color: '#8b92a5', mb: 0.5 }}>Сховища</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 700, color: '#1a1d23' }}>{totalRepos}</Typography>
                 </Box>
                 <StorageIcon sx={{ fontSize: 48, color: '#ef5350', opacity: 0.3 }} />
@@ -155,7 +155,7 @@ export default function Dashboard() {
         <Grid item xs={12} md={8}>
           <Card sx={{ borderRadius: 2, mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Backup Success Rate</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Статистика успішності</Typography>
               <Box display="flex" alignItems="center" gap={3} mb={2}>
                 <Box sx={{ position: 'relative', display: 'inline-flex' }}>
                   <CircularProgress variant="determinate" value={protectionRate} size={120} thickness={4} sx={{ color: protectionRate >= 80 ? '#66bb6a' : protectionRate >= 50 ? '#ffa726' : '#ef5350' }} />
@@ -166,15 +166,15 @@ export default function Dashboard() {
                 <Box flexGrow={1}>
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <CheckCircleIcon sx={{ color: '#66bb6a', fontSize: 18 }} />
-                    <Typography variant="body2">Successful: {successCount}</Typography>
+                    <Typography variant="body2">Успішно: {successCount}</Typography>
                   </Box>
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <ErrorIcon sx={{ color: '#ef5350', fontSize: 18 }} />
-                    <Typography variant="body2">Failed: {failedCount}</Typography>
+                    <Typography variant="body2">Помилки: {failedCount}</Typography>
                   </Box>
                   <Box display="flex" alignItems="center" gap={1}>
                     <WarningIcon sx={{ color: '#ffa726', fontSize: 18 }} />
-                    <Typography variant="body2">Active Jobs: {runningJobs}</Typography>
+                    <Typography variant="body2">Активні завдання: {runningJobs}</Typography>
                   </Box>
                 </Box>
               </Box>
@@ -183,18 +183,19 @@ export default function Dashboard() {
 
           <Card sx={{ borderRadius: 2 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Recent Backup Jobs</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Останні завдання</Typography>
               {jobs.length > 0 ? (
                 <Table>
                   <TableHead>
                     <TableRow sx={{ borderBottom: '1px solid #e8eaed' }}>
-                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>JOB NAME</TableCell>
-                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>TYPE</TableCell>
-                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>STATUS</TableCell>
-                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>LAST RUN</TableCell>
-                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NEXT RUN</TableCell>
+                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАЗВА</TableCell>
+                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ТИП</TableCell>
+                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>СТАТУС</TableCell>
+                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ОСТАННІЙ ЗАПУСК</TableCell>
+                      <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАСТУПНИЙ ЗАПУСК</TableCell>
                     </TableRow>
                   </TableHead>
+
                   <TableBody>
                     {jobs.slice(0, 8).map((job) => (
                       <TableRow key={job.id || job.jobId} sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>

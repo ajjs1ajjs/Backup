@@ -118,11 +118,11 @@ export default function Repositories() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">Backup Repositories</Typography>
+        <Typography variant="h4" fontWeight="bold">Сховища бекапів</Typography>
         <Box display="flex" gap={1}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchRepos}>Refresh</Button>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchRepos}>Оновити</Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => { resetForm(); setOpen(true); }}>
-            Add Repository
+            Додати сховище
           </Button>
         </Box>
       </Box>
@@ -131,9 +131,9 @@ export default function Repositories() {
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <StorageIcon sx={{ fontSize: 64, color: '#e0e0e0', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>No repositories configured</Typography>
-            <Typography variant="body2" color="text.secondary" mb={2}>Add a storage repository to store your backups</Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Add Repository</Button>
+            <Typography variant="h6" color="text.secondary" gutterBottom>Немає налаштованих сховищ</Typography>
+            <Typography variant="body2" color="text.secondary" mb={2}>Додайте сховище, щоб зберігати ваші бекапи</Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Додати сховище</Button>
           </CardContent>
         </Card>
       ) : (
@@ -141,13 +141,13 @@ export default function Repositories() {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f6f8' }}>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>STATUS</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NAME</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>TYPE</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>PATH / ENDPOINT</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>CAPACITY</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>USED</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ACTIONS</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>СТАТУС</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАЗВА</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ТИП</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ШЛЯХ / ENDPOINT</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>МІСТКІСТЬ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ВИКОРИСТАНО</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДІЇ</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

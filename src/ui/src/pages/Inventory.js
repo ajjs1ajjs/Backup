@@ -30,9 +30,9 @@ export default function Inventory() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>Inventory</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>Інвентар</Typography>
         <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}>
-          Add Workload
+          Додати об'єкт
         </Button>
       </Box>
 
