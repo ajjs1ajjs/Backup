@@ -40,7 +40,7 @@ export default function Jobs() {
   const [editJob, setEditJob] = useState(null);
   const [scheduleTab, setScheduleTab] = useState(0);
   const [formData, setFormData] = useState({
-    name: '', jobType: 'full_backup', sourceId: '', sourceType: 'vm',
+    name: '', jobType: 'Full', sourceId: '', sourceType: 'vm',
     sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
     options: JSON.stringify({ compression: 'zstd', retention: 7 })
   });
@@ -219,12 +219,12 @@ export default function Jobs() {
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
-                <InputLabel>Backup Type</InputLabel>
-                <Select value={formData.jobType} label="Backup Type"
+                <InputLabel>Тип бекапу</InputLabel>
+                <Select value={formData.jobType} label="Тип бекапу"
                   onChange={(e) => setFormData({ ...formData, jobType: e.target.value })}>
-                  <MenuItem value="full_backup">Full Backup</MenuItem>
-                  <MenuItem value="incremental">Incremental</MenuItem>
-                  <MenuItem value="differential">Differential</MenuItem>
+                  <MenuItem value="Full">Повний</MenuItem>
+                  <MenuItem value="Incremental">Інкрементальний</MenuItem>
+                  <MenuItem value="Differential">Диференціальний</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

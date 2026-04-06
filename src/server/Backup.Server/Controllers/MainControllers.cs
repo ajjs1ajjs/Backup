@@ -55,11 +55,20 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult> CreateJob([FromBody] Job job)
+    public async Task<ActionResult> CreateJob([FromBody] JobDto jobDto)
     {
-        job.JobId = Guid.NewGuid().ToString();
-        job.CreatedAt = DateTime.UtcNow;
-        job.UpdatedAt = DateTime.UtcNow;
+        var job = new Job
+        {
+            JobId = Guid.NewGuid().ToString(),
+            Name = jobDto.Name,
+            JobType = Enum.Parse<JobType>(jobDto.JobType, true),
+            SourceId = jobDto.SourceId,
+            DestinationId = jobDto.DestinationId,
+            Schedule = jobDto.Schedule,
+            Enabled = jobDto.Enabled,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
         
         _db.Jobs.Add(job);
         await _db.SaveChangesAsync();
@@ -67,6 +76,16 @@ public class JobsController : ControllerBase
         _logger.LogInformation("Created job {JobId}: {Name}", job.JobId, job.Name);
         return CreatedAtAction(nameof(GetJob), new { jobId = job.JobId }, job);
     }
+
+public class JobDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string JobType { get; set; } = "Full";
+    public string SourceId { get; set; } = string.Empty;
+    public string DestinationId { get; set; } = string.Empty;
+    public string? Schedule { get; set; }
+    public bool Enabled { get; set; } = true;
+}
 
     [HttpPut("{jobId}")]
     public async Task<ActionResult> UpdateJob(string jobId, [FromBody] Job job)

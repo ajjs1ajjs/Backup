@@ -31,40 +31,40 @@ const drawerWidth = 260;
 
 const navSections = [
   {
-    label: 'HOME',
+    label: 'ГОЛОВНА',
     items: [
-      { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+      { text: 'Панель керування', icon: <DashboardIcon />, path: '/dashboard' },
     ]
   },
   {
-    label: 'PROTECTION',
+    label: 'ЗАХИСТ',
     items: [
-      { text: 'Backup Jobs', icon: <BackupIcon />, path: '/jobs' },
-      { text: 'Recovery', icon: <RestoreIcon />, path: '/restore' },
-      { text: 'Replication', icon: <CloudIcon />, path: '/replication' },
+      { text: 'Завдання бекапу', icon: <BackupIcon />, path: '/jobs' },
+      { text: 'Відновлення', icon: <RestoreIcon />, path: '/restore' },
+      { text: 'Реплікація', icon: <CloudIcon />, path: '/replication' },
     ]
   },
   {
-    label: 'INFRASTRUCTURE',
+    label: 'ІНФРАСТРУКТУРА',
     items: [
-      { text: 'Hypervisors', icon: <DnsIcon />, path: '/hypervisors' },
-      { text: 'Virtual Machines', icon: <VMIcon />, path: '/virtual-machines' },
-      { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
-      { text: 'Repositories', icon: <StorageIcon />, path: '/repositories' },
-      { text: 'Agents', icon: <ComputerIcon />, path: '/agents' },
+      { text: 'Гіпервізори', icon: <DnsIcon />, path: '/hypervisors' },
+      { text: 'Віртуальні машини', icon: <VMIcon />, path: '/virtual-machines' },
+      { text: 'Інвентар', icon: <InventoryIcon />, path: '/inventory' },
+      { text: 'Сховища', icon: <StorageIcon />, path: '/repositories' },
+      { text: 'Агенти', icon: <ComputerIcon />, path: '/agents' },
     ]
   },
   {
-    label: 'MONITORING',
+    label: 'МОНІТОРИНГ',
     items: [
-      { text: 'Alerts', icon: <WarningIcon />, path: '/alerts' },
-      { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
+      { text: 'Сповіщення', icon: <WarningIcon />, path: '/alerts' },
+      { text: 'Звіти', icon: <ReportIcon />, path: '/reports' },
     ]
   },
   {
-    label: 'CONFIGURATION',
+    label: 'КОНФІГУРАЦІЯ',
     items: [
-      { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+      { text: 'Налаштування', icon: <SettingsIcon />, path: '/settings' },
     ]
   },
 ];
