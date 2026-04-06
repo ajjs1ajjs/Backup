@@ -295,6 +295,7 @@ export default function Jobs() {
                   helperText="Or add a repository via Repositories page"
                 />
               )}
+            </Grid>
 
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
