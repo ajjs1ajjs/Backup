@@ -141,12 +141,12 @@ export default function VirtualMachines() {
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">Virtual Machines</Typography>
+        <Typography variant="h4" fontWeight="bold">Віртуальні машини</Typography>
         <Box display="flex" gap={1}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchVMs}>Refresh</Button>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchVMs}>Оновити</Button>
           <Button variant="outlined" startIcon={<ComputerIcon />} onClick={() => setOpenDiscover(true)}
-            disabled={hypervisors.length === 0}>Discover VMs</Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAdd(true)}>Add VM</Button>
+            disabled={hypervisors.length === 0}>Виявити ВМ</Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAdd(true)}>Додати ВМ</Button>
         </Box>
       </Box>
 
@@ -154,7 +154,7 @@ export default function VirtualMachines() {
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
       <Tabs value={tabValue} onChange={(e, v) => { setTabValue(v); setPage(0); }} sx={{ mb: 2 }}>
-        <Tab label={`All (${vms.length})`} />
+        <Tab label={`Всі (${vms.length})`} />
         <Tab label={`Hyper-V (${vms.filter(v => v.hypervisorType === 'hyperv').length})`} />
         <Tab label={`VMware (${vms.filter(v => v.hypervisorType === 'vmware').length})`} />
         <Tab label={`KVM (${vms.filter(v => v.hypervisorType === 'kvm').length})`} />
@@ -164,23 +164,23 @@ export default function VirtualMachines() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Status</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Hypervisor</TableCell>
-              <TableCell>Host</TableCell>
-              <TableCell>IP Address</TableCell>
-              <TableCell>OS</TableCell>
+              <TableCell>Статус</TableCell>
+              <TableCell>Назва</TableCell>
+              <TableCell>Гіпервізор</TableCell>
+              <TableCell>Хост</TableCell>
+              <TableCell>IP-адреса</TableCell>
+              <TableCell>ОС</TableCell>
               <TableCell>CPU</TableCell>
               <TableCell>RAM</TableCell>
-              <TableCell>Last Backup</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>Останній бекап</TableCell>
+              <TableCell>Дії</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={10} align="center"><CircularProgress size={30} sx={{ my: 2 }} /></TableCell></TableRow>
             ) : paginatedVMs.length === 0 ? (
-              <TableRow><TableCell colSpan={10} align="center">No VMs found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} align="center">ВМ не знайдено</TableCell></TableRow>
             ) : paginatedVMs.map((vm) => (
               <TableRow key={vm.vmId} hover>
                 <TableCell>{statusIcons[vm.status] || statusIcons.stopped}</TableCell>
@@ -202,17 +202,17 @@ export default function VirtualMachines() {
                 <TableCell>{vm.hypervisorHost || '—'}</TableCell>
                 <TableCell>{vm.ipAddress || '—'}</TableCell>
                 <TableCell>{vm.osType || '—'}</TableCell>
-                <TableCell>{vm.cpuCores || '—'} cores</TableCell>
-                <TableCell>{vm.memoryMb ? `${(vm.memoryMb / 1024).toFixed(1)} GB` : '—'}</TableCell>
+                <TableCell>{vm.cpuCores || '—'} ядер</TableCell>
+                <TableCell>{vm.memoryMb ? `${(vm.memoryMb / 1024).toFixed(1)} ГБ` : '—'}</TableCell>
                 <TableCell>
                   {vm.lastBackupAt ? (
                     <Typography variant="body2">{new Date(vm.lastBackupAt).toLocaleString()}</Typography>
                   ) : (
-                    <Chip label="Not backed up" size="small" color="warning" />
+                    <Chip label="Немає бекапів" size="small" color="warning" />
                   )}
                 </TableCell>
                 <TableCell>
-                  <Tooltip title="Delete from inventory">
+                  <Tooltip title="Видалити з інвентарю">
                     <IconButton size="small" onClick={() => handleDeleteVM(vm.vmId)}><DeleteIcon fontSize="small" /></IconButton>
                   </Tooltip>
                 </TableCell>
@@ -229,48 +229,48 @@ export default function VirtualMachines() {
       </TableContainer>
 
       <Dialog open={openAdd} onClose={() => setOpenAdd(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Virtual Machine</DialogTitle>
+        <DialogTitle>Додати віртуальну машину</DialogTitle>
         <DialogContent>
           <form onSubmit={handleAddVM}>
-            <TextField fullWidth label="VM Name" value={newVM.name} margin="normal"
+            <TextField fullWidth label="Назва ВМ" value={newVM.name} margin="normal"
               onChange={(e) => setNewVM({ ...newVM, name: e.target.value })} required />
-            <TextField fullWidth select label="Hypervisor Type" value={newVM.hypervisorType} margin="normal"
+            <TextField fullWidth select label="Тип гіпервізора" value={newVM.hypervisorType} margin="normal"
               onChange={(e) => setNewVM({ ...newVM, hypervisorType: e.target.value })}>
               <MenuItem value="hyperv">Hyper-V</MenuItem>
               <MenuItem value="vmware">VMware</MenuItem>
               <MenuItem value="kvm">KVM</MenuItem>
             </TextField>
-            <TextField fullWidth label="Hypervisor Host (IP or name)" value={newVM.hypervisorHost} margin="normal"
+            <TextField fullWidth label="Хост гіпервізора (IP або ім'я)" value={newVM.hypervisorHost} margin="normal"
               onChange={(e) => setNewVM({ ...newVM, hypervisorHost: e.target.value })} required />
-            <TextField fullWidth label="IP Address" value={newVM.ipAddress} margin="normal"
+            <TextField fullWidth label="IP-адреса" value={newVM.ipAddress} margin="normal"
               onChange={(e) => setNewVM({ ...newVM, ipAddress: e.target.value })} />
-            <TextField fullWidth select label="OS Type" value={newVM.osType} margin="normal"
+            <TextField fullWidth select label="Тип ОС" value={newVM.osType} margin="normal"
               onChange={(e) => setNewVM({ ...newVM, osType: e.target.value })}>
               <MenuItem value="windows">Windows</MenuItem>
               <MenuItem value="linux">Linux</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
+              <MenuItem value="other">Інша</MenuItem>
             </TextField>
             <Box display="flex" gap={2}>
-              <TextField fullWidth label="CPU Cores" type="number" value={newVM.cpuCores} margin="normal"
+              <TextField fullWidth label="Ядра CPU" type="number" value={newVM.cpuCores} margin="normal"
                 onChange={(e) => setNewVM({ ...newVM, cpuCores: parseInt(e.target.value) })} />
-              <TextField fullWidth label="RAM (MB)" type="number" value={newVM.memoryMb} margin="normal"
+              <TextField fullWidth label="RAM (МБ)" type="number" value={newVM.memoryMb} margin="normal"
                 onChange={(e) => setNewVM({ ...newVM, memoryMb: parseInt(e.target.value) })} />
             </Box>
           </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddVM}>Add VM</Button>
+          <Button onClick={() => setOpenAdd(false)}>Скасувати</Button>
+          <Button variant="contained" onClick={handleAddVM}>Додати ВМ</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={openDiscover} onClose={() => setOpenDiscover(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Discover Virtual Machines</DialogTitle>
+        <DialogTitle>Виявити віртуальні машини</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Select a hypervisor host to discover all VMs registered on it.
+            Виберіть гіпервізор, щоб знайти всі зареєстровані на ньому ВМ.
           </Typography>
-          <TextField fullWidth select label="Hypervisor" value={selectedHypervisor} margin="normal"
+          <TextField fullWidth select label="Гіпервізор" value={selectedHypervisor} margin="normal"
             onChange={(e) => setSelectedHypervisor(e.target.value)}>
             {hypervisors.map(h => (
               <MenuItem key={h.hypervisorId} value={h.hypervisorId}>
@@ -280,9 +280,9 @@ export default function VirtualMachines() {
           </TextField>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDiscover(false)}>Cancel</Button>
+          <Button onClick={() => setOpenDiscover(false)}>Скасувати</Button>
           <Button variant="contained" onClick={handleDiscover} disabled={discovering}>
-            {discovering ? 'Discovering...' : 'Discover'}
+            {discovering ? 'Виявлення...' : 'Виявити'}
           </Button>
         </DialogActions>
       </Dialog>
