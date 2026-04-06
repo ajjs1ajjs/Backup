@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
+using Backup.Server.Services;
 
 namespace Backup.Server.Controllers;
 
@@ -13,11 +14,13 @@ public class HypervisorsController : ControllerBase
 {
     private readonly BackupDbContext _db;
     private readonly ILogger<HypervisorsController> _logger;
+    private readonly IEncryptionService _encryption;
 
-    public HypervisorsController(BackupDbContext db, ILogger<HypervisorsController> logger)
+    public HypervisorsController(BackupDbContext db, ILogger<HypervisorsController> logger, IEncryptionService encryption)
     {
         _db = db;
         _logger = logger;
+        _encryption = encryption;
     }
 
     [HttpGet]
@@ -58,6 +61,9 @@ public class HypervisorsController : ControllerBase
         if (string.IsNullOrEmpty(hypervisor.HypervisorId))
             hypervisor.HypervisorId = Guid.NewGuid().ToString();
 
+        if (!string.IsNullOrEmpty(hypervisor.Password))
+            hypervisor.Password = _encryption.Encrypt(hypervisor.Password);
+
         hypervisor.CreatedAt = DateTime.UtcNow;
         hypervisor.UpdatedAt = DateTime.UtcNow;
 
@@ -79,7 +85,8 @@ public class HypervisorsController : ControllerBase
         existing.Host = hypervisor.Host;
         existing.Port = hypervisor.Port;
         existing.Username = hypervisor.Username;
-        existing.Password = hypervisor.Password;
+        if (!string.IsNullOrEmpty(hypervisor.Password))
+            existing.Password = _encryption.Encrypt(hypervisor.Password);
         existing.Status = hypervisor.Status;
         existing.UpdatedAt = DateTime.UtcNow;
 
@@ -109,12 +116,13 @@ public class HypervisorsController : ControllerBase
         {
             if (hypervisor.Type == "hyperv")
             {
+                var decryptedPassword = _encryption.Decrypt(hypervisor.Password);
                 var process = new System.Diagnostics.Process
                 {
                     StartInfo = new System.Diagnostics.ProcessStartInfo
                     {
                         FileName = "powershell.exe",
-                        Arguments = "-Command \"Get-VMHost | Select-Object Name, LogicalProcessorCount, MemoryCapacity | ConvertTo-Json\"",
+                        Arguments = $"-Command \"$securePwd = ConvertTo-SecureString -String '{decryptedPassword}' -AsPlainText -Force; $cred = New-Object System.Management.Automation.PSCredential('{hypervisor.Username}', $securePwd); Enter-PSSession -ComputerName '{hypervisor.Host}' -Credential $cred; Get-VMHost | Select-Object Name, LogicalProcessorCount, MemoryCapacity | ConvertTo-Json\"",
                         RedirectStandardOutput = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -158,12 +166,13 @@ public class HypervisorsController : ControllerBase
 
         if (hypervisor.Type == "hyperv")
         {
+            var decryptedPassword = _encryption.Decrypt(hypervisor.Password);
             var process = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = "-Command \"Get-VM | Select-Object Name, State, CPUCount, MemoryStartup, Uuid, Path | ConvertTo-Json\"",
+                    Arguments = $"-Command \"$securePwd = ConvertTo-SecureString -String '{decryptedPassword}' -AsPlainText -Force; $cred = New-Object System.Management.Automation.PSCredential('{hypervisor.Username}', $securePwd); Enter-PSSession -ComputerName '{hypervisor.Host}' -Credential $cred; Get-VM | Select-Object Name, State, CPUCount, MemoryStartup, Uuid, Path | ConvertTo-Json\"",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true

@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 using Backup.Server.Database.Entities;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Security.Cryptography;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
@@ -34,7 +35,26 @@ try
     var jwtKey = builder.Configuration["Jwt:Key"];
     if (string.IsNullOrWhiteSpace(jwtKey))
     {
-        throw new InvalidOperationException("Missing required configuration: Jwt:Key");
+        var jwtKeyPath = Path.Combine(AppContext.BaseDirectory, "jwt.key");
+        if (File.Exists(jwtKeyPath))
+        {
+            jwtKey = File.ReadAllText(jwtKeyPath).Trim();
+            if (string.IsNullOrWhiteSpace(jwtKey))
+            {
+                throw new InvalidOperationException("Jwt:Key is empty in configuration and jwt.key file");
+            }
+            Log.Information("JWT key loaded from jwt.key file");
+        }
+        else
+        {
+            using var rng = RandomNumberGenerator.Create();
+            var bytes = new byte[64];
+            rng.GetBytes(bytes);
+            jwtKey = Convert.ToBase64String(bytes);
+            File.WriteAllText(jwtKeyPath, jwtKey);
+            File.SetAttributes(jwtKeyPath, FileAttributes.Hidden);
+            Log.Warning("Generated new JWT key and saved to jwt.key — keep this file secure!");
+        }
     }
     var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
     var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
@@ -91,12 +111,32 @@ try
         });
     });
 
-    builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-        .AllowAnyOrigin()
-        .AllowAnyMethod()
-        .AllowAnyHeader()));
+    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+        ?? Array.Empty<string>();
+
+    builder.Services.AddCors(o =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            o.AddDefaultPolicy(p => p
+                .WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+        }
+        else
+        {
+            o.AddDefaultPolicy(p => p
+                .SetIsOriginAllowed(_ => true)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+            Log.Warning("No AllowedOrigins configured — CORS allows all origins. Set AllowedOrigins in appsettings.json for production.");
+        }
+    });
 
     builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 
     builder.Services.AddHostedService<JobSchedulerService>();
     builder.Services.AddHostedService<AgentHealthCheckService>();
@@ -125,8 +165,8 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
-        db.Database.EnsureCreated();
-        Log.Information("Database initialized");
+        db.Database.Migrate();
+        Log.Information("Database migrations applied");
         
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
         var bootstrapAdminUsername = builder.Configuration["BootstrapAdmin:Username"] ?? "admin";
@@ -177,19 +217,6 @@ try
     app.MapControllers();
 
     app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-
-    app.MapPost("/debug/reset-admin", async (Backup.Server.Database.BackupDbContext db, Backup.Server.Services.IAuthService authService) =>
-    {
-        var admin = await authService.GetUserByUsernameAsync("admin");
-        if (admin != null)
-        {
-            admin.PasswordHash = "JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=";
-            admin.MustChangePassword = true;
-            await db.SaveChangesAsync();
-            return Results.Ok(new { message = "Admin password reset to admin123" });
-        }
-        return Results.NotFound(new { error = "Admin user not found" });
-    });
 
     app.MapFallbackToFile("index.html");
 
