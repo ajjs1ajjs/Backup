@@ -1,5 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using Backup.Server.Database;
+using Backup.Server.Database.Entities;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Backup.Server.IntegrationTests;
@@ -7,9 +10,11 @@ namespace Backup.Server.IntegrationTests;
 public class JobApiIntegrationTests : IClassFixture<IntegrationTestWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly IntegrationTestWebApplicationFactory _factory;
 
     public JobApiIntegrationTests(IntegrationTestWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -110,6 +115,56 @@ public class JobApiIntegrationTests : IClassFixture<IntegrationTestWebApplicatio
                 Directory.Delete(tempRoot, true);
             }
         }
+    }
+
+    [Fact]
+    public async Task StopJob_ForQueuedRun_ShouldMarkRunAsCancelled()
+    {
+        await TestAuthHelper.RegisterAndAuthenticateAsync(_client, "stop-job");
+
+        const string jobId = "queued-job";
+        const string runId = "queued-run";
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
+
+            db.Jobs.Add(new Job
+            {
+                JobId = jobId,
+                Name = "Queued Job",
+                JobType = JobType.Full,
+                SourceId = "C:\\missing-source",
+                SourceType = "File",
+                DestinationId = "repo-missing",
+                Enabled = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+
+            db.JobRunHistory.Add(new JobRunHistory
+            {
+                RunId = runId,
+                JobId = jobId,
+                StartTime = DateTime.UtcNow,
+                Status = "queued"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var stopResponse = await _client.PostAsync($"/api/jobs/{jobId}/stop", null);
+        Assert.Equal(HttpStatusCode.OK, stopResponse.StatusCode);
+
+        var stopBody = await stopResponse.Content.ReadAsStringAsync();
+        Assert.Contains("cancelled", stopBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(runId, stopBody, StringComparison.OrdinalIgnoreCase);
+
+        var runResponse = await _client.GetAsync($"/api/jobs/runs/{runId}");
+        Assert.Equal(HttpStatusCode.OK, runResponse.StatusCode);
+
+        var runBody = await runResponse.Content.ReadAsStringAsync();
+        Assert.Contains("cancelled", runBody, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ExtractValue(string json, string propertyName)
