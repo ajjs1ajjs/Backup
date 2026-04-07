@@ -159,7 +159,8 @@ function New-WindowsService {
     }
     
     # Create service
-    $binPath = "`"$ExePath`" --urls http://localhost:$Port"
+    $exeFullPath = Join-Path $ExePath "Backup.Server.exe"
+    $binPath = "`"$exeFullPath`" --urls http://localhost:$Port"
     sc.exe create $serviceName binPath= $binPath start= demand DisplayName= "Backup Server"
     Start-Sleep -Seconds 1
     sc.exe description $serviceName "Backup System Server Service"
@@ -177,17 +178,27 @@ function Start-ServerService {
     Start-Sleep -Seconds 2
     
     $service = Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue
-    if (-not $service) {
-        Write-Log "Service not found. Attempting to start manually..."
-        Start-Process -FilePath $ExePath -ArgumentList "--urls http://localhost:$Port" -WindowStyle Hidden
+    if ($service) {
+        Start-Service -Name "BackupServer" -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
+    }
+    
+    if (-not $service -or $service.Status -ne "Running") {
+        Write-Log "Service not found or failed. Attempting to start manually..."
+        $exeFullPath = Join-Path $ExePath "Backup.Server.exe"
+        if (Test-Path $exeFullPath) {
+            Start-Process -FilePath $exeFullPath -ArgumentList "--urls http://localhost:$Port" -WindowStyle Hidden
+            Start-Sleep -Seconds 3
+            Write-Log "Server started manually on http://localhost:$Port" "SUCCESS"
+        } else {
+            Write-Log "Server executable not found at $exeFullPath" "ERROR"
+            return
+        }
     }
     
     $service = Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue
     if ($service -and $service.Status -eq "Running") {
         Write-Log "Server is running on http://localhost:$Port" "SUCCESS"
-    } else {
-        Write-Log "Server started manually on http://localhost:$Port" "SUCCESS"
     }
 }
 
@@ -221,9 +232,8 @@ Check-Dependencies
 $publishDir = Install-Server
 
 if ($AutoStart) {
-    $exePath = Join-Path $publishDir "Backup.Server.exe"
-    New-WindowsService -ExePath $exePath
-    Start-ServerService -ExePath $exePath
+    New-WindowsService -ExePath $publishDir
+    Start-ServerService -ExePath $publishDir
 }
 
 Write-Log ""
