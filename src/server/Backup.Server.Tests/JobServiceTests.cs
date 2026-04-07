@@ -141,4 +141,36 @@ public class BackupExecutionServiceTests
             }
         }
     }
+
+    [Fact]
+    public async Task ExecuteRunAsync_ShouldRespectCancelledRun()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<BackupDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new BackupDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        var logger = new Mock<ILogger<BackupExecutionService>>();
+        var service = new BackupExecutionService(db, logger.Object);
+
+        db.JobRunHistory.Add(new JobRunHistory
+        {
+            RunId = "cancelled-run",
+            JobId = "job-1",
+            StartTime = DateTime.UtcNow,
+            Status = "cancelled"
+        });
+
+        await db.SaveChangesAsync();
+
+        var result = await service.ExecuteRunAsync("cancelled-run");
+
+        Assert.False(result.Success);
+        Assert.Equal("Backup run was cancelled before execution", result.Message);
+    }
 }

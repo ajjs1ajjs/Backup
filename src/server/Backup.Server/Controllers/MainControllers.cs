@@ -174,16 +174,19 @@ public class JobsController : ControllerBase
     public async Task<ActionResult> StopJob(string jobId)
     {
         var activeRun = await _db.JobRunHistory
-            .FirstOrDefaultAsync(r => r.JobId == jobId && r.Status == "running");
+            .Where(r => r.JobId == jobId && (r.Status == "running" || r.Status == "queued"))
+            .OrderByDescending(r => r.StartTime)
+            .FirstOrDefaultAsync();
         
         if (activeRun != null)
         {
             activeRun.Status = "cancelled";
             activeRun.EndTime = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            return Ok(new { message = "Job cancelled", runId = activeRun.RunId });
         }
         
-        return Ok(new { message = "Job stopped" });
+        return Ok(new { message = "No queued or running job was found" });
     }
 
     [HttpGet("{jobId}/runs")]

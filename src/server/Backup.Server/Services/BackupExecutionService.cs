@@ -68,6 +68,12 @@ public class BackupExecutionService
             return result;
         }
 
+        if (string.Equals(run.Status, "cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            result.Message = "Backup run was cancelled before execution";
+            return result;
+        }
+
         var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == run.JobId, cancellationToken);
         if (job == null)
         {
@@ -164,6 +170,7 @@ public class BackupExecutionService
         {
             Directory.CreateDirectory(repository.Path);
             var targetPath = BuildDestinationPath(repository.Path, backupPoint.BackupId, sourcePath);
+            await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
 
             if (File.Exists(sourcePath))
             {
@@ -205,6 +212,18 @@ public class BackupExecutionService
             result.Success = true;
             result.BackupId = backupPoint.BackupId;
             result.Message = "Backup completed successfully";
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            backupPoint.Status = BackupStatus.Failed;
+            backupPoint.CompletedAt = DateTime.UtcNow;
+            run.Status = "cancelled";
+            run.EndTime = DateTime.UtcNow;
+            run.ErrorMessage = "Backup cancelled";
+            await _db.SaveChangesAsync(CancellationToken.None);
+
+            result.Message = "Backup cancelled";
             return result;
         }
         catch (Exception ex)
@@ -255,11 +274,13 @@ public class BackupExecutionService
 
         foreach (var directory in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
         {
+            await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
             Directory.CreateDirectory(directory.Replace(sourcePath, destinationPath));
         }
 
         foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
         {
+            await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
             var destinationFile = file.Replace(sourcePath, destinationPath);
             var destinationDirectory = Path.GetDirectoryName(destinationFile);
             if (!string.IsNullOrWhiteSpace(destinationDirectory))
@@ -282,6 +303,7 @@ public class BackupExecutionService
         int read;
         while ((read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
         {
+            await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             run.BytesProcessed += read;
             await _db.SaveChangesAsync(cancellationToken);
@@ -320,6 +342,19 @@ public class BackupExecutionService
     {
         var seconds = Math.Max((endedAt - startedAt).TotalSeconds, 0.001);
         return bytesProcessed * 8d / 1_000_000d / seconds;
+    }
+
+    private async Task EnsureRunNotCancelledAsync(string runId, CancellationToken cancellationToken)
+    {
+        var status = await _db.JobRunHistory
+            .Where(run => run.RunId == runId)
+            .Select(run => run.Status)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (string.Equals(status, "cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new OperationCanceledException("Backup run was cancelled.");
+        }
     }
 }
 
