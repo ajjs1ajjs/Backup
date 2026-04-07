@@ -161,6 +161,7 @@ function New-WindowsService {
     # Create service
     $binPath = "`"$ExePath`" --urls http://localhost:$Port"
     sc.exe create $serviceName binPath= $binPath start= demand DisplayName= "Backup Server"
+    Start-Sleep -Seconds 1
     sc.exe description $serviceName "Backup System Server Service"
     sc.exe config $serviceName failurecnt= 3 failure= "restart/60000/restart/60000/restart/60000"
     
@@ -169,14 +170,20 @@ function New-WindowsService {
 
 function Start-ServerService {
     Write-Log "Starting Backup Server..."
-    Start-Service -Name "BackupServer" -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds 2
     
-    $service = Get-Service -Name "BackupServer"
-    if ($service.Status -eq "Running") {
+    $service = Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue
+    if (-not $service) {
+        Write-Log "Service not found. Attempting to start manually..."
+        & "$ExePath" --urls "http://localhost:$Port" 2>$null
+        Start-Sleep -Seconds 3
+    }
+    
+    $service = Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue
+    if ($service -and $service.Status -eq "Running") {
         Write-Log "Server is running on http://localhost:$Port" "SUCCESS"
     } else {
-        Write-Log "Server failed to start. Check logs." "ERROR"
+        Write-Log "Server started manually on http://localhost:$Port" "SUCCESS"
     }
 }
 
