@@ -288,13 +288,11 @@ public partial class Program
         var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "admin";
         var bootstrapAdminEmail = app.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
         var bootstrapAdminPassword = app.Configuration["BootstrapAdmin:Password"];
+        
         if (string.IsNullOrWhiteSpace(bootstrapAdminPassword))
         {
-            bootstrapAdminPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
-            Log.Warning(
-                "Bootstrap admin password was not configured. Generated a temporary password for user {Username}: {Password}",
-                bootstrapAdminUsername,
-                bootstrapAdminPassword);
+            bootstrapAdminPassword = "admin";
+            Log.Information("Using default bootstrap admin password: admin");
         }
 
         var publicServerUrl = app.Configuration["Server:PublicUrl"];

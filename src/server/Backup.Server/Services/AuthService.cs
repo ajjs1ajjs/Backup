@@ -54,7 +54,8 @@ public class AuthService : IAuthService
             PasswordHash = passwordHash,
             Role = role,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            MustChangePassword = true
         };
 
         _context.Users.Add(user);
