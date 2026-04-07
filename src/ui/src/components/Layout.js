@@ -28,6 +28,7 @@ import {
   DeveloperBoard as VMIcon,
   ExpandLess,
   ExpandMore,
+  Group as GroupIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
@@ -75,6 +76,7 @@ const navSections = [
   {
     label: 'CONFIGURATION',
     items: [
+      { text: 'Users', icon: <GroupIcon />, path: '/users' },
       { text: 'Settings', icon: <SettingsIcon />, path: '/settings' }
     ]
   }
