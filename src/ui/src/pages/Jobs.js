@@ -13,6 +13,7 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
+  LinearProgress,
   IconButton,
   InputLabel,
   MenuItem,
@@ -39,6 +40,7 @@ import {
   Edit as EditIcon,
   PlayArrow as PlayIcon,
   Stop as StopIcon,
+  Visibility as VisibilityIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { fetchWithAuth } from '../services/ApiContext';
@@ -78,6 +80,10 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editJob, setEditJob] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [jobRuns, setJobRuns] = useState([]);
   const [scheduleTab, setScheduleTab] = useState(1);
   const [formData, setFormData] = useState(emptyForm);
 
@@ -119,6 +125,24 @@ export default function Jobs() {
       await fetchWithAuth(`/api/jobs/${jobId}`, { method: 'DELETE' });
     } finally {
       loadData();
+    }
+  };
+
+  const openHistory = async (job) => {
+    setSelectedJob(job);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setJobRuns([]);
+
+    try {
+      const response = await fetchWithAuth(`/api/jobs/${job.jobId}/runs`);
+      const data = await response.json().catch(() => ({ runs: [] }));
+      setJobRuns(data.runs || []);
+    } catch (error) {
+      console.error(error);
+      setJobRuns([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -186,6 +210,32 @@ export default function Jobs() {
     const preset = schedulePresets.find((item) => item.cron === cron);
     return preset ? preset.label : cron;
   };
+
+  const runStatusChip = (status) => (
+    <Chip
+      label={status}
+      size="small"
+      sx={{
+        fontSize: '0.7rem',
+        height: 22,
+        bgcolor:
+          String(status).toLowerCase() === 'completed' ? '#66bb6a20' :
+          String(status).toLowerCase() === 'running' ? '#4fc3f720' :
+          String(status).toLowerCase() === 'queued' ? '#ffa72620' :
+          String(status).toLowerCase() === 'cancelled' ? '#bdbdbd40' :
+          String(status).toLowerCase() === 'failed' ? '#ef535020' :
+          '#bdbdbd20',
+        color:
+          String(status).toLowerCase() === 'completed' ? '#66bb6a' :
+          String(status).toLowerCase() === 'running' ? '#4fc3f7' :
+          String(status).toLowerCase() === 'queued' ? '#ffa726' :
+          String(status).toLowerCase() === 'cancelled' ? '#616161' :
+          String(status).toLowerCase() === 'failed' ? '#ef5350' :
+          '#757575',
+        fontWeight: 'bold'
+      }}
+    />
+  );
 
   const isSaveDisabled = !formData.name || !formData.sourceId || !formData.destinationId;
 
@@ -265,31 +315,16 @@ export default function Jobs() {
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.lastRun ? new Date(job.lastRun).toLocaleString() : '-'}</TableCell>
                   <TableCell>
                     {job.latestRun?.status ? (
-                      <Chip
-                        label={job.latestRun.status}
-                        size="small"
-                        sx={{
-                          fontSize: '0.7rem',
-                          height: 22,
-                          bgcolor:
-                            String(job.latestRun.status).toLowerCase() === 'completed' ? '#66bb6a20' :
-                            String(job.latestRun.status).toLowerCase() === 'running' ? '#4fc3f720' :
-                            String(job.latestRun.status).toLowerCase() === 'queued' ? '#ffa72620' :
-                            String(job.latestRun.status).toLowerCase() === 'failed' ? '#ef535020' :
-                            '#bdbdbd20',
-                          color:
-                            String(job.latestRun.status).toLowerCase() === 'completed' ? '#66bb6a' :
-                            String(job.latestRun.status).toLowerCase() === 'running' ? '#4fc3f7' :
-                            String(job.latestRun.status).toLowerCase() === 'queued' ? '#ffa726' :
-                            String(job.latestRun.status).toLowerCase() === 'failed' ? '#ef5350' :
-                            '#757575',
-                          fontWeight: 'bold'
-                        }}
-                      />
+                      runStatusChip(job.latestRun.status)
                     ) : '-'}
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.nextRun ? new Date(job.nextRun).toLocaleString() : '-'}</TableCell>
                   <TableCell>
+                    <Tooltip title="Run history">
+                      <IconButton size="small" onClick={() => openHistory(job)}>
+                        <VisibilityIcon fontSize="small" sx={{ color: '#8b92a5' }} />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Run now">
                       <IconButton size="small" onClick={() => handleRunJob(job.jobId || job.id)}>
                         <PlayIcon fontSize="small" sx={{ color: '#66bb6a' }} />
@@ -467,6 +502,82 @@ export default function Jobs() {
           >
             {editJob ? 'Save' : 'Create'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>{selectedJob ? `${selectedJob.name} Run History` : 'Run History'}</DialogTitle>
+        <DialogContent>
+          {historyLoading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : jobRuns.length === 0 ? (
+            <Box py={4} textAlign="center">
+              <Typography variant="body2" color="text.secondary">
+                No run history found for this job yet.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer component={Paper} sx={{ borderRadius: 2, mt: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f5f6f8' }}>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>RUN ID</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>STATUS</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>STARTED</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>ENDED</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>BYTES</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>FILES</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>SPEED</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>DETAILS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {jobRuns.map((run) => (
+                    <TableRow key={run.runId} sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
+                      <TableCell sx={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{run.runId}</TableCell>
+                      <TableCell>{runStatusChip(run.status)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.8rem' }}>
+                        {run.startTime ? new Date(run.startTime).toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.8rem' }}>
+                        {run.endTime ? new Date(run.endTime).toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.8rem' }}>
+                        {typeof run.bytesProcessed === 'number' ? run.bytesProcessed.toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.8rem' }}>
+                        {typeof run.filesProcessed === 'number' ? run.filesProcessed : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.8rem' }}>
+                        {typeof run.speedMbps === 'number' && run.speedMbps > 0
+                          ? `${run.speedMbps.toFixed(2)} Mbps`
+                          : '-'}
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 220 }}>
+                        {run.status === 'running' ? (
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <LinearProgress sx={{ flex: 1, minWidth: 80 }} />
+                            <Typography variant="caption" color="text.secondary">Running</Typography>
+                          </Box>
+                        ) : run.errorMessage ? (
+                          <Typography variant="caption" color="error.main">{run.errorMessage}</Typography>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            {run.status === 'completed' ? 'Completed successfully' : 'No error details'}
+                          </Typography>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>
