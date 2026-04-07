@@ -5,7 +5,9 @@
 ### Windows (PowerShell — Administrator)
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 | iex -AutoStart
+# Download and run with auto-start
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
+.\install-server.ps1 -AutoStart
 ```
 
 ### Linux (bash — root)
