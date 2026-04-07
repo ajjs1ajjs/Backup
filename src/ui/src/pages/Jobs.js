@@ -184,7 +184,7 @@ export default function Jobs() {
                   <TableCell>{statusIcon(job)}</TableCell>
                   <TableCell sx={{ fontWeight: 500 }}>{job.name}</TableCell>
                   <TableCell>
-                    <Chip label={String(job.jobType || 'Full').replace('_', ' ')} size="small"
+                    <Chip label={typeof job.jobType === 'string' ? job.jobType.replace('_', ' ') : 'Full'} size="small"
                       sx={{ fontSize: '0.7rem', height: 22, bgcolor: (jobTypeColors[job.jobType] || '#999') + '20', color: jobTypeColors[job.jobType] || '#999', fontWeight: 'bold' }} />
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>
