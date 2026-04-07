@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
+using Backup.Server.BackgroundServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backup.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class BackupsController : ControllerBase
 {
     private readonly BackupDbContext _db;
@@ -57,7 +60,7 @@ public class BackupsController : ControllerBase
     [HttpDelete("{backupId}")]
     public async Task<ActionResult> DeleteBackup(string backupId, [FromQuery] bool force = false)
     {
-        var backup = await _db.BackupPoints.FindAsync(backupId);
+        var backup = await _db.BackupPoints.FirstOrDefaultAsync(b => b.BackupId == backupId);
         if (backup == null) return NotFound();
 
         _db.BackupPoints.Remove(backup);
@@ -70,7 +73,7 @@ public class BackupsController : ControllerBase
     [HttpPost("{backupId}/verify")]
     public async Task<ActionResult> VerifyBackup(string backupId, [FromQuery] bool checkChecksum = true)
     {
-        var backup = await _db.BackupPoints.FindAsync(backupId);
+        var backup = await _db.BackupPoints.FirstOrDefaultAsync(b => b.BackupId == backupId);
         if (backup == null) return NotFound();
 
         backup.Status = BackupStatus.Verified;
@@ -83,7 +86,7 @@ public class BackupsController : ControllerBase
     [HttpGet("{backupId}/download")]
     public async Task<ActionResult> GetBackupDownloadUrl(string backupId)
     {
-        var backup = await _db.BackupPoints.FindAsync(backupId);
+        var backup = await _db.BackupPoints.FirstOrDefaultAsync(b => b.BackupId == backupId);
         if (backup == null) return NotFound();
 
         return Ok(new { url = backup.FilePath, method = "direct" });
@@ -92,48 +95,63 @@ public class BackupsController : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class RestoreController : ControllerBase
 {
     private readonly BackupDbContext _db;
     private readonly ILogger<RestoreController> _logger;
+    private readonly Services.RestoreService _restoreService;
+    private readonly IRestoreQueue _restoreQueue;
 
-    public RestoreController(BackupDbContext db, ILogger<RestoreController> logger)
+    public RestoreController(
+        BackupDbContext db,
+        ILogger<RestoreController> logger,
+        Services.RestoreService restoreService,
+        IRestoreQueue restoreQueue)
     {
         _db = db;
         _logger = logger;
+        _restoreService = restoreService;
+        _restoreQueue = restoreQueue;
     }
 
     [HttpPost]
     public async Task<ActionResult> StartRestore([FromBody] RestoreRequest request)
     {
-        var backup = await _db.BackupPoints.FindAsync(request.BackupId);
+        var backup = await _db.BackupPoints.FirstOrDefaultAsync(b => b.BackupId == request.BackupId);
         if (backup == null) return NotFound("Backup not found");
 
-        var restore = new Restore
+        var queueResult = await _restoreService.QueueRestoreAsync(new Services.RestoreQueueRequest
         {
-            RestoreId = Guid.NewGuid().ToString(),
             BackupId = request.BackupId,
             RestoreType = request.RestoreType,
-            DestinationPath = request.DestinationPath,
             TargetHost = request.TargetHost,
-            Options = System.Text.Json.JsonSerializer.Serialize(request.Options),
-            Status = "pending",
-            CreatedAt = DateTime.UtcNow
-        };
+            DestinationPath = request.DestinationPath,
+            Options = request.Options
+        });
 
-        _db.Restores.Add(restore);
-        await _db.SaveChangesAsync();
+        if (!queueResult.Success)
+        {
+            return BadRequest(new { message = queueResult.Message });
+        }
 
-        _logger.LogInformation("Started restore {RestoreId} from backup {BackupId}", 
-            restore.RestoreId, request.BackupId);
+        await _restoreQueue.QueueAsync(queueResult.RestoreId);
 
-        return Ok(new { restoreId = restore.RestoreId, status = "pending" });
+        _logger.LogInformation("Started restore {RestoreId} from backup {BackupId}",
+            queueResult.RestoreId, request.BackupId);
+
+        return Ok(new
+        {
+            restoreId = queueResult.RestoreId,
+            status = "queued",
+            message = queueResult.Message
+        });
     }
 
     [HttpGet("{restoreId}")]
     public async Task<ActionResult> GetRestoreProgress(string restoreId)
     {
-        var restore = await _db.Restores.FindAsync(restoreId);
+        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
         if (restore == null) return NotFound();
 
         return Ok(new
@@ -152,7 +170,7 @@ public class RestoreController : ControllerBase
     [HttpPost("{restoreId}/cancel")]
     public async Task<ActionResult> CancelRestore(string restoreId, [FromQuery] bool force = false)
     {
-        var restore = await _db.Restores.FindAsync(restoreId);
+        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
         if (restore == null) return NotFound();
 
         restore.Status = "cancelled";
@@ -180,15 +198,17 @@ public class RestoreController : ControllerBase
     [HttpGet("{restoreId}/files")]
     public async Task<ActionResult> BrowseFiles(string restoreId, [FromQuery] string path = "/")
     {
-        var restore = await _db.Restores.FindAsync(restoreId);
+        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
         if (restore == null) return NotFound();
 
-        return Ok(new { files = new List<object>(), currentPath = path, hasMore = false });
+        var files = await _restoreService.BrowseRestoreFilesAsync(restoreId, path);
+        return Ok(new { files, currentPath = path, hasMore = false });
     }
 }
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SettingsController : ControllerBase
 {
     private readonly BackupDbContext _db;
@@ -254,6 +274,7 @@ public class SettingsController : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ReportsController : ControllerBase
 {
     private readonly BackupDbContext _db;

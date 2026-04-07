@@ -1,25 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, CircularProgress,
-  Paper, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
-  FormControl, InputLabel, Tabs, Tab, FormControlLabel, Switch, Slider, Grid
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Switch,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  TextField,
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
-  PlayArrow as PlayIcon, Stop as StopIcon, Add as AddIcon, Delete as DeleteIcon,
-  CheckCircle as CheckIcon, Warning as WarningIcon, Error as ErrorIcon,
-  Backup as BackupIcon, Edit as EditIcon, Schedule as ScheduleIcon
+  Add as AddIcon,
+  Backup as BackupIcon,
+  CheckCircle as CheckIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  PlayArrow as PlayIcon,
+  Stop as StopIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { fetchWithAuth } from '../services/ApiContext';
 
 const schedulePresets = [
   { label: 'Daily at 2:00 AM', cron: '0 2 * * *' },
-  { label: 'Daily at 12:00 AM (Midnight)', cron: '0 0 * * *' },
+  { label: 'Daily at midnight', cron: '0 0 * * *' },
   { label: 'Every 6 hours', cron: '0 */6 * * *' },
   { label: 'Every 12 hours', cron: '0 */12 * * *' },
   { label: 'Weekdays at 8:00 PM', cron: '0 20 * * 1-5' },
   { label: 'Weekly on Sunday at 1:00 AM', cron: '0 1 * * 0' },
-  { label: 'Monthly on 1st at 3:00 AM', cron: '0 3 1 * *' },
+  { label: 'Monthly on day 1 at 3:00 AM', cron: '0 3 1 * *' }
 ];
 
 const jobTypeColors = {
@@ -30,126 +61,149 @@ const jobTypeColors = {
   Restore: '#ef5350'
 };
 
+const emptyForm = {
+  name: '',
+  jobType: 'Full',
+  sourceId: '',
+  sourceType: 'VirtualMachine',
+  sourceHost: '',
+  destinationId: '',
+  schedule: '0 2 * * *',
+  enabled: true,
+  options: JSON.stringify({ compression: 'zstd', retention: 7 }, null, 2)
+};
+
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
-  const [vms, setVMs] = useState([]);
-  const [repos, setRepos] = useState([]);
-  const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editJob, setEditJob] = useState(null);
-  const [scheduleTab, setScheduleTab] = useState(0);
-  const [formData, setFormData] = useState({
-    name: '', jobType: 'Full', sourceId: '', sourceType: 'vm',
-    sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
-    options: JSON.stringify({ compression: 'zstd', retention: 7 })
-  });
+  const [scheduleTab, setScheduleTab] = useState(1);
+  const [formData, setFormData] = useState(emptyForm);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [jobsRes, vmsRes, reposRes, agentsRes] = await Promise.all([
-        fetchWithAuth('/api/jobs'),
-        fetchWithAuth('/api/virtualmachines'),
-        fetchWithAuth('/api/repositories'),
-        fetchWithAuth('/api/agents'),
-      ]);
-      const [jobsData, vmsData, reposData, agentsData] = await Promise.all([
-        jobsRes.json().catch(() => ({ jobs: [] })),
-        vmsRes.json().catch(() => []),
-        reposRes.json().catch(() => []),
-        agentsRes.json().catch(() => []),
-      ]);
-      setJobs(jobsData.jobs || (Array.isArray(jobsData) ? jobsData : []));
-      setVMs(Array.isArray(vmsData) ? vmsData : []);
-      setRepos(Array.isArray(reposData) ? reposData : []);
-      setAgents(Array.isArray(agentsData) ? agentsData : []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      const response = await fetchWithAuth('/api/jobs');
+      const data = await response.json().catch(() => ({ jobs: [] }));
+      setJobs(data.jobs || (Array.isArray(data) ? data : []));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRunJob = async (jobId) => {
-    try { await fetchWithAuth(`/api/jobs/${jobId}/run`, { method: 'POST' }); loadData(); } catch (e) { loadData(); }
+    try {
+      await fetchWithAuth(`/api/jobs/${jobId}/run`, { method: 'POST' });
+    } finally {
+      loadData();
+    }
   };
 
   const handleStopJob = async (jobId) => {
-    try { await fetchWithAuth(`/api/jobs/${jobId}/stop`, { method: 'POST' }); loadData(); } catch (e) { loadData(); }
+    try {
+      await fetchWithAuth(`/api/jobs/${jobId}/stop`, { method: 'POST' });
+    } finally {
+      loadData();
+    }
   };
 
   const handleDeleteJob = async (jobId) => {
-    try { await fetchWithAuth(`/api/jobs/${jobId}`, { method: 'DELETE' }); loadData(); } catch (e) { loadData(); }
+    try {
+      await fetchWithAuth(`/api/jobs/${jobId}`, { method: 'DELETE' });
+    } finally {
+      loadData();
+    }
   };
 
   const openCreate = () => {
     setEditJob(null);
-    setScheduleTab(1); // Default to Simple
-    setFormData({
-      name: '', jobType: 'Full', sourceId: '', sourceType: 'vm',
-      sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
-      options: JSON.stringify({ compression: 'zstd', retention: 7 })
-    });
+    setScheduleTab(1);
+    setFormData(emptyForm);
     setOpen(true);
   };
 
   const openEdit = (job) => {
     setEditJob(job);
-    
-    let tab = 2;
-    if (!job.schedule) tab = 0;
-    else if (job.schedule.split(' ').length === 5) tab = 1;
-    
-    setScheduleTab(tab);
+    setScheduleTab(!job.schedule ? 0 : 1);
     setFormData({
       name: job.name || '',
       jobType: job.jobType || 'Full',
       sourceId: job.sourceId || '',
-      sourceType: job.sourceType || 'vm',
+      sourceType: job.sourceType || 'VirtualMachine',
       sourceHost: job.sourceHost || '',
       destinationId: job.destinationId || '',
       schedule: job.schedule || '0 2 * * *',
       enabled: job.enabled !== false,
-      options: typeof job.options === 'string' ? job.options : JSON.stringify(job.options || {})
+      options: typeof job.options === 'string'
+        ? job.options
+        : JSON.stringify(job.options || {}, null, 2)
     });
     setOpen(true);
   };
 
   const handleSaveJob = async () => {
+    const payload = {
+      ...formData,
+      sourceType: formData.sourceType,
+      schedule: scheduleTab === 0 ? null : formData.schedule
+    };
+
     try {
-      const dataToSave = { ...formData, schedule: scheduleTab === 0 ? null : formData.schedule };
       if (editJob) {
         await fetchWithAuth(`/api/jobs/${editJob.jobId}`, {
           method: 'PUT',
-          body: JSON.stringify({ ...dataToSave, jobId: editJob.jobId })
+          body: JSON.stringify({ ...payload, jobId: editJob.jobId })
         });
       } else {
-        await fetchWithAuth('/api/jobs', { method: 'POST', body: JSON.stringify(dataToSave) });
+        await fetchWithAuth('/api/jobs', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
       }
+
       setOpen(false);
       loadData();
-    } catch (e) { console.error(e); }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  if (loading) return <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>;
-
-  const statusIcon = (job) => {
-    if (job.enabled) return <CheckIcon sx={{ color: '#66bb6a', fontSize: 18 }} />;
-    return <WarningIcon sx={{ color: '#bdbdbd', fontSize: 18 }} />;
-  };
+  const statusIcon = (job) => (
+    job.enabled
+      ? <CheckIcon sx={{ color: '#66bb6a', fontSize: 18 }} />
+      : <WarningIcon sx={{ color: '#bdbdbd', fontSize: 18 }} />
+  );
 
   const formatSchedule = (cron) => {
     if (!cron) return 'Manual only';
-    const preset = schedulePresets.find(p => p.cron === cron);
+    const preset = schedulePresets.find((item) => item.cron === cron);
     return preset ? preset.label : cron;
   };
+
+  const isSaveDisabled = !formData.name || !formData.sourceId || !formData.destinationId;
+
+  if (loading) {
+    return <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>;
+  }
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>Завдання бекапу</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}>
-          Створити завдання
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>Backup Jobs</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={openCreate}
+          sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}
+        >
+          Create Job
         </Button>
       </Box>
 
@@ -157,9 +211,15 @@ export default function Jobs() {
         <Card sx={{ borderRadius: 2 }}>
           <CardContent sx={{ textAlign: 'center', py: 8 }}>
             <BackupIcon sx={{ fontSize: 64, color: '#e0e0e0', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>Немає налаштованих завдань</Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>Створіть своє перше завдання, щоб почати захист даних</Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7' }}>Створити завдання</Button>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No jobs configured
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+              Create your first backup job to start protecting workloads.
+            </Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ bgcolor: '#4fc3f7' }}>
+              Create Job
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -167,15 +227,15 @@ export default function Jobs() {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f6f8' }}>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>СТАТУС</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАЗВА</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ТИП</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДЖЕРЕЛО</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ПРИЗНАЧЕННЯ</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>РОЗКЛАД</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ОСТАННІЙ ЗАПУСК</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>НАСТУПНИЙ ЗАПУСК</TableCell>
-                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ДІЇ</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>STATUS</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NAME</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>TYPE</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SOURCE</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>DESTINATION</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SCHEDULE</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>LAST RUN</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NEXT RUN</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ACTIONS</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -184,8 +244,17 @@ export default function Jobs() {
                   <TableCell>{statusIcon(job)}</TableCell>
                   <TableCell sx={{ fontWeight: 500 }}>{job.name}</TableCell>
                   <TableCell>
-                    <Chip label={typeof job.jobType === 'string' ? job.jobType.replace('_', ' ') : 'Full'} size="small"
-                      sx={{ fontSize: '0.7rem', height: 22, bgcolor: (jobTypeColors[job.jobType] || '#999') + '20', color: jobTypeColors[job.jobType] || '#999', fontWeight: 'bold' }} />
+                    <Chip
+                      label={typeof job.jobType === 'string' ? job.jobType.replace('_', ' ') : 'Full'}
+                      size="small"
+                      sx={{
+                        fontSize: '0.7rem',
+                        height: 22,
+                        bgcolor: `${jobTypeColors[job.jobType] || '#999'}20`,
+                        color: jobTypeColors[job.jobType] || '#999',
+                        fontWeight: 'bold'
+                      }}
+                    />
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>
                     {job.sourceHost ? `${job.sourceId} (${job.sourceHost})` : job.sourceId || '-'}
@@ -196,16 +265,24 @@ export default function Jobs() {
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.nextRun ? new Date(job.nextRun).toLocaleString() : '-'}</TableCell>
                   <TableCell>
                     <Tooltip title="Run now">
-                      <IconButton size="small" onClick={() => handleRunJob(job.jobId || job.id)}><PlayIcon fontSize="small" sx={{ color: '#66bb6a' }} /></IconButton>
+                      <IconButton size="small" onClick={() => handleRunJob(job.jobId || job.id)}>
+                        <PlayIcon fontSize="small" sx={{ color: '#66bb6a' }} />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="Stop">
-                      <IconButton size="small" onClick={() => handleStopJob(job.jobId || job.id)}><StopIcon fontSize="small" sx={{ color: '#ffa726' }} /></IconButton>
+                      <IconButton size="small" onClick={() => handleStopJob(job.jobId || job.id)}>
+                        <StopIcon fontSize="small" sx={{ color: '#ffa726' }} />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="Edit">
-                      <IconButton size="small" onClick={() => openEdit(job)}><EditIcon fontSize="small" sx={{ color: '#4fc3f7' }} /></IconButton>
+                      <IconButton size="small" onClick={() => openEdit(job)}>
+                        <EditIcon fontSize="small" sx={{ color: '#4fc3f7' }} />
+                      </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" onClick={() => handleDeleteJob(job.jobId || job.id)}><DeleteIcon fontSize="small" sx={{ color: '#ef5350' }} /></IconButton>
+                      <IconButton size="small" onClick={() => handleDeleteJob(job.jobId || job.id)}>
+                        <DeleteIcon fontSize="small" sx={{ color: '#ef5350' }} />
+                      </IconButton>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
@@ -216,181 +293,153 @@ export default function Jobs() {
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>{editJob ? 'Редагувати' : 'Створити'} завдання бекапу</DialogTitle>
+        <DialogTitle>{editJob ? 'Edit Backup Job' : 'Create Backup Job'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Назва завдання" value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })} size="small" required />
+              <TextField
+                fullWidth
+                label="Job Name"
+                value={formData.name}
+                onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                size="small"
+                required
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Tooltip title="Наприклад: 'Full' для повного бекапу, 'Incremental' для інкрементального">
-                <FormControl fullWidth size="small">
-                  <InputLabel>Тип бекапу</InputLabel>
-                  <Select value={formData.jobType} label="Тип бекапу"
-                    onChange={(e) => setFormData({ ...formData, jobType: e.target.value })}>
-                    <MenuItem value="Full">Повний</MenuItem>
-                    <MenuItem value="Incremental">Інкрементальний</MenuItem>
-                    <MenuItem value="Differential">Диференціальний</MenuItem>
-                  </Select>
-                </FormControl>
-              </Tooltip>
+              <FormControl fullWidth size="small">
+                <InputLabel>Backup Type</InputLabel>
+                <Select
+                  value={formData.jobType}
+                  label="Backup Type"
+                  onChange={(event) => setFormData({ ...formData, jobType: event.target.value })}
+                >
+                  <MenuItem value="Full">Full</MenuItem>
+                  <MenuItem value="Incremental">Incremental</MenuItem>
+                  <MenuItem value="Differential">Differential</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <Tooltip title="Виберіть тип джерела: ВМ, агент, папка або база даних">
-                <FormControl fullWidth size="small">
-                  <InputLabel>Тип джерела</InputLabel>
-                  <Select value={formData.sourceType} label="Тип джерела"
-                    onChange={(e) => setFormData({ ...formData, sourceType: e.target.value, sourceId: '' })}>
-                    <MenuItem value="vm">Віртуальна машина</MenuItem>
-                    <MenuItem value="agent">Агент / Сервер</MenuItem>
-                    <MenuItem value="folder">Папка / Файли</MenuItem>
-                    <MenuItem value="database">База даних</MenuItem>
-                  </Select>
-                </FormControl>
-              </Tooltip>
+              <FormControl fullWidth size="small">
+                <InputLabel>Source Type</InputLabel>
+                <Select
+                  value={formData.sourceType}
+                  label="Source Type"
+                  onChange={(event) => setFormData({ ...formData, sourceType: event.target.value })}
+                >
+                  <MenuItem value="VirtualMachine">Virtual Machine</MenuItem>
+                  <MenuItem value="Agent">Agent</MenuItem>
+                  <MenuItem value="Folder">Folder</MenuItem>
+                  <MenuItem value="Database">Database</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Tooltip title="Вкажіть шлях до файлів або IP-адресу (напр. C:\\Backups або 192.168.1.50)">
-                <TextField fullWidth size="small" sx={{ mt: 1 }}
-                  label="Шлях або ID джерела"
-                  value={formData.sourceId}
-                  onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
-                  placeholder="напр. C:\\Data або 192.168.1.50"
-                />
-              </Tooltip>
+              <TextField
+                fullWidth
+                size="small"
+                label="Source ID or Path"
+                value={formData.sourceId}
+                onChange={(event) => setFormData({ ...formData, sourceId: event.target.value })}
+                placeholder="vm-001 or C:\\Data"
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Tooltip title="Вкажіть локальний шлях (напр. D:\\Backups) або мережевий шлях (напр. \\\\Server\\Share)">
-                <TextField fullWidth size="small" sx={{ mt: 1 }}
-                  label="Шлях або ID сховища"
-                  value={formData.destinationId === '__manual__' ? '' : formData.destinationId}
-                  onChange={(e) => setFormData({ ...formData, destinationId: e.target.value })}
-                  placeholder="напр. D:\\Backups або \\\\Server\\Share"
-                />
-              </Tooltip>
+              <TextField
+                fullWidth
+                size="small"
+                label="Source Host"
+                value={formData.sourceHost}
+                onChange={(event) => setFormData({ ...formData, sourceHost: event.target.value })}
+                placeholder="Optional host or hypervisor name"
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Destination Repository"
+                value={formData.destinationId}
+                onChange={(event) => setFormData({ ...formData, destinationId: event.target.value })}
+                placeholder="repo-001"
+              />
+            </Grid>
+            <Grid item xs={12}>
               <FormControlLabel
-                control={<Switch checked={formData.enabled} onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })} />}
-                label="Завдання активне"
+                control={
+                  <Switch
+                    checked={formData.enabled}
+                    onChange={(event) => setFormData({ ...formData, enabled: event.target.checked })}
+                  />
+                }
+                label="Job enabled"
               />
             </Grid>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Розклад</Typography>
-              <Tabs value={scheduleTab} onChange={(e, v) => setScheduleTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Tab label="Ручний" />
-                <Tab label="Простий" />
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Schedule</Typography>
+              <Tabs value={scheduleTab} onChange={(event, value) => setScheduleTab(value)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Tab label="Manual" />
+                <Tab label="Preset" />
                 <Tab label="Cron" />
               </Tabs>
 
               {scheduleTab === 0 ? (
                 <Box p={2} bgcolor="#f8f9fa" borderRadius={1} textAlign="center">
                   <Typography variant="body2" color="text.secondary">
-                    Завдання буде запускатися тільки вручну або через API.
+                    This job will run only when triggered manually or through the API.
                   </Typography>
-                  <Button variant="outlined" sx={{ mt: 1 }} size="small" onClick={() => setFormData({ ...formData, schedule: null })}>
-                    Встановити ручний режим
-                  </Button>
                 </Box>
               ) : scheduleTab === 1 ? (
-                <Box display="flex" flexDirection="column" gap={2}>
-                  <Box display="flex" gap={2} alignItems="center">
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <InputLabel>Періодичність</InputLabel>
-                      <Select
-                        value={formData.schedule?.includes('* * *') ? 'daily' : (formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[4] !== '*' ? 'weekly' : 'monthly')}
-                        label="Періодичність"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === 'daily') setFormData({ ...formData, schedule: '0 2 * * *' });
-                          else if (val === 'weekly') setFormData({ ...formData, schedule: '0 2 * * 1' });
-                          else setFormData({ ...formData, schedule: '0 2 1 * *' });
-                        }}
-                      >
-                        <MenuItem value="daily">Щодня</MenuItem>
-                        <MenuItem value="weekly">Щотижня</MenuItem>
-                        <MenuItem value="monthly">Щомісяця</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <TextField
-                      label="Час"
-                      type="time"
-                      size="small"
-                      value={(() => {
-                        const parts = (formData.schedule || '0 2 * * *').split(' ');
-                        const h = parts[1].padStart(2, '0');
-                        const m = parts[0].padStart(2, '0');
-                        return `${h}:${m}`;
-                      })()}
-                      onChange={(e) => {
-                        const [h, m] = e.target.value.split(':');
-                        const parts = (formData.schedule || '0 2 * * *').split(' ');
-                        parts[0] = parseInt(m).toString();
-                        parts[1] = parseInt(h).toString();
-                        setFormData({ ...formData, schedule: parts.join(' ') });
-                      }}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Box>
-
-                  {formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[4] !== '*' && (
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>День тижня</InputLabel>
-                      <Select
-                        value={formData.schedule?.split(' ')[4]}
-                        label="День тижня"
-                        onChange={(e) => {
-                          const parts = formData.schedule.split(' ');
-                          parts[4] = e.target.value;
-                          setFormData({ ...formData, schedule: parts.join(' ') });
-                        }}
-                      >
-                        <MenuItem value="0">Неділя</MenuItem>
-                        <MenuItem value="1">Понеділок</MenuItem>
-                        <MenuItem value="2">Вівторок</MenuItem>
-                        <MenuItem value="3">Середа</MenuItem>
-                        <MenuItem value="4">Четвер</MenuItem>
-                        <MenuItem value="5">П'ятниця</MenuItem>
-                        <MenuItem value="6">Субота</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-
-                  {formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[2] !== '*' && (
-                    <TextField
-                      label="День місяця"
-                      type="number"
-                      size="small"
-                      fullWidth
-                      InputProps={{ inputProps: { min: 1, max: 31 } }}
-                      value={formData.schedule?.split(' ')[2]}
-                      onChange={(e) => {
-                        const parts = formData.schedule.split(' ');
-                        parts[2] = e.target.value;
-                        setFormData({ ...formData, schedule: parts.join(' ') });
-                      }}
-                    />
-                  )}
-                </Box>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Schedule Preset</InputLabel>
+                  <Select
+                    value={formData.schedule}
+                    label="Schedule Preset"
+                    onChange={(event) => setFormData({ ...formData, schedule: event.target.value })}
+                  >
+                    {schedulePresets.map((preset) => (
+                      <MenuItem key={preset.cron} value={preset.cron}>{preset.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               ) : (
-                <Tooltip title="Формат: хвилини (0-59) години (0-23) дні (1-31) місяці (1-12) дні_тижня (0-6)">
-                  <TextField fullWidth label="Cron вираз" value={formData.schedule || ''}
-                    onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                    size="small" placeholder="0 2 * * *" helperText="хв год день місяць день_тижня" />
-                </Tooltip>
+                <TextField
+                  fullWidth
+                  label="Cron Expression"
+                  value={formData.schedule || ''}
+                  onChange={(event) => setFormData({ ...formData, schedule: event.target.value })}
+                  size="small"
+                  placeholder="0 2 * * *"
+                  helperText="Format: minute hour day month weekday"
+                />
               )}
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={4}
+                label="Options JSON"
+                value={formData.options}
+                onChange={(event) => setFormData({ ...formData, options: event.target.value })}
+                size="small"
+              />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Скасувати</Button>
-          <Button variant="contained" onClick={handleSaveJob} disabled={!formData.name || !formData.sourceId || formData.sourceId === '__manual__' || !formData.destinationId || formData.destinationId === '__manual__'}
-            sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}>
-            {editJob ? 'Зберегти' : 'Створити'}
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveJob}
+            disabled={isSaveDisabled}
+            sx={{ bgcolor: '#4fc3f7', '&:hover': { bgcolor: '#29b6f6' } }}
+          >
+            {editJob ? 'Save' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

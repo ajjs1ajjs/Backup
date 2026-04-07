@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers integration testing between the C# server and C++ agents, as well as stress testing for 100+ parallel VMs.
+This guide covers integration testing for the REST server endpoints and related backup workflows, as well as stress testing for 100+ parallel VMs.
 
 ## Table of Contents
 
@@ -60,7 +60,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 #### 1. Agent Registration Tests (`AgentIntegrationTests.cs`)
 
-Tests gRPC communication between server and agents.
+Tests REST-based agent registration and lifecycle scenarios.
 
 ```bash
 # Run specific test class
@@ -73,9 +73,9 @@ dotnet test --filter "FullyQualifiedName~AgentRegistrationTests"
 # - RegisterAgent_MultipleTimes_ShouldHandleCorrectly
 ```
 
-#### 2. Agent Heartbeat Tests
+#### 2. Agent Inventory Tests
 
-Tests bidirectional streaming for agent heartbeats.
+Tests agent listing, updates, and related lifecycle behavior exposed by the server.
 
 ```bash
 dotnet test --filter "FullyQualifiedName~AgentHeartbeatTests"

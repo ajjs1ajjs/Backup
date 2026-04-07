@@ -188,7 +188,7 @@ public class Job
 
     [Required]
     [MaxLength(64)]
-    public string DestinationId { get; set; }
+    public string DestinationId { get; set; } = string.Empty;
 
     public string? Schedule { get; set; }
 

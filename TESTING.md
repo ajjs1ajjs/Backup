@@ -1,279 +1,55 @@
-# Тести проекту
+# Testing Guide
 
-## Структура тестів
+## Overview
 
-### Unit Tests
+The current automated test contour covers:
+- unit tests for scheduler behavior and related service logic
+- integration tests for the REST API surface
+- authenticated flows for jobs, repositories, restores, agents, and reports
 
-#### Backup.Server.Tests
-- `JobServiceTests.cs` - тести JobService
+The tests are aligned with the current REST-based server architecture.
 
-### Integration Tests
+## Requirements
 
-#### Backup.Server.IntegrationTests
-- `AgentIntegrationTests.cs` - gRPC communication tests
-  - AgentRegistrationTests - agent registration scenarios
-  - AgentHeartbeatTests - bidirectional streaming
-  - AgentCapabilitiesTests - capability discovery
-- `BackupRestoreIntegrationTests.cs` - backup/restore workflows
-  - BackupFlowIntegrationTests - complete backup scenarios
-  - RestoreFlowIntegrationTests - restore operations
-  - RepositoryIntegrationTests - repository management
+- .NET SDK `8.0.419` or compatible with `global.json`
+- Node.js 18+ if you want to run UI tests separately
 
-### Stress Tests
+## Run Tests
 
-#### StressTestService
-- Parallel backup tests (100+ VMs)
-- Network failure simulation
-- Endurance testing (8+ hours)
-- Scalability testing
+Run the backend tests from the repository root:
 
-### Performance Benchmarks
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| Speed | > 1 GB/s | ✅ |
-| Latency | < 100ms | ✅ |
-| Concurrency | 100+ jobs | ✅ |
-| Success Rate | > 99.9% | ✅ |
-
-## Запуск тестів
-
-> Для серверних/API тестів використовуйте порт `8000`.
-> Для першого входу після інсталяції використовується bootstrap-користувач (за замовчуванням `admin/admin123`) з обов'язковою зміною пароля.
-
-### Вимоги
-- .NET 8.0 SDK
-- PostgreSQL 14+
-- Node.js 20+ (для UI)
-- Docker (optional, for integration tests)
-
-### Quick Start
-
-```bash
-# 1. Start PostgreSQL
-docker run -d -p 5432:5432 \
-  -e POSTGRES_DB=backup_test \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  postgres:14
-
-# 2. Run all tests
-cd src/server/Backup.Server.Tests
-dotnet test
-
-# 3. Run integration tests
-cd src/server/Backup.Server.IntegrationTests
-dotnet test
+```powershell
+dotnet test src/server/Backup.Server.Tests/Backup.Server.Tests.csproj
+dotnet test src/server/Backup.Server.IntegrationTests/Backup.Server.IntegrationTests.csproj
 ```
 
-### Docker Compose (Recommended)
+On Windows, run these commands sequentially. Running both projects in parallel can cause `obj/bin` file-lock issues for the shared server project.
 
-```bash
-# Start complete test environment
-docker-compose -f docker-compose.integration-tests.yml up -d
+## What Passes Now
 
-# View results
-docker logs backup-integration-test-runner
+Validated locally in this repository:
+- `Backup.Server.Tests`: 3 passed
+- `Backup.Server.IntegrationTests`: 7 passed
 
-# Stop environment
-docker-compose -f docker-compose.integration-tests.yml down
-```
+## Integration Test Notes
 
-### .NET тести
-```bash
-cd src/server/Backup.Server.Tests
-dotnet test --logger "console;verbosity=detailed"
-```
+The integration suite uses `WebApplicationFactory<Program>` and an in-memory SQLite connection for isolated API validation.
 
-### Integration тести
-```bash
-# All integration tests
-cd src/server/Backup.Server.IntegrationTests
-dotnet test
-
-# Specific test category
-dotnet test --filter "FullyQualifiedName~AgentRegistrationTests"
-dotnet test --filter "FullyQualifiedName~BackupFlowIntegrationTests"
-
-# With code coverage
-dotnet test --collect:"XPlat Code Coverage"
-```
-
-### UI тести
-```bash
-cd src/ui
-npm install
-npm test
-```
-
-### Стрес тести (REST API)
-
-```bash
-# Start server first
-cd src/server/Backup.Server
-dotnet run
-
-# Run stress test for 100 VMs
-curl -X POST http://localhost:8000/api/stresstest/run \
-  -H "Content-Type: application/json" \
-  -d '{"vmCount":100,"concurrentCount":50}'
-
-# Scalability test
-curl -X POST http://localhost:8000/api/stresstest/scalability \
-  -H "Content-Type: application/json" \
-  -d '{"vmCount":100,"startConcurrency":10,"maxConcurrency":100,"stepSize":10}'
-
-# Endurance test (8 hours)
-curl -X POST http://localhost:8000/api/stresstest/endurance \
-  -H "Content-Type: application/json" \
-  -d '{"vmCount":50,"concurrentCount":25,"durationMinutes":480}'
-```
-
-### Комплексний тест
-```bash
-# 1. Запуск БД
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:14
-
-# 2. Запуск сервера
-cd src/server/Backup.Server
-dotnet run
-
-# 3. Запуск UI
-cd src/ui
-npm start
-
-# 4. Run stress tests
-curl -X POST http://localhost:8000/api/stresstest/run \
-  -H "Content-Type: application/json" \
-  -d '{"vmCount":100,"concurrentCount":100}'
-```
-
-## Перевірка компонентів
-
-### 1. Protos
-- [x] agent.proto
-- [x] job.proto
-- [x] backup.proto
-- [x] restore.proto
-- [x] repository.proto
-- [x] transfer.proto
-- [x] common.proto
-
-### 2. Server Services
-- [x] AgentService
-- [x] JobService
-- [x] BackupService
-- [x] RestoreService
-- [x] RepositoryService
-- [x] DashboardService
-- [x] FileTransferService
-- [x] StressTestService ✨ NEW
-
-### 3. Background Services
-- [x] JobSchedulerService
-- [x] AgentHealthCheckService
-- [x] RetentionPolicyService
-- [x] AgentCommunicationService
-
-### 4. REST Controllers
-- [x] JobsController
-- [x] BackupsController
-- [x] RestoreController
-- [x] RepositoriesController
-- [x] AgentsController
-- [x] SettingsController
-- [x] ReportsController
-- [x] StressTestController ✨ NEW
-
-### 5. C++ Agent
-- [x] DataMover
-- [x] HyperV Agent
-- [x] VMware Agent
-- [x] KVM Agent
-- [x] Database Agents
-
-### 6. UI Components
-- [x] Dashboard
-- [x] Jobs
-- [x] Backups
-- [x] Restore
-- [x] Repositories
-- [x] Agents
-- [x] Settings
-- [x] Reports
-
-### 7. Integration Tests ✨ NEW
-- [x] Agent Registration Tests
-- [x] Agent Heartbeat Tests
-- [x] Agent Capabilities Tests
-- [x] Backup Flow Tests
-- [x] Restore Flow Tests
-- [x] Repository Tests
-- [x] Stress Test API Tests
-
-## Test Reports
-
-### View Test Results
-
-```bash
-# HTML report (requires reportgenerator)
-dotnet tool install -g dotnet-reportgenerator-globaltool
-reportgenerator -reports:coverage.cobertura.xml -targetdir:coveragereport
-
-# View in browser
-start coveragereport/index.html
-```
-
-### Stress Test Results
-
-Access stress test results via:
-- REST API: `GET http://localhost:8000/api/stresstest/results/{sessionId}`
-- Database: `SELECT * FROM stress_test_sessions ORDER BY started_at DESC`
-
-## CI/CD Integration
-
-### GitHub Actions
-
-Tests run automatically on:
-- Push to `main` or `develop`
-- Pull requests
-
-See `.github/workflows/integration-tests.yml`
+Covered flows include:
+- authenticated access control
+- job creation and execution
+- repository creation and listing
+- restore request validation
+- reports endpoint authorization
 
 ## Troubleshooting
 
-### Common Issues
+If tests fail on Windows with file access errors:
 
-**PostgreSQL connection failed:**
-```bash
-docker logs backup-integration-test-db
-docker-compose -f docker-compose.integration-tests.yml restart postgres-test
+```powershell
+Get-Process dotnet -ErrorAction SilentlyContinue | Stop-Process -Force
+Remove-Item -LiteralPath src/server/Backup.Server/bin -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath src/server/Backup.Server/obj -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
-**Tests timeout:**
-Increase timeout in runsettings:
-```xml
-<TestTimeout>600000</TestTimeout>
-```
-
-**gRPC connection refused:**
-```bash
-curl http://localhost:8000/health
-docker logs backup-integration-test-server
-```
-
-### Collect Diagnostics
-
-```bash
-# All container logs
-docker-compose -f docker-compose.integration-tests.yml logs > test-logs.txt
-
-# Export test results
-docker cp backup-integration-test-runner:/app/TestResults ./test-results
-```
-
-## Documentation
-
-- 📖 [Integration Testing Guide](INTEGRATION_TESTING.md) - Detailed testing guide
-- 📖 [API Documentation](API_DOCS.md) - REST API reference
-- 📖 [Requirements](requirements.md) - System requirements
+Then rerun one `dotnet test` command at a time.

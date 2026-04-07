@@ -1,352 +1,123 @@
-# 🛡️ Backup System
+# Backup System
 
-> Enterprise-grade backup solution for virtual machines and databases
+Backup System is a backup management prototype with a .NET 8 server, a React web UI, a C++ agent, and installer scripts for Windows and Linux.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
-[![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
-[![C++](https://img.shields.io/badge/C++-20-yellow.svg)](https://isocpp.org/)
+The repository currently provides:
+- A REST API for jobs, repositories, backups, restores, reports, settings, agents, hypervisors, and virtual machines
+- JWT-based authentication with role policies
+- SQLite-backed persistence through EF Core
+- A React UI that is built and served from the server's `wwwroot`
+- Early-stage agent and restore logic scaffolding
 
-Modern backup system with hybrid architecture (C# server + C++ agents) supporting Hyper-V, VMware, KVM and databases (MS SQL, PostgreSQL, Oracle).
+The repository does not currently provide a complete production-ready backup engine. Several advanced features listed in earlier drafts of this README are still partial, stubbed, or under development.
 
-## ✨ Features
+## Architecture
 
-### Backup Capabilities
-- 🌐 **Multi-Hypervisor** - Hyper-V, VMware, KVM support
-- 🗄️ **Database Backup** - MS SQL, PostgreSQL, Oracle
-- 📦 **Compression** - Zstd, LZ4, Gzip
-- 🔄 **Incremental** - CBT (Changed Block Tracking)
-- 💾 **Deduplication** - Source & target side
-- ☁️ **Cloud Storage** - AWS S3, Azure Blob, GCS
+- Server: `src/server/Backup.Server`
+- UI: `src/ui`
+- Agent: `src/agent/Backup.Agent`
+- Installer: `src/installer/Backup.Agent.Installer`
+- Contracts: `src/protos`
 
-### Management
-- 📊 **Web UI** - React + Material UI
-- 🔌 **REST API** - Full CRUD operations
-- 📅 **Scheduler** - Cron, GFS rotation
-- 🔔 **Notifications** - Email, Telegram, Slack, Webhooks
-- 🔒 **Security** - TLS, RBAC, Audit logging
+## Current Status
 
-### Recovery
-- 🔄 **Full VM Restore** - All hypervisors
-- ⚡ **Instant Restore** - Mount backups
-- 📁 **File-Level Recovery** - Extract specific files
-- ⏱️ **Point-in-Time** - Database recovery
+Implemented at a working application level:
+- REST controllers and JWT authentication
+- SQLite data model and migrations
+- Basic scheduler background services
+- Hypervisor and VM inventory endpoints
+- Repository CRUD and connection checks
+- Reports and settings endpoints
 
-## 🏗️ Architecture
+Still incomplete or prototype-level:
+- Actual backup execution pipeline
+- Real restore orchestration
+- End-to-end agent/server runtime communication
+- Full cloud and hypervisor integration depth
+- Production hardening and deployment validation
 
-- **Web UI**: `src/ui` (React + Material UI)
-- **Management Server**: `src/server/Backup.Server` (.NET 8, REST + gRPC)
-- **Agent Runtime**: `src/agent/Backup.Agent` (C++20)
-- **Shared Contracts**: `src/protos` (Protocol Buffers)
-- **Storage Targets**: Local, NFS/SMB, S3-compatible, Azure Blob, GCS
-- **Database**: SQLite (file-based, zero configuration)
+## Development
 
-## 🚀 Quick Install
+### Requirements
 
-### Windows (PowerShell — Administrator)
+- .NET 8 SDK (`8.0.419` is pinned in `global.json`)
+- Node.js 18+
+- npm
 
-```powershell
-# One command to install everything
-& ([scriptblock]::Create((iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1).Content)) -AutoStart
-```
-
-Or download and run:
-```powershell
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 -OutFile install.ps1
-.\install.ps1 -AutoStart
-```
-
-### Linux (bash — root)
-
-```bash
-# One command to install everything
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --auto-start
-```
-
-Or save script first:
-```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh && sudo ./install.sh --auto-start
-```
-
-## Access After Installation
-
-- **UI**: http://localhost
-- **API**: http://localhost:8000
-- **Swagger**: http://localhost:8000/swagger
-
-## Login
-
-- Username: `admin`
-- Password: `admin123`
-
-## 📋 Installation Options
-
-### Windows
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-InstallDir DIR` | Installation directory | `C:\BackupServer` |
-| `-JwtKey KEY` | JWT secret key | auto-generated |
-| `-Port PORT` | Server port | `8000` |
-| `-AdminPassword PWD` | Admin password | `admin123` |
-| `-AutoStart` | Start service after install | off |
-| `-Force` | Force reinstallation | off |
-| `-SkipBuild` | Use existing publish folder | off |
-| `-LocalSource PATH` | Use local source code | download from GitHub |
-| `-Uninstall` | Uninstall server | off |
-
-**Examples:**
-```powershell
-# Install with custom port and password
-.\install-server.ps1 -Port 9000 -AdminPassword "MySecurePass!" -AutoStart
-
-# Install from local source
-.\install-server.ps1 -LocalSource "C:\Projects\Backup\src\server\Backup.Server" -AutoStart
-
-# Uninstall
-.\install-server.ps1 -Uninstall
-```
-
-### Linux
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--auto-start` | Start services after install | on |
-| `--jwt-key KEY` | JWT secret key | auto-generated |
-| `-h, --help` | Show help | - |
-
-**Examples:**
-```bash
-# Install with custom JWT key
-sudo ./install.sh --jwt-key "my-secret-key" --auto-start
-
-# Show help
-./install.sh --help
-```
-
-## 🔧 Service Management
-
-### Windows
+### Server
 
 ```powershell
-# Check status
-Get-Service -Name BackupServer
-
-# Start
-Start-Service -Name BackupServer
-
-# Stop
-Stop-Service -Name BackupServer
-
-# Restart
-Restart-Service -Name BackupServer
-
-# View logs
-Get-Content "C:\BackupServer\publish\logs\backup-server-$(Get-Date -Format 'yyyyMMdd').log" -Tail 50
+dotnet restore src/server/Backup.Server/Backup.Server.csproj
+dotnet run --project src/server/Backup.Server/Backup.Server.csproj
 ```
 
-### Linux
+### UI
 
-```bash
-# Check status
-sudo systemctl status backup-server
-
-# Start
-sudo systemctl start backup-server
-
-# Stop
-sudo systemctl stop backup-server
-
-# Restart
-sudo systemctl restart backup-server
-
-# View logs
-sudo journalctl -u backup-server -f
-# or
-tail -f /var/log/backup-server.log
-```
-
-## 📁 Project Structure
-
-```
-src/
-├── protos/                    # gRPC Protocol Buffers
-│   ├── agent.proto            # Agent communication
-│   ├── job.proto              # Job definitions
-│   ├── backup.proto           # Backup operations
-│   ├── restore.proto          # Restore operations
-│   ├── repository.proto       # Storage repositories
-│   └── transfer.proto         # File transfer
-│
-├── server/Backup.Server/      # .NET 8 Server
-│   ├── Services/               # Business logic
-│   ├── Controllers/            # REST API
-│   ├── BackgroundServices/     # Scheduled tasks
-│   ├── Migrations/             # EF Core migrations
-│   └── Database/               # EF Core + SQLite
-│
-├── agent/Backup.Agent/         # C++ Agent
-│   ├── core/                  # DataMover, Compression
-│   ├── hyperv/                # Hyper-V integration
-│   ├── vmware/                # VMware VDDK
-│   ├── kvm/                   # libvirt
-│   └── database/              # DB agents
-│
-└── ui/                        # React Application
-    ├── src/
-    │   ├── components/        # Reusable UI components
-    │   ├── pages/              # Page components
-    │   ├── services/           # API client
-    │   └── store/             # State management
-    └── public/
-```
-
-## 🔧 Configuration
-
-### Configuration File
-
-Edit `appsettings.json` in the publish directory:
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Data Source=backup.db"
-  },
-  "Jwt": {
-    "Key": "",
-    "Issuer": "BackupServer",
-    "Audience": "BackupClients"
-  },
-  "Server": {
-    "PublicUrl": "http://localhost:8000"
-  },
-  "BootstrapAdmin": {
-    "Username": "admin",
-    "Email": "admin@backupsystem.com",
-    "Password": "admin123"
-  },
-  "AllowedOrigins": [],
-  "Encryption": {
-    "KeyFilePath": ""
-  },
-  "Serilog": {
-    "MinimumLevel": "Information"
-  }
-}
-```
-
-> **Note:** If `Jwt:Key` is empty, a secure key is auto-generated and saved to `jwt.key` on first startup.
-
-## 🔐 Security
-
-- JWT authentication (auto-generated key if not provided)
-- Role-Based Access Control: `Admin`, `Operator`, `Viewer`
-- Bootstrap admin with enforced password change on first login
-- AES-256 encryption for hypervisor credentials
-- Audit logging of all operations
-- Configurable CORS origins
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [API Documentation](API_DOCS.md) | REST API reference |
-| [Installation Guide](install.md) | Server & agent installation |
-| [Requirements](requirements.md) | System requirements |
-| [Roadmap](roadmap.md) | Development roadmap |
-| [Testing](TESTING.md) | Testing guide |
-| [Release Notes](RELEASE_NOTES.md) | Version history |
-
-## 🔌 API Endpoints
-
-### Jobs
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/jobs` | List all jobs |
-| POST | `/api/jobs` | Create new job |
-| GET | `/api/jobs/{id}` | Get job details |
-| POST | `/api/jobs/{id}/run` | Run job immediately |
-| POST | `/api/jobs/{id}/stop` | Stop running job |
-
-### Backups
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/backups` | List all backups |
-| GET | `/api/backups/{id}` | Get backup details |
-| DELETE | `/api/backups/{id}` | Delete backup |
-| POST | `/api/backups/{id}/verify` | Verify backup |
-
-### Restore
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/restore` | Start restore |
-| GET | `/api/restore/{id}` | Get restore progress |
-| POST | `/api/restore/{id}/cancel` | Cancel restore |
-
-### Repositories
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/repositories` | List repositories |
-| POST | `/api/repositories` | Add repository |
-| POST | `/api/repositories/{id}/test` | Test connection |
-
-### Reports
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/reports/summary` | Dashboard summary |
-| GET | `/api/reports/activity` | Activity log |
-| GET | `/api/reports/storage` | Storage usage |
-
-## 🧪 Development
-
-### Build from source
-
-```bash
-# Server
-dotnet restore src/server/Backup.Server
-dotnet publish src/server/Backup.Server -c Release -r win-x64 --self-contained true \
-    -p:PublishSingleFile=true -o ./publish
-
-# UI
+```powershell
 cd src/ui
 npm install
 npm run build
 ```
 
-### Run tests
+If the UI is built, the server serves the static files from `src/server/Backup.Server/wwwroot`.
 
-```bash
-cd src/server/Backup.Server.Tests
-dotnet test
+### Tests
 
-# UI tests
-cd src/ui
-npm test
+```powershell
+dotnet test src/server/Backup.Server.Tests/Backup.Server.Tests.csproj
+dotnet test src/server/Backup.Server.IntegrationTests/Backup.Server.IntegrationTests.csproj
 ```
 
-## 🤝 Contributing
+On Windows, run these test projects sequentially rather than in parallel because they share server build outputs and can hit file locks.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Configuration
 
-## 📄 License
+Main configuration file:
+- `src/server/Backup.Server/appsettings.json`
 
-This project is licensed under the [MIT License](LICENSE).
+Important sections:
+- `ConnectionStrings:DefaultConnection`
+- `Jwt`
+- `Server`
+- `BootstrapAdmin`
+- `AllowedOrigins`
+- `Encryption`
 
-## 🙏 Acknowledgments
+On first startup the server can generate:
+- `jwt.key`
+- `data/encryption.key`
 
-- [gRPC](https://grpc.io/)
-- [Entity Framework Core](https://docs.microsoft.com/en-us/ef/)
-- [React](https://reactjs.org/)
-- [Material UI](https://mui.com/)
-- [Quartz.NET](https://www.quartz-scheduler.net/)
+These files should not be committed.
 
----
+## Default Access
 
-<p align="center">
-  <strong>Made with ❤️ for enterprise backup solutions</strong>
-</p>
+Default bootstrap values in development:
+- Username: `admin`
+- Password: generated at first startup if not configured explicitly
+
+The bootstrap admin is marked to change password on first login.
+
+## Security Notes
+
+- The API now requires authentication by default.
+- Anonymous access is limited to login, registration, and first-login password change.
+- Self-registration always creates `Viewer` users.
+- Emergency password reset is intentionally disabled.
+- If `AllowedOrigins` is empty, CORS is limited to local development origins only.
+
+## Repository Hygiene
+
+This repository should only store source files and intentionally versioned assets. Build outputs such as `bin/`, `obj/`, generated publish folders, local database files, and secret keys should stay untracked.
+
+## Documents
+
+- [API docs](API_DOCS.md)
+- [Install guide](install.md)
+- [Testing guide](TESTING.md)
+- [Requirements](requirements.md)
+- [Validation](VALIDATION.md)
+- [Roadmap](roadmap.md)
+
+## License
+
+MIT

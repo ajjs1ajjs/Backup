@@ -27,45 +27,36 @@ public class BackupDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.AgentId).IsUnique();
-            entity.Property(e => e.Capabilities).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<VirtualMachine>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.VmId).IsUnique();
-            entity.Property(e => e.Disks).HasColumnType("jsonb");
-            entity.Property(e => e.Tags).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Repository>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.RepositoryId).IsUnique();
-            entity.Property(e => e.Credentials).HasColumnType("jsonb");
-            entity.Property(e => e.Options).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Job>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.JobId).IsUnique();
-            entity.Property(e => e.Schedule).HasColumnType("jsonb");
-            entity.Property(e => e.Options).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<BackupPoint>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.BackupId).IsUnique();
-            entity.Property(e => e.Metadata).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Restore>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.RestoreId).IsUnique();
-            entity.Property(e => e.Options).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<JobRunHistory>(entity =>
@@ -85,7 +76,6 @@ public class BackupDbContext : DbContext
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Details).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Setting>(entity =>

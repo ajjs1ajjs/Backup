@@ -1,14 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Box, Card, CardContent, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TablePagination, Chip, IconButton, Typography,
-  Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, Alert, Tooltip, Tabs, Tab, Avatar, CircularProgress
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  MenuItem,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  Tabs,
+  TextField,
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
-  Delete as DeleteIcon, Refresh as RefreshIcon, Add as AddIcon,
-  Computer as ComputerIcon, PlayArrow as PlayIcon, Stop as StopIcon,
-  CheckCircle as CheckCircleIcon, Error as ErrorIcon, HourglassEmpty as HourglassIcon
+  Add as AddIcon,
+  CheckCircle as CheckCircleIcon,
+  Computer as ComputerIcon,
+  Delete as DeleteIcon,
+  Error as ErrorIcon,
+  HourglassEmpty as HourglassIcon,
+  Refresh as RefreshIcon,
+  Stop as StopIcon
 } from '@mui/icons-material';
 import { fetchWithAuth } from '../services/ApiContext';
 
@@ -25,6 +51,16 @@ const statusIcons = {
   error: <ErrorIcon fontSize="small" sx={{ color: '#F44336' }} />
 };
 
+const initialVm = {
+  name: '',
+  hypervisorType: 'hyperv',
+  hypervisorHost: '',
+  ipAddress: '',
+  osType: 'windows',
+  cpuCores: 2,
+  memoryMb: 4096
+};
+
 export default function VirtualMachines() {
   const [vms, setVMs] = useState([]);
   const [hypervisors, setHypervisors] = useState([]);
@@ -38,28 +74,33 @@ export default function VirtualMachines() {
   const [openDiscover, setOpenDiscover] = useState(false);
   const [selectedHypervisor, setSelectedHypervisor] = useState('');
   const [discovering, setDiscovering] = useState(false);
-  const [newVM, setNewVM] = useState({
-    name: '', hypervisorType: 'hyperv', hypervisorHost: '',
-    ipAddress: '', osType: 'windows', cpuCores: 2, memoryMb: 4096
-  });
+  const [newVM, setNewVM] = useState(initialVm);
 
   useEffect(() => {
     fetchVMs();
-    fetchHypervisors();
   }, [tabValue]);
+
+  useEffect(() => {
+    fetchHypervisors();
+  }, []);
 
   const fetchVMs = async () => {
     setLoading(true);
     try {
-      const filter = tabValue === 0 ? '' :
-        tabValue === 1 ? '?hypervisorType=hyperv' :
-        tabValue === 2 ? '?hypervisorType=vmware' :
-        '?hypervisorType=kvm';
+      const filter = tabValue === 0
+        ? ''
+        : tabValue === 1
+          ? '?hypervisorType=hyperv'
+          : tabValue === 2
+            ? '?hypervisorType=vmware'
+            : '?hypervisorType=kvm';
+
       const response = await fetchWithAuth(`/api/virtualmachines${filter}`);
-      const data = await response.json();
-      setVMs(data);
-    } catch (e) {
-      setError('Failed to load VMs');
+      const data = await response.json().catch(() => []);
+      setVMs(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      console.error(requestError);
+      setError('Failed to load virtual machines');
     } finally {
       setLoading(false);
     }
@@ -68,23 +109,25 @@ export default function VirtualMachines() {
   const fetchHypervisors = async () => {
     try {
       const response = await fetchWithAuth('/api/hypervisors');
-      const data = await response.json();
-      setHypervisors(data);
-    } catch (e) { /* ignore */ }
-  };
-
-  const handleDeleteVM = async (vmId) => {
-    if (!window.confirm('Delete this VM from inventory? (backup data will not be deleted)')) return;
-    try {
-      await fetchWithAuth(`/api/virtualmachines/${vmId}`, { method: 'DELETE' });
-      fetchVMs();
-    } catch (e) {
-      setError('Failed to delete VM');
+      const data = await response.json().catch(() => []);
+      setHypervisors(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      console.error(requestError);
     }
   };
 
-  const handleAddVM = async (e) => {
-    e.preventDefault();
+  const handleDeleteVM = async (vmId) => {
+    if (!window.confirm('Delete this VM from inventory? Backup data will not be deleted.')) return;
+    try {
+      await fetchWithAuth(`/api/virtualmachines/${vmId}`, { method: 'DELETE' });
+      fetchVMs();
+    } catch (requestError) {
+      console.error(requestError);
+      setError('Failed to delete virtual machine');
+    }
+  };
+
+  const handleAddVM = async () => {
     try {
       await fetchWithAuth('/api/virtualmachines', {
         method: 'POST',
@@ -96,10 +139,11 @@ export default function VirtualMachines() {
         })
       });
       setOpenAdd(false);
-      setNewVM({ name: '', hypervisorType: 'hyperv', hypervisorHost: '', ipAddress: '', osType: 'windows', cpuCores: 2, memoryMb: 4096 });
+      setNewVM(initialVm);
       fetchVMs();
-    } catch (e) {
-      setError('Failed to add VM');
+    } catch (requestError) {
+      console.error(requestError);
+      setError('Failed to add virtual machine');
     }
   };
 
@@ -108,6 +152,7 @@ export default function VirtualMachines() {
       setError('Select a hypervisor first');
       return;
     }
+
     setDiscovering(true);
     setError('');
     try {
@@ -116,7 +161,8 @@ export default function VirtualMachines() {
       setTimeout(() => setSuccess(''), 3000);
       fetchVMs();
       fetchHypervisors();
-    } catch (e) {
+    } catch (requestError) {
+      console.error(requestError);
       setError('Discovery failed');
     } finally {
       setDiscovering(false);
@@ -124,62 +170,69 @@ export default function VirtualMachines() {
     }
   };
 
-  const formatBytes = (bytes) => {
-    if (!bytes) return '—';
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const filteredVMs = tabValue === 0 ? vms :
-    tabValue === 1 ? vms.filter(v => v.hypervisorType === 'hyperv') :
-    tabValue === 2 ? vms.filter(v => v.hypervisorType === 'vmware') :
-    vms.filter(v => v.hypervisorType === 'kvm');
+  const filteredVMs = tabValue === 0
+    ? vms
+    : tabValue === 1
+      ? vms.filter((vm) => vm.hypervisorType === 'hyperv')
+      : tabValue === 2
+        ? vms.filter((vm) => vm.hypervisorType === 'vmware')
+        : vms.filter((vm) => vm.hypervisorType === 'kvm');
 
   const paginatedVMs = filteredVMs.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">Віртуальні машини</Typography>
+        <Typography variant="h4" fontWeight="bold">Virtual Machines</Typography>
         <Box display="flex" gap={1}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchVMs}>Оновити</Button>
-          <Button variant="outlined" startIcon={<ComputerIcon />} onClick={() => setOpenDiscover(true)}
-            disabled={hypervisors.length === 0}>Виявити ВМ</Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAdd(true)}>Додати ВМ</Button>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchVMs}>Refresh</Button>
+          <Button
+            variant="outlined"
+            startIcon={<ComputerIcon />}
+            onClick={() => setOpenDiscover(true)}
+            disabled={hypervisors.length === 0}
+          >
+            Discover VMs
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAdd(true)}>Add VM</Button>
         </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-      <Tabs value={tabValue} onChange={(e, v) => { setTabValue(v); setPage(0); }} sx={{ mb: 2 }}>
-        <Tab label={`Всі (${vms.length})`} />
-        <Tab label={`Hyper-V (${vms.filter(v => v.hypervisorType === 'hyperv').length})`} />
-        <Tab label={`VMware (${vms.filter(v => v.hypervisorType === 'vmware').length})`} />
-        <Tab label={`KVM (${vms.filter(v => v.hypervisorType === 'kvm').length})`} />
+      <Tabs value={tabValue} onChange={(event, value) => { setTabValue(value); setPage(0); }} sx={{ mb: 2 }}>
+        <Tab label={`All (${vms.length})`} />
+        <Tab label={`Hyper-V (${vms.filter((vm) => vm.hypervisorType === 'hyperv').length})`} />
+        <Tab label={`VMware (${vms.filter((vm) => vm.hypervisorType === 'vmware').length})`} />
+        <Tab label={`KVM (${vms.filter((vm) => vm.hypervisorType === 'kvm').length})`} />
       </Tabs>
 
       <TableContainer component={Card}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Статус</TableCell>
-              <TableCell>Назва</TableCell>
-              <TableCell>Гіпервізор</TableCell>
-              <TableCell>Хост</TableCell>
-              <TableCell>IP-адреса</TableCell>
-              <TableCell>ОС</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Hypervisor</TableCell>
+              <TableCell>Host</TableCell>
+              <TableCell>IP Address</TableCell>
+              <TableCell>OS</TableCell>
               <TableCell>CPU</TableCell>
               <TableCell>RAM</TableCell>
-              <TableCell>Останній бекап</TableCell>
-              <TableCell>Дії</TableCell>
+              <TableCell>Last Backup</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={10} align="center"><CircularProgress size={30} sx={{ my: 2 }} /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={10} align="center"><CircularProgress size={30} sx={{ my: 2 }} /></TableCell>
+              </TableRow>
             ) : paginatedVMs.length === 0 ? (
-              <TableRow><TableCell colSpan={10} align="center">ВМ не знайдено</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={10} align="center">No virtual machines found</TableCell>
+              </TableRow>
             ) : paginatedVMs.map((vm) => (
               <TableRow key={vm.vmId} hover>
                 <TableCell>{statusIcons[vm.status] || statusIcons.stopped}</TableCell>
@@ -195,24 +248,33 @@ export default function VirtualMachines() {
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <Chip label={vm.hypervisorType?.toUpperCase()} size="small"
-                    sx={{ bgcolor: (hypervisorTypeColors[vm.hypervisorType] || '#666') + '20', color: hypervisorTypeColors[vm.hypervisorType] || '#666', fontWeight: 'bold' }} />
+                  <Chip
+                    label={vm.hypervisorType?.toUpperCase()}
+                    size="small"
+                    sx={{
+                      bgcolor: `${hypervisorTypeColors[vm.hypervisorType] || '#666'}20`,
+                      color: hypervisorTypeColors[vm.hypervisorType] || '#666',
+                      fontWeight: 'bold'
+                    }}
+                  />
                 </TableCell>
-                <TableCell>{vm.hypervisorHost || '—'}</TableCell>
-                <TableCell>{vm.ipAddress || '—'}</TableCell>
-                <TableCell>{vm.osType || '—'}</TableCell>
-                <TableCell>{vm.cpuCores || '—'} ядер</TableCell>
-                <TableCell>{vm.memoryMb ? `${(vm.memoryMb / 1024).toFixed(1)} ГБ` : '—'}</TableCell>
+                <TableCell>{vm.hypervisorHost || '-'}</TableCell>
+                <TableCell>{vm.ipAddress || '-'}</TableCell>
+                <TableCell>{vm.osType || '-'}</TableCell>
+                <TableCell>{vm.cpuCores || '-'} cores</TableCell>
+                <TableCell>{vm.memoryMb ? `${(vm.memoryMb / 1024).toFixed(1)} GB` : '-'}</TableCell>
                 <TableCell>
                   {vm.lastBackupAt ? (
                     <Typography variant="body2">{new Date(vm.lastBackupAt).toLocaleString()}</Typography>
                   ) : (
-                    <Chip label="Немає бекапів" size="small" color="warning" />
+                    <Chip label="No backups" size="small" color="warning" />
                   )}
                 </TableCell>
                 <TableCell>
-                  <Tooltip title="Видалити з інвентарю">
-                    <IconButton size="small" onClick={() => handleDeleteVM(vm.vmId)}><DeleteIcon fontSize="small" /></IconButton>
+                  <Tooltip title="Remove from inventory">
+                    <IconButton size="small" onClick={() => handleDeleteVM(vm.vmId)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </Tooltip>
                 </TableCell>
               </TableRow>
@@ -220,68 +282,119 @@ export default function VirtualMachines() {
           </TableBody>
         </Table>
         <TablePagination
-          component="div" count={filteredVMs.length} page={page}
-          onPageChange={(e, p) => setPage(p)}
+          component="div"
+          count={filteredVMs.length}
+          page={page}
+          onPageChange={(event, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(Number(event.target.value));
+            setPage(0);
+          }}
         />
       </TableContainer>
 
       <Dialog open={openAdd} onClose={() => setOpenAdd(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Додати віртуальну машину</DialogTitle>
+        <DialogTitle>Add Virtual Machine</DialogTitle>
         <DialogContent>
-          <form onSubmit={handleAddVM}>
-            <TextField fullWidth label="Назва ВМ" value={newVM.name} margin="normal"
-              onChange={(e) => setNewVM({ ...newVM, name: e.target.value })} required />
-            <TextField fullWidth select label="Тип гіпервізора" value={newVM.hypervisorType} margin="normal"
-              onChange={(e) => setNewVM({ ...newVM, hypervisorType: e.target.value })}>
-              <MenuItem value="hyperv">Hyper-V</MenuItem>
-              <MenuItem value="vmware">VMware</MenuItem>
-              <MenuItem value="kvm">KVM</MenuItem>
-            </TextField>
-            <TextField fullWidth label="Хост гіпервізора (IP або ім'я)" value={newVM.hypervisorHost} margin="normal"
-              onChange={(e) => setNewVM({ ...newVM, hypervisorHost: e.target.value })} required />
-            <TextField fullWidth label="IP-адреса" value={newVM.ipAddress} margin="normal"
-              onChange={(e) => setNewVM({ ...newVM, ipAddress: e.target.value })} />
-            <TextField fullWidth select label="Тип ОС" value={newVM.osType} margin="normal"
-              onChange={(e) => setNewVM({ ...newVM, osType: e.target.value })}>
-              <MenuItem value="windows">Windows</MenuItem>
-              <MenuItem value="linux">Linux</MenuItem>
-              <MenuItem value="other">Інша</MenuItem>
-            </TextField>
-            <Box display="flex" gap={2}>
-              <TextField fullWidth label="Ядра CPU" type="number" value={newVM.cpuCores} margin="normal"
-                onChange={(e) => setNewVM({ ...newVM, cpuCores: parseInt(e.target.value) })} />
-              <TextField fullWidth label="RAM (МБ)" type="number" value={newVM.memoryMb} margin="normal"
-                onChange={(e) => setNewVM({ ...newVM, memoryMb: parseInt(e.target.value) })} />
-            </Box>
-          </form>
+          <TextField
+            fullWidth
+            label="VM Name"
+            value={newVM.name}
+            margin="normal"
+            onChange={(event) => setNewVM({ ...newVM, name: event.target.value })}
+            required
+          />
+          <TextField
+            fullWidth
+            select
+            label="Hypervisor Type"
+            value={newVM.hypervisorType}
+            margin="normal"
+            onChange={(event) => setNewVM({ ...newVM, hypervisorType: event.target.value })}
+          >
+            <MenuItem value="hyperv">Hyper-V</MenuItem>
+            <MenuItem value="vmware">VMware</MenuItem>
+            <MenuItem value="kvm">KVM</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            label="Hypervisor Host"
+            value={newVM.hypervisorHost}
+            margin="normal"
+            onChange={(event) => setNewVM({ ...newVM, hypervisorHost: event.target.value })}
+            placeholder="IP address or hostname"
+            required
+          />
+          <TextField
+            fullWidth
+            label="IP Address"
+            value={newVM.ipAddress}
+            margin="normal"
+            onChange={(event) => setNewVM({ ...newVM, ipAddress: event.target.value })}
+          />
+          <TextField
+            fullWidth
+            select
+            label="Operating System"
+            value={newVM.osType}
+            margin="normal"
+            onChange={(event) => setNewVM({ ...newVM, osType: event.target.value })}
+          >
+            <MenuItem value="windows">Windows</MenuItem>
+            <MenuItem value="linux">Linux</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </TextField>
+          <Box display="flex" gap={2}>
+            <TextField
+              fullWidth
+              label="CPU Cores"
+              type="number"
+              value={newVM.cpuCores}
+              margin="normal"
+              onChange={(event) => setNewVM({ ...newVM, cpuCores: parseInt(event.target.value, 10) || 0 })}
+            />
+            <TextField
+              fullWidth
+              label="RAM (MB)"
+              type="number"
+              value={newVM.memoryMb}
+              margin="normal"
+              onChange={(event) => setNewVM({ ...newVM, memoryMb: parseInt(event.target.value, 10) || 0 })}
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAdd(false)}>Скасувати</Button>
-          <Button variant="contained" onClick={handleAddVM}>Додати ВМ</Button>
+          <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddVM}>Add VM</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={openDiscover} onClose={() => setOpenDiscover(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Виявити віртуальні машини</DialogTitle>
+        <DialogTitle>Discover Virtual Machines</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Виберіть гіпервізор, щоб знайти всі зареєстровані на ньому ВМ.
+            Select a hypervisor to refresh the virtual machine inventory from that host.
           </Typography>
-          <TextField fullWidth select label="Гіпервізор" value={selectedHypervisor} margin="normal"
-            onChange={(e) => setSelectedHypervisor(e.target.value)}>
-            {hypervisors.map(h => (
-              <MenuItem key={h.hypervisorId} value={h.hypervisorId}>
-                {h.name} ({h.type?.toUpperCase()}) — {h.host}
+          <TextField
+            fullWidth
+            select
+            label="Hypervisor"
+            value={selectedHypervisor}
+            margin="normal"
+            onChange={(event) => setSelectedHypervisor(event.target.value)}
+          >
+            {hypervisors.map((hypervisor) => (
+              <MenuItem key={hypervisor.hypervisorId} value={hypervisor.hypervisorId}>
+                {hypervisor.name} ({hypervisor.type?.toUpperCase()}) - {hypervisor.host}
               </MenuItem>
             ))}
           </TextField>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDiscover(false)}>Скасувати</Button>
+          <Button onClick={() => setOpenDiscover(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleDiscover} disabled={discovering}>
-            {discovering ? 'Виявлення...' : 'Виявити'}
+            {discovering ? 'Discovering...' : 'Discover'}
           </Button>
         </DialogActions>
       </Dialog>

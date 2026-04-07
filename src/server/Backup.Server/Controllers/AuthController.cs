@@ -15,6 +15,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         try
@@ -23,8 +24,8 @@ public class AuthController : ControllerBase
                 request.Username,
                 request.Email,
                 request.Password,
-                request.Role ?? "Viewer"
-            );
+                "Viewer");
+
             return Ok(new { token });
         }
         catch (InvalidOperationException ex)
@@ -34,6 +35,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         try
@@ -58,6 +60,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("change-password-first-login")]
+    [AllowAnonymous]
     public async Task<IActionResult> ChangePasswordFirstLogin([FromBody] ChangePasswordFirstLoginRequest request)
     {
         try
@@ -82,11 +85,15 @@ public class AuthController : ControllerBase
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
+        {
             return Unauthorized();
+        }
 
         var user = await _authService.GetUserByIdAsync(userId);
         if (user == null)
+        {
             return NotFound();
+        }
 
         return Ok(new
         {
@@ -104,36 +111,27 @@ public class AuthController : ControllerBase
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
+        {
             return Unauthorized();
+        }
 
         var user = await _authService.GetUserByIdAsync(userId);
         if (user == null)
+        {
             return NotFound();
+        }
 
         return Ok(new { message = "Token is valid" });
     }
 
     [HttpPost("reset-admin-emergency")]
-    [AllowAnonymous]
-    public async Task<IActionResult> ResetAdminEmergency()
+    [Authorize(Policy = "Admin")]
+    public IActionResult ResetAdminEmergency()
     {
-        var admin = await _authService.GetUserByUsernameAsync("admin");
-        if (admin == null) return NotFound("Admin user not found");
-
-        admin.PasswordHash = _authService.HashPasswordStatic("admin123");
-        admin.IsActive = true;
-        admin.MustChangePassword = false;
-
-        // Потрібно зберегти зміни в контексті, оскільки ми отримали об'єкт користувача
-        // через сервіс, а не прямо з контексту в контролері
-        if (_authService is Services.AuthService realService)
+        return StatusCode(StatusCodes.Status501NotImplemented, new
         {
-            // У реальному сервісі є доступ до контексту, але через інтерфейс він прихований.
-            // Ми припускаємо, що RegisterAsync або ChangePasswordAsync роблять це.
-            await _authService.ResetPasswordAsync("emergency", "admin123");
-        }
-
-        return Ok(new { message = "Admin password has been reset to admin123 using new secure hash format." });
+            error = "Emergency password reset is disabled for security reasons."
+        });
     }
 }
 

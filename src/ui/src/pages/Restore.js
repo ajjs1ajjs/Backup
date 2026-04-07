@@ -1,30 +1,78 @@
 import React, { useState } from 'react';
-import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  LinearProgress,
+  CircularProgress,
+  Alert
+} from '@mui/material';
 import { Restore as RestoreIcon } from '@mui/icons-material';
 import { useApi, fetchWithAuth } from '../services/ApiContext';
 
 export default function Restore() {
-  const { data, loading } = useApi('/api/restore');
-  const { data: backups } = useApi('/api/backups');
+  const { data, loading, refetch } = useApi('/api/restore');
+  const { data: backups, refetch: refetchBackups } = useApi('/api/backups');
   const [open, setOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [restoreType, setRestoreType] = useState('full_vm');
   const [targetHost, setTargetHost] = useState('');
+  const [destinationPath, setDestinationPath] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const handleStartRestore = async () => {
-    if (!selectedBackup) return;
+    if (!selectedBackup) {
+      return;
+    }
+
     try {
-      await fetchWithAuth('/api/restore', {
+      setError('');
+      setMessage('');
+
+      const response = await fetchWithAuth('/api/restore', {
         method: 'POST',
-        body: JSON.stringify({ backupId: selectedBackup, restoreType, targetHost })
+        body: JSON.stringify({
+          backupId: selectedBackup,
+          restoreType: restoreType === 'instant' ? 'instant_restore' : restoreType,
+          targetHost,
+          destinationPath
+        })
       });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || 'Restore failed to start.');
+      }
+
+      setMessage(payload?.message || 'Restore started successfully.');
       setOpen(false);
       setSelectedBackup('');
       setTargetHost('');
-    } catch (e) { setOpen(false); }
+      setDestinationPath('');
+      refetch();
+      refetchBackups();
+    } catch (e) {
+      setError(e.message || 'Restore failed to start.');
+      setOpen(false);
+    }
   };
 
-  if (loading) return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;
+  if (loading) {
+    return <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>;
+  }
 
   const restores = data?.restores || data || [];
   const backupList = backups?.backups || backups || [];
@@ -32,17 +80,20 @@ export default function Restore() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Відновлення</Typography>
+        <Typography variant="h4">Restore</Typography>
         <Button variant="contained" startIcon={<RestoreIcon />} onClick={() => setOpen(true)}>
-          Розпочати відновлення
+          Start Restore
         </Button>
       </Box>
+
+      {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {restores.length === 0 ? (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>Немає операцій відновлення</Typography>
-            <Typography variant="body2" color="text.secondary">Запустіть відновлення, щоб побачити прогрес тут</Typography>
+            <Typography variant="h6" color="text.secondary" gutterBottom>No restore operations yet</Typography>
+            <Typography variant="body2" color="text.secondary">Start a restore to monitor progress here.</Typography>
           </CardContent>
         </Card>
       ) : (
@@ -50,61 +101,108 @@ export default function Restore() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>ID відновлення</TableCell>
-                <TableCell>ID бекапу</TableCell>
-                <TableCell>Тип</TableCell>
-                <TableCell>Статус</TableCell>
-                <TableCell>Прогрес</TableCell>
-                <TableCell>Створено</TableCell>
+                <TableCell>Restore ID</TableCell>
+                <TableCell>Backup ID</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Progress</TableCell>
+                <TableCell>Destination</TableCell>
+                <TableCell>Created</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {restores.map((restore) => (
-                <TableRow key={restore.id || restore.restoreId}>
-                  <TableCell>{(restore.id || restore.restoreId).substring(0, 8)}...</TableCell>
-                  <TableCell>{(restore.backupId || '').substring(0, 8)}...</TableCell>
-                  <TableCell><Chip label={restore.restoreType || 'full_vm'} size="small" /></TableCell>
-                  <TableCell>
-                    <Chip label={restore.status || 'pending'} color={restore.status === 'completed' ? 'success' : restore.status === 'failed' ? 'error' : 'warning'} size="small" />
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <LinearProgress variant="determinate" value={restore.progress || 0} sx={{ width: 100 }} />
-                      <Typography variant="caption">{restore.progress || 0}%</Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>{restore.createdAt ? new Date(restore.createdAt).toLocaleString() : '-'}</TableCell>
-                </TableRow>
-              ))}
+              {restores.map((restore) => {
+                const restoreId = restore.restoreId || restore.id;
+                const progress = typeof restore.progress === 'number'
+                  ? restore.progress
+                  : restore.totalBytes > 0
+                    ? Math.round((restore.bytesRestored || 0) / restore.totalBytes * 100)
+                    : 0;
+
+                return (
+                  <TableRow key={restoreId}>
+                    <TableCell>{String(restoreId || '').substring(0, 8)}...</TableCell>
+                    <TableCell>{String(restore.backupId || '').substring(0, 8)}...</TableCell>
+                    <TableCell><Chip label={restore.restoreType || 'full_vm'} size="small" /></TableCell>
+                    <TableCell>
+                      <Chip
+                        label={restore.status || 'pending'}
+                        color={
+                          restore.status === 'completed' ? 'success' :
+                          restore.status === 'failed' ? 'error' :
+                          restore.status === 'cancelled' ? 'default' :
+                          'warning'
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <LinearProgress variant="determinate" value={progress} sx={{ width: 100 }} />
+                        <Typography variant="caption">{progress}%</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{restore.destinationPath || '-'}</TableCell>
+                    <TableCell>{restore.createdAt ? new Date(restore.createdAt).toLocaleString() : '-'}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
       )}
 
       {open && (
-        <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bgcolor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300 }} onClick={() => setOpen(false)}>
-          <Card sx={{ width: 500, maxWidth: '90%' }} onClick={(e) => e.stopPropagation()}>
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1300
+          }}
+          onClick={() => setOpen(false)}
+        >
+          <Card sx={{ width: 520, maxWidth: '90%' }} onClick={(e) => e.stopPropagation()}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Розпочати відновлення</Typography>
+              <Typography variant="h6" gutterBottom>Start Restore</Typography>
               <Box display="flex" flexDirection="column" gap={2} pt={1}>
                 <Select fullWidth value={selectedBackup} onChange={(e) => setSelectedBackup(e.target.value)} displayEmpty>
-                  <MenuItem value="" disabled>Виберіть бекап</MenuItem>
-                  {backupList.map((b) => (
-                    <MenuItem key={b.id || b.backupId} value={b.id || b.backupId}>
-                      {(b.id || b.backupId).substring(0, 8)} - {b.backupType || 'бекап'}
+                  <MenuItem value="" disabled>Select backup</MenuItem>
+                  {backupList.map((backup) => (
+                    <MenuItem key={backup.backupId || backup.id} value={backup.backupId}>
+                      {String(backup.backupId || '').substring(0, 8)} - {backup.backupType || 'backup'}
                     </MenuItem>
                   ))}
                 </Select>
                 <Select fullWidth value={restoreType} onChange={(e) => setRestoreType(e.target.value)}>
-                  <MenuItem value="full_vm">Повне відновлення ВМ</MenuItem>
-                  <MenuItem value="instant">Миттєве відновлення</MenuItem>
-                  <MenuItem value="file_level">Відновлення файлів</MenuItem>
+                  <MenuItem value="full_vm">Full VM Restore</MenuItem>
+                  <MenuItem value="instant">Instant Restore</MenuItem>
+                  <MenuItem value="file_level">File-Level Restore</MenuItem>
                 </Select>
-                <TextField label="Цільовий хост" fullWidth value={targetHost} onChange={(e) => setTargetHost(e.target.value)} />
+                <TextField
+                  label={restoreType === 'instant' ? 'Mount Path' : 'Destination Path'}
+                  fullWidth
+                  value={destinationPath}
+                  onChange={(e) => setDestinationPath(e.target.value)}
+                />
+                <TextField
+                  label="Target Host"
+                  fullWidth
+                  value={targetHost}
+                  onChange={(e) => setTargetHost(e.target.value)}
+                />
               </Box>
               <Box display="flex" justifyContent="flex-end" gap={1} sx={{ mt: 2 }}>
-                <Button onClick={() => setOpen(false)}>Скасувати</Button>
-                <Button variant="contained" onClick={handleStartRestore} disabled={!selectedBackup}>Розпочати</Button>
+                <Button onClick={() => setOpen(false)}>Cancel</Button>
+                <Button variant="contained" onClick={handleStartRestore} disabled={!selectedBackup || !destinationPath}>
+                  Start
+                </Button>
               </Box>
             </CardContent>
           </Card>

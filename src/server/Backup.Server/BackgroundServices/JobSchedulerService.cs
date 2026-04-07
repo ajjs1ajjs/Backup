@@ -1,5 +1,6 @@
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
+using Backup.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backup.Server.BackgroundServices;
@@ -26,6 +27,7 @@ public class JobSchedulerService : BackgroundService
             {
                 using var scope = _services.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
+                var scheduler = scope.ServiceProvider.GetRequiredService<SchedulerService>();
 
                 var pendingJobs = await db.Jobs
                     .Where(j => j.Enabled && j.NextRun <= DateTime.UtcNow)
@@ -46,10 +48,7 @@ public class JobSchedulerService : BackgroundService
                     db.JobRunHistory.Add(runHistory);
                     
                     job.LastRun = DateTime.UtcNow;
-                    if (job.NextRun.HasValue)
-                    {
-                        job.NextRun = CalculateNextRun(job.NextRun.Value, job.Schedule);
-                    }
+                    job.NextRun = scheduler.CalculateNextRun(job, job.LastRun);
 
                     await db.SaveChangesAsync(stoppingToken);
                 }
@@ -63,10 +62,6 @@ public class JobSchedulerService : BackgroundService
         }
     }
 
-    private DateTime? CalculateNextRun(DateTime lastRun, string? scheduleJson)
-    {
-        return lastRun.AddHours(24);
-    }
 }
 
 public class AgentHealthCheckService : BackgroundService
@@ -142,9 +137,10 @@ public class RetentionPolicyService : BackgroundService
                 var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
 
                 var settings = await db.Settings.ToListAsync(stoppingToken);
-                var retentionDays = settings.FirstOrDefault(s => s.Key == "backup.retention_days")?.Value ?? "30";
-                
-                var cutoffDate = DateTime.UtcNow.AddDays(-int.Parse(retentionDays));
+                var retentionDaysValue = settings.FirstOrDefault(s => s.Key == "backup.retention_days")?.Value ?? "30";
+                var retentionDays = int.TryParse(retentionDaysValue, out var parsedRetentionDays) ? parsedRetentionDays : 30;
+
+                var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
                 var expiredBackups = await db.BackupPoints
                     .Where(b => b.CreatedAt < cutoffDate && b.Status != BackupStatus.Expired)
                     .ToListAsync(stoppingToken);

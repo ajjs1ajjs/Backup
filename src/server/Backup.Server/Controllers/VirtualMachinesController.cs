@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using System.Text.Json;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backup.Server.Controllers;
 
@@ -29,12 +31,20 @@ public class VirtualMachinesController : ControllerBase
     {
         var query = _db.VirtualMachines.AsQueryable();
 
-        if (!string.IsNullOrEmpty(hypervisorType))
+        if (!string.IsNullOrWhiteSpace(hypervisorType))
+        {
             query = query.Where(v => v.HypervisorType == hypervisorType);
-        if (!string.IsNullOrEmpty(hypervisorHost))
+        }
+
+        if (!string.IsNullOrWhiteSpace(hypervisorHost))
+        {
             query = query.Where(v => v.HypervisorHost == hypervisorHost);
-        if (!string.IsNullOrEmpty(status))
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
             query = query.Where(v => v.Status == status);
+        }
 
         var vms = await query.Select(v => new
         {
@@ -62,15 +72,36 @@ public class VirtualMachinesController : ControllerBase
     public async Task<ActionResult> GetVM(string vmId)
     {
         var vm = await _db.VirtualMachines.FirstOrDefaultAsync(v => v.VmId == vmId);
-        if (vm == null) return NotFound();
+        if (vm == null)
+        {
+            return NotFound();
+        }
+
         return Ok(vm);
     }
 
     [HttpPost]
-    public async Task<ActionResult> CreateVM([FromBody] VirtualMachine vm)
+    public async Task<ActionResult> CreateVM([FromBody] VirtualMachineDto vmDto)
     {
-        if (string.IsNullOrEmpty(vm.VmId))
+        var vm = new VirtualMachine
+        {
+            VmId = string.IsNullOrWhiteSpace(vmDto.VmId) ? Guid.NewGuid().ToString() : vmDto.VmId,
+            Name = vmDto.Name,
+            HypervisorType = vmDto.HypervisorType,
+            HypervisorHost = vmDto.HypervisorHost,
+            IpAddress = vmDto.IpAddress,
+            OsType = vmDto.OsType,
+            MemoryMb = vmDto.MemoryMb,
+            CpuCores = vmDto.CpuCores,
+            Disks = string.IsNullOrWhiteSpace(vmDto.Disks) ? "[]" : vmDto.Disks,
+            Tags = string.IsNullOrWhiteSpace(vmDto.Tags) ? "{}" : vmDto.Tags,
+            Status = string.IsNullOrWhiteSpace(vmDto.Status) ? "running" : vmDto.Status
+        };
+
+        if (string.IsNullOrWhiteSpace(vm.VmId))
+        {
             vm.VmId = Guid.NewGuid().ToString();
+        }
 
         vm.CreatedAt = DateTime.UtcNow;
         vm.UpdatedAt = DateTime.UtcNow;
@@ -83,21 +114,24 @@ public class VirtualMachinesController : ControllerBase
     }
 
     [HttpPut("{vmId}")]
-    public async Task<ActionResult> UpdateVM(string vmId, [FromBody] VirtualMachine vm)
+    public async Task<ActionResult> UpdateVM(string vmId, [FromBody] VirtualMachineDto vmDto)
     {
         var existing = await _db.VirtualMachines.FirstOrDefaultAsync(v => v.VmId == vmId);
-        if (existing == null) return NotFound();
+        if (existing == null)
+        {
+            return NotFound();
+        }
 
-        existing.Name = vm.Name;
-        existing.HypervisorType = vm.HypervisorType;
-        existing.HypervisorHost = vm.HypervisorHost;
-        existing.IpAddress = vm.IpAddress;
-        existing.OsType = vm.OsType;
-        existing.MemoryMb = vm.MemoryMb;
-        existing.CpuCores = vm.CpuCores;
-        existing.Disks = vm.Disks;
-        existing.Tags = vm.Tags;
-        existing.Status = vm.Status;
+        existing.Name = vmDto.Name;
+        existing.HypervisorType = vmDto.HypervisorType;
+        existing.HypervisorHost = vmDto.HypervisorHost;
+        existing.IpAddress = vmDto.IpAddress;
+        existing.OsType = vmDto.OsType;
+        existing.MemoryMb = vmDto.MemoryMb;
+        existing.CpuCores = vmDto.CpuCores;
+        existing.Disks = string.IsNullOrWhiteSpace(vmDto.Disks) ? existing.Disks : vmDto.Disks;
+        existing.Tags = string.IsNullOrWhiteSpace(vmDto.Tags) ? existing.Tags : vmDto.Tags;
+        existing.Status = string.IsNullOrWhiteSpace(vmDto.Status) ? existing.Status : vmDto.Status;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -108,7 +142,10 @@ public class VirtualMachinesController : ControllerBase
     public async Task<ActionResult> DeleteVM(string vmId)
     {
         var vm = await _db.VirtualMachines.FirstOrDefaultAsync(v => v.VmId == vmId);
-        if (vm == null) return NotFound();
+        if (vm == null)
+        {
+            return NotFound();
+        }
 
         _db.VirtualMachines.Remove(vm);
         await _db.SaveChangesAsync();
@@ -121,133 +158,147 @@ public class VirtualMachinesController : ControllerBase
     {
         var hypervisor = await _db.Hypervisors.FirstOrDefaultAsync(h => h.HypervisorId == request.HypervisorId);
         if (hypervisor == null)
+        {
             return NotFound(new { error = "Hypervisor not found" });
+        }
 
-        var discovered = new List<object>();
-
-        if (hypervisor.Type == "hyperv")
+        List<object> discovered = hypervisor.Type.ToLowerInvariant() switch
         {
-            discovered = await DiscoverHyperVVMs(hypervisor);
-        }
-        else if (hypervisor.Type == "vmware")
-        {
-            discovered = await DiscoverVmwareVMs(hypervisor);
-        }
-        else if (hypervisor.Type == "kvm")
-        {
-            discovered = await DiscoverKvmVMs(hypervisor);
-        }
+            "hyperv" => await DiscoverHyperVVMs(hypervisor),
+            "vmware" => DiscoverVmwareVMs(hypervisor),
+            "kvm" => await DiscoverKvmVMs(hypervisor),
+            _ => new List<object>()
+        };
 
         return Ok(discovered);
     }
 
     private async Task<List<object>> DiscoverKvmVMs(Hypervisor hypervisor)
     {
-        var vms = new List<object>();
         try
         {
-            // Use virsh to list all domains (VMs)
-            var process = new System.Diagnostics.Process
+            var psi = new ProcessStartInfo
             {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "ssh",
-                    Arguments = $"{hypervisor.Username}@{hypervisor.Host} \"virsh list --all --uuid --name\"",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                FileName = "ssh",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
             };
-            process.Start();
+
+            psi.ArgumentList.Add($"{hypervisor.Username}@{hypervisor.Host}");
+            psi.ArgumentList.Add("virsh list --all --uuid --name");
+
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                return new List<object>();
+            }
+
             var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            if (!string.IsNullOrEmpty(output))
+            if (process.ExitCode != 0)
             {
-                var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
-                {
-                    var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 2)
-                    {
-                        vms.Add(new
-                        {
-                            vmId = parts[0],
-                            name = parts[1],
-                            hypervisorType = "kvm",
-                            hypervisorHost = hypervisor.Host,
-                            status = "running" // Simplified
-                        });
-                    }
-                }
+                _logger.LogWarning("KVM discovery failed on {Host}: {Error}", hypervisor.Host, error);
+                return new List<object>();
             }
+
+            return output
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => new
+                {
+                    vmId = line,
+                    name = line,
+                    hypervisorType = "kvm",
+                    hypervisorHost = hypervisor.Host,
+                    status = "unknown"
+                })
+                .Cast<object>()
+                .ToList();
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "KVM discovery failed on {Host}", hypervisor.Host);
+            return new List<object>();
         }
-        return vms;
     }
 
-    private async Task<List<object>> DiscoverVmwareVMs(Hypervisor hypervisor)
+    private static List<object> DiscoverVmwareVMs(Hypervisor hypervisor)
     {
-        // For VMware, typically we'd use govc CLI or VMware.Vim SDK
-        return new List<object> { new { name = "VMware requires govc or PowerCLI on server", vmId = "stub" } };
+        return new List<object>
+        {
+            new
+            {
+                name = "VMware discovery requires a dedicated integration",
+                vmId = "vmware-discovery-not-implemented",
+                hypervisorType = "vmware",
+                hypervisorHost = hypervisor.Host,
+                status = "unknown"
+            }
+        };
     }
 
     private async Task<List<object>> DiscoverHyperVVMs(Hypervisor hypervisor)
     {
-        var vms = new List<object>();
         try
         {
-            var process = new System.Diagnostics.Process
+            var psi = new ProcessStartInfo
             {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-Command \"Get-VM | Select-Object Name, State, CPUCount, MemoryStartup, Uuid | ConvertTo-Json\"",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                FileName = "powershell.exe",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
             };
-            process.Start();
+
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-NonInteractive");
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add("Get-VM | Select-Object Name, State, CPUCount, MemoryStartup, Id | ConvertTo-Json");
+
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                return new List<object>();
+            }
+
             var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            if (!string.IsNullOrEmpty(output))
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(output);
-                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    foreach (var item in doc.RootElement.EnumerateArray())
-                    {
-                        var name = item.GetProperty("Name").GetString() ?? "";
-                        var vmId = item.GetProperty("Uuid").GetString() ?? "";
-                        var state = item.GetProperty("State").GetString() ?? "";
-                        var cpu = item.TryGetProperty("CPUCount", out var cpuProp) ? cpuProp.GetInt32() : 0;
-                        var memory = item.TryGetProperty("MemoryStartup", out var memProp) ? memProp.GetInt64() / (1024 * 1024) : 0;
-
-                        vms.Add(new
-                        {
-                            name,
-                            vmId,
-                            hypervisorType = "hyperv",
-                            hypervisorHost = hypervisor.Host,
-                            status = state.ToLower() == "running" ? "running" : "stopped",
-                            cpuCores = cpu,
-                            memoryMb = memory
-                        });
-                    }
-                }
+                _logger.LogWarning("Hyper-V discovery failed on {Host}: {Error}", hypervisor.Host, error);
+                return new List<object>();
             }
+
+            using var doc = JsonDocument.Parse(output);
+            var elements = doc.RootElement.ValueKind == JsonValueKind.Array
+                ? doc.RootElement.EnumerateArray().ToList()
+                : new List<JsonElement> { doc.RootElement };
+
+            return elements.Select(item => new
+            {
+                name = item.TryGetProperty("Name", out var name) ? name.GetString() ?? string.Empty : string.Empty,
+                vmId = item.TryGetProperty("Id", out var vmId) ? vmId.GetString() ?? string.Empty : string.Empty,
+                hypervisorType = "hyperv",
+                hypervisorHost = hypervisor.Host,
+                status = item.TryGetProperty("State", out var state) && string.Equals(state.GetString(), "Running", StringComparison.OrdinalIgnoreCase)
+                    ? "running"
+                    : "stopped",
+                cpuCores = item.TryGetProperty("CPUCount", out var cpu) ? cpu.GetInt32() : 0,
+                memoryMb = item.TryGetProperty("MemoryStartup", out var memory) ? memory.GetInt64() / (1024 * 1024) : 0
+            }).Cast<object>().ToList();
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Hyper-V discovery failed on {Host}", hypervisor.Host);
+            return new List<object>();
         }
-
-        return vms;
     }
 
     [HttpGet("{vmId}/backups")]
@@ -270,6 +321,21 @@ public class VirtualMachinesController : ControllerBase
 
         return Ok(backups);
     }
+}
+
+public class VirtualMachineDto
+{
+    public string? VmId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string HypervisorType { get; set; } = "hyperv";
+    public string HypervisorHost { get; set; } = string.Empty;
+    public string? IpAddress { get; set; }
+    public string? OsType { get; set; }
+    public long? MemoryMb { get; set; }
+    public int? CpuCores { get; set; }
+    public string? Disks { get; set; }
+    public string? Tags { get; set; }
+    public string? Status { get; set; }
 }
 
 public class DiscoverRequest

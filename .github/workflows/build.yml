@@ -31,6 +31,9 @@ jobs:
       - name: Test
         run: dotnet test src/server/Backup.Server.Tests --configuration Release --no-build --verbosity minimal
 
+      - name: Integration Tests
+        run: dotnet test src/server/Backup.Server.IntegrationTests --configuration Release --verbosity minimal
+
   build-agent-linux:
     runs-on: ubuntu-latest
     

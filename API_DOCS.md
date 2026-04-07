@@ -15,7 +15,7 @@ Authorization: Bearer <token>
 
 - On first installation, bootstrap admin credentials are created from configuration:
   - `BootstrapAdmin:Username` (default `admin`)
-  - `BootstrapAdmin:Password` (default `admin123`)
+  - `BootstrapAdmin:Password` (generated at first startup if not configured)
 - First login with bootstrap admin returns:
   - HTTP `403`
   - `code: "PASSWORD_CHANGE_REQUIRED"`
@@ -26,7 +26,7 @@ Change bootstrap password on first login.
 ```json
 Body: {
   "username": "admin",
-  "currentPassword": "admin123",
+  "currentPassword": "<generated-or-configured-bootstrap-password>",
   "newPassword": "StrongPassword123!"
 }
 ```
@@ -191,3 +191,4 @@ Agent status events
 
 ## Rate Limits
 - Rate limiting is currently disabled in this build configuration.
+

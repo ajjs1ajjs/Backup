@@ -1,62 +1,60 @@
-using Xunit;
-using Moq;
-using Microsoft.Extensions.Logging;
+using Backup.Server.Database.Entities;
 using Backup.Server.Services;
-using Backup.Server.Database;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
 
 namespace Backup.Server.Tests;
 
-public class JobServiceTests : IDisposable
+public class SchedulerServiceTests
 {
-    private readonly BackupDbContext _db;
-    private readonly JobServiceImpl _service;
+    private readonly SchedulerService _service;
 
-    public JobServiceTests()
+    public SchedulerServiceTests()
     {
-        var options = new DbContextOptionsBuilder<BackupDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        
-        _db = new BackupDbContext(options);
-        var logger = new Mock<ILogger<JobServiceImpl>>();
-        _service = new JobServiceImpl(logger.Object, _db);
-    }
-
-    public void Dispose()
-    {
-        _db.Dispose();
+        var logger = new Mock<ILogger<SchedulerService>>();
+        _service = new SchedulerService(logger.Object);
     }
 
     [Fact]
-    public async Task CreateJob_ShouldCreateJob()
+    public void CalculateNextRun_ShouldParseDirectCron()
     {
-        var request = new Backup.Contracts.JobRequest
+        var job = new Job
         {
-            Name = "Test Job",
-            JobType = Backup.Contracts.JobType.JobTypeFullBackup,
-            SourceId = "vm-1",
-            DestinationId = "repo-1",
-            Enabled = true
+            JobId = "job-1",
+            Schedule = "0 2 * * *"
         };
 
-        var result = await _service.CreateJob(request, Grpc.Core.ServerCallContext.Null);
+        var nextRun = _service.CalculateNextRun(job, new DateTime(2026, 4, 7, 1, 0, 0, DateTimeKind.Utc));
 
-        Assert.True(result.Success);
-        Assert.NotEmpty(result.JobId);
+        Assert.Equal(new DateTime(2026, 4, 7, 2, 0, 0, DateTimeKind.Utc), nextRun);
     }
 
     [Fact]
-    public async Task ListJobs_ShouldReturnJobs()
+    public void CalculateNextRun_ShouldParseJsonCronConfig()
     {
-        var request = new Backup.Contracts.JobListRequest
+        var job = new Job
         {
-            Page = 1,
-            PageSize = 10
+            JobId = "job-2",
+            Schedule = "{\"cron\":\"0 3 * * *\"}"
         };
 
-        var result = await _service.ListJobs(request, Grpc.Core.ServerCallContext.Null);
+        var nextRun = _service.CalculateNextRun(job, new DateTime(2026, 4, 7, 2, 0, 0, DateTimeKind.Utc));
 
-        Assert.NotNull(result);
+        Assert.Equal(new DateTime(2026, 4, 7, 3, 0, 0, DateTimeKind.Utc), nextRun);
+    }
+
+    [Fact]
+    public void CalculateNextRun_ShouldReturnNullForInvalidSchedule()
+    {
+        var job = new Job
+        {
+            JobId = "job-3",
+            Schedule = "not-a-cron"
+        };
+
+        var nextRun = _service.CalculateNextRun(job);
+
+        Assert.Null(nextRun);
     }
 }

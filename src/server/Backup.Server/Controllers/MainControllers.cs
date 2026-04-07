@@ -33,7 +33,10 @@ public class JobsController : ControllerBase
                 j.Name,
                 j.JobType,
                 j.SourceId,
+                j.SourceType,
                 j.DestinationId,
+                j.Schedule,
+                j.Options,
                 j.Enabled,
                 j.LastRun,
                 j.NextRun,
@@ -49,7 +52,7 @@ public class JobsController : ControllerBase
     [HttpGet("{jobId}")]
     public async Task<ActionResult> GetJob(string jobId)
     {
-        var job = await _db.Jobs.FindAsync(jobId);
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
         if (job == null) return NotFound();
         return Ok(job);
     }
@@ -63,8 +66,10 @@ public class JobsController : ControllerBase
             Name = jobDto.Name,
             JobType = Enum.Parse<JobType>(jobDto.JobType, true),
             SourceId = jobDto.SourceId,
+            SourceType = jobDto.SourceType,
             DestinationId = jobDto.DestinationId,
             Schedule = jobDto.Schedule,
+            Options = string.IsNullOrWhiteSpace(jobDto.Options) ? "{}" : jobDto.Options,
             Enabled = jobDto.Enabled,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -77,29 +82,20 @@ public class JobsController : ControllerBase
         return CreatedAtAction(nameof(GetJob), new { jobId = job.JobId }, job);
     }
 
-public class JobDto
-{
-    public string Name { get; set; } = string.Empty;
-    public string JobType { get; set; } = "Full";
-    public string SourceId { get; set; } = string.Empty;
-    public string DestinationId { get; set; } = string.Empty;
-    public string? Schedule { get; set; }
-    public bool Enabled { get; set; } = true;
-}
-
     [HttpPut("{jobId}")]
-    public async Task<ActionResult> UpdateJob(string jobId, [FromBody] Job job)
+    public async Task<ActionResult> UpdateJob(string jobId, [FromBody] JobDto jobDto)
     {
-        var existing = await _db.Jobs.FindAsync(jobId);
+        var existing = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
         if (existing == null) return NotFound();
         
-        existing.Name = job.Name;
-        existing.JobType = job.JobType;
-        existing.SourceId = job.SourceId;
-        existing.DestinationId = job.DestinationId;
-        existing.Schedule = job.Schedule;
-        existing.Options = job.Options;
-        existing.Enabled = job.Enabled;
+        existing.Name = jobDto.Name;
+        existing.JobType = Enum.Parse<JobType>(jobDto.JobType, true);
+        existing.SourceId = jobDto.SourceId;
+        existing.SourceType = jobDto.SourceType;
+        existing.DestinationId = jobDto.DestinationId;
+        existing.Schedule = jobDto.Schedule;
+        existing.Options = string.IsNullOrWhiteSpace(jobDto.Options) ? "{}" : jobDto.Options;
+        existing.Enabled = jobDto.Enabled;
         existing.UpdatedAt = DateTime.UtcNow;
         
         await _db.SaveChangesAsync();
@@ -109,7 +105,7 @@ public class JobDto
     [HttpDelete("{jobId}")]
     public async Task<ActionResult> DeleteJob(string jobId)
     {
-        var job = await _db.Jobs.FindAsync(jobId);
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
         if (job == null) return NotFound();
         
         _db.Jobs.Remove(job);
@@ -121,7 +117,7 @@ public class JobDto
     [HttpPost("{jobId}/run")]
     public async Task<ActionResult> RunJob(string jobId)
     {
-        var job = await _db.Jobs.FindAsync(jobId);
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
         if (job == null) return NotFound();
         
         var runHistory = new JobRunHistory
@@ -156,6 +152,18 @@ public class JobDto
     }
 }
 
+public class JobDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string JobType { get; set; } = "Full";
+    public string SourceId { get; set; } = string.Empty;
+    public string SourceType { get; set; } = "VirtualMachine";
+    public string DestinationId { get; set; } = string.Empty;
+    public string? Schedule { get; set; }
+    public string Options { get; set; } = "{}";
+    public bool Enabled { get; set; } = true;
+}
+
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -180,7 +188,7 @@ public class AgentsController : ControllerBase
     [HttpGet("{agentId}")]
     public async Task<ActionResult> GetAgent(long agentId)
     {
-        var agent = await _db.Agents.FindAsync(agentId);
+        var agent = await _db.Agents.FirstOrDefaultAsync(a => a.Id == agentId);
         if (agent == null) return NotFound();
         return Ok(agent);
     }
@@ -188,7 +196,7 @@ public class AgentsController : ControllerBase
     [HttpDelete("{agentId}")]
     public async Task<ActionResult> DeleteAgent(long agentId)
     {
-        var agent = await _db.Agents.FindAsync(agentId);
+        var agent = await _db.Agents.FirstOrDefaultAsync(a => a.Id == agentId);
         if (agent == null) return NotFound();
         
         _db.Agents.Remove(agent);
@@ -222,17 +230,27 @@ public class RepositoriesController : ControllerBase
     [HttpGet("{repositoryId}")]
     public async Task<ActionResult> GetRepository(string repositoryId)
     {
-        var repo = await _db.Repositories.FindAsync(repositoryId);
+        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
         if (repo == null) return NotFound();
         return Ok(repo);
     }
 
     [HttpPost]
-    public async Task<ActionResult> CreateRepository([FromBody] Repository repository)
+    public async Task<ActionResult> CreateRepository([FromBody] RepositoryDto repositoryDto)
     {
-        repository.RepositoryId = Guid.NewGuid().ToString();
-        repository.CreatedAt = DateTime.UtcNow;
-        repository.UpdatedAt = DateTime.UtcNow;
+        var repository = new Repository
+        {
+            RepositoryId = Guid.NewGuid().ToString(),
+            Name = repositoryDto.Name,
+            Type = Enum.Parse<RepositoryType>(repositoryDto.Type, true),
+            Path = repositoryDto.Path,
+            Status = string.IsNullOrWhiteSpace(repositoryDto.Status) ? "online" : repositoryDto.Status,
+            CapacityBytes = repositoryDto.CapacityBytes,
+            Credentials = repositoryDto.Credentials,
+            Options = string.IsNullOrWhiteSpace(repositoryDto.Options) ? "{}" : repositoryDto.Options,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
         
         _db.Repositories.Add(repository);
         await _db.SaveChangesAsync();
@@ -254,7 +272,7 @@ public class RepositoriesController : ControllerBase
     [HttpDelete("{repositoryId}")]
     public async Task<ActionResult> DeleteRepository(string repositoryId)
     {
-        var repo = await _db.Repositories.FindAsync(repositoryId);
+        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
         if (repo == null) return NotFound();
         
         _db.Repositories.Remove(repo);
@@ -262,4 +280,15 @@ public class RepositoriesController : ControllerBase
         
         return NoContent();
     }
+}
+
+public class RepositoryDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Type { get; set; } = "Local";
+    public string Path { get; set; } = string.Empty;
+    public string? Status { get; set; }
+    public long? CapacityBytes { get; set; }
+    public string? Credentials { get; set; }
+    public string? Options { get; set; }
 }

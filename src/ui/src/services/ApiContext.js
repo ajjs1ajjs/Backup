@@ -36,6 +36,9 @@ api.interceptors.response.use(
 );
 
 export const fetchWithAuth = async (url, options = {}) => {
+  const requestUrl = /^https?:\/\//i.test(url)
+    ? url
+    : `${API_URL}${url}`;
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   try {
     const raw = localStorage.getItem('auth-storage');
@@ -47,7 +50,7 @@ export const fetchWithAuth = async (url, options = {}) => {
       }
     }
   } catch (e) { /* ignore */ }
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(requestUrl, { ...options, headers });
   if (response.status === 401) {
     window.location.href = '/login';
     throw new Error('Unauthorized');

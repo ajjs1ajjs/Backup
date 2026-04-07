@@ -1,70 +1,195 @@
-using Backup.Server.Database;
-using Backup.Server.Services;
 using Backup.Server.BackgroundServices;
-using Microsoft.EntityFrameworkCore;
+using Backup.Server.Database;
+using Backup.Server.Database.Entities;
+using Backup.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Backup.Server.Database.Entities;
 using Serilog;
-using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Security.Cryptography;
-using System.Text;
 using System.Net;
 using System.Net.Sockets;
-using System.ServiceProcess;
+using System.Security.Cryptography;
+using System.Text;
 
-var isService = Environment.UserInteractive == false
-    || Environment.CommandLine.Contains("--service")
-    || AppDomain.CurrentDomain.FriendlyName.Contains("Backup.Server", StringComparison.OrdinalIgnoreCase);
+namespace Backup.Server;
 
-var logConfig = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
-
-if (isService)
+public partial class Program
 {
-    var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
-    Directory.CreateDirectory(logDir);
-    logConfig.WriteTo.File(
-        Path.Combine(logDir, "backup-server-.log"),
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
-}
+    private const int DefaultServerPort = 8000;
 
-Log.Logger = logConfig.CreateLogger();
-
-try
-{
-    if (isService)
-        Log.Information("Starting Backup Server as Windows Service...");
-    else
-        Log.Information("Starting Backup Server (console mode)...");
-
-    const int defaultServerPort = 8000;
-
-    var builder = WebApplication.CreateBuilder(args);
-
-    builder.Host.UseSerilog();
-
-    if (isService)
+    public static async Task Main(string[] args)
     {
-        builder.Host.UseWindowsService(options =>
-        {
-            options.ServiceName = "BackupServer";
-        });
+        Environment.ExitCode = await RunAsync(args);
     }
 
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Data Source=backup.db";
-
-    builder.Services.AddDbContext<BackupDbContext>(options =>
-        options.UseSqlite(connectionString));
-
-    var jwtKey = builder.Configuration["Jwt:Key"];
-    if (string.IsNullOrWhiteSpace(jwtKey))
+    public static async Task<int> RunAsync(string[] args)
     {
+        var isService = Environment.UserInteractive == false
+            || Environment.CommandLine.Contains("--service")
+            || AppDomain.CurrentDomain.FriendlyName.Contains("Backup.Server", StringComparison.OrdinalIgnoreCase);
+
+        ConfigureLogging(isService);
+
+        try
+        {
+            if (isService)
+            {
+                Log.Information("Starting Backup Server as Windows Service...");
+            }
+            else
+            {
+                Log.Information("Starting Backup Server (console mode)...");
+            }
+
+            var app = BuildApplication(args, isService);
+            await InitializeApplicationAsync(app);
+            await app.RunAsync();
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Server terminated unexpectedly");
+            return 1;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+
+    private static void ConfigureLogging(bool isService)
+    {
+        var logConfig = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+        if (isService)
+        {
+            var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            Directory.CreateDirectory(logDir);
+            logConfig.WriteTo.File(
+                Path.Combine(logDir, "backup-server-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 30,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
+        }
+
+        Log.Logger = logConfig.CreateLogger();
+    }
+
+    private static WebApplication BuildApplication(string[] args, bool isService)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Host.UseSerilog();
+
+        if (isService)
+        {
+            builder.Host.UseWindowsService(options =>
+            {
+                options.ServiceName = "BackupServer";
+            });
+        }
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? "Data Source=backup.db";
+
+        builder.Services.AddDbContext<BackupDbContext>(options =>
+            options.UseSqlite(connectionString));
+
+        var jwtKey = EnsureJwtKey(builder.Configuration);
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
+        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
+
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtIssuer,
+                ValidAudience = jwtAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                ClockSkew = TimeSpan.Zero
+            };
+        });
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+            options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
+            options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
+
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            });
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Backup API", Version = "v1" });
+            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Description = "JWT Authorization header using the Bearer scheme",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.ApiKey,
+                Scheme = "Bearer"
+            });
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
+
+        ConfigureCors(builder);
+
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+        builder.Services.AddScoped<SchedulerService>();
+        builder.Services.AddScoped<RepositoryService>();
+        builder.Services.AddScoped<CloudStorageService>();
+        builder.Services.AddScoped<FastCloneService>();
+        builder.Services.AddScoped<RestoreService>();
+        builder.Services.AddSingleton<IRestoreQueue, RestoreQueue>();
+        builder.Services.AddHostedService<JobSchedulerService>();
+        builder.Services.AddHostedService<AgentHealthCheckService>();
+        builder.Services.AddHostedService<RetentionPolicyService>();
+        builder.Services.AddHostedService<RestoreProcessingService>();
+
+        var app = builder.Build();
+        ConfigureMiddleware(app);
+        return app;
+    }
+
+    private static string EnsureJwtKey(ConfigurationManager configuration)
+    {
+        var jwtKey = configuration["Jwt:Key"];
+        if (!string.IsNullOrWhiteSpace(jwtKey))
+        {
+            return jwtKey;
+        }
+
         var jwtKeyPath = Path.Combine(AppContext.BaseDirectory, "jwt.key");
         if (File.Exists(jwtKeyPath))
         {
@@ -73,146 +198,106 @@ try
             {
                 throw new InvalidOperationException("Jwt:Key is empty in configuration and jwt.key file");
             }
+
             Log.Information("JWT key loaded from jwt.key file");
+            configuration["Jwt:Key"] = jwtKey;
+            return jwtKey;
         }
-        else
-        {
-            using var rng = RandomNumberGenerator.Create();
-            var bytes = new byte[64];
-            rng.GetBytes(bytes);
-            jwtKey = Convert.ToBase64String(bytes);
-            File.WriteAllText(jwtKeyPath, jwtKey);
-            File.SetAttributes(jwtKeyPath, FileAttributes.Hidden);
-            Log.Warning("Generated new JWT key and saved to jwt.key — keep this file secure!");
-        }
+
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        jwtKey = Convert.ToBase64String(bytes);
+        File.WriteAllText(jwtKeyPath, jwtKey);
+        File.SetAttributes(jwtKeyPath, FileAttributes.Hidden);
+        configuration["Jwt:Key"] = jwtKey;
+        Log.Warning("Generated new JWT key and saved to jwt.key. Keep this file secure.");
+        return jwtKey;
     }
-    var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
-    var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
 
-    builder.Services.AddAuthentication(options =>
+    private static void ConfigureCors(WebApplicationBuilder builder)
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ClockSkew = TimeSpan.Zero
-        };
-    });
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+            ?? Array.Empty<string>();
+        var developmentOrigins = BuildDevelopmentCorsOrigins(
+            builder.Configuration["Server:PublicUrl"],
+            DefaultServerPort);
 
-    builder.Services.AddAuthorization(options =>
-    {
-        options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
-        options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
-        options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
-    });
-
-    builder.Services.AddControllers()
-        .AddJsonOptions(options =>
+        builder.Services.AddCors(options =>
         {
-            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        });
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(c =>
-    {
-        c.SwaggerDoc("v1", new() { Title = "Backup API", Version = "v1" });
-        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-        {
-            Description = "JWT Authorization header using the Bearer scheme",
-            Name = "Authorization",
-            In = ParameterLocation.Header,
-            Type = SecuritySchemeType.ApiKey,
-            Scheme = "Bearer"
-        });
-        c.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
+            if (allowedOrigins.Length > 0)
             {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-                },
-                Array.Empty<string>()
+                options.AddDefaultPolicy(policy => policy
+                    .WithOrigins(allowedOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials());
+            }
+            else
+            {
+                options.AddDefaultPolicy(policy => policy
+                    .WithOrigins(developmentOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader());
+                Log.Warning(
+                    "No AllowedOrigins configured. CORS is limited to local development origins: {Origins}. Configure AllowedOrigins for deployed environments.",
+                    string.Join(", ", developmentOrigins));
             }
         });
-    });
-
-    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-        ?? Array.Empty<string>();
-
-    builder.Services.AddCors(o =>
-    {
-        if (allowedOrigins.Length > 0)
-        {
-            o.AddDefaultPolicy(p => p
-                .WithOrigins(allowedOrigins)
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials());
-        }
-        else
-        {
-            o.AddDefaultPolicy(p => p
-                .SetIsOriginAllowed(_ => true)
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials());
-            Log.Warning("No AllowedOrigins configured — CORS allows all origins. Set AllowedOrigins in appsettings.json for production.");
-        }
-    });
-
-    builder.Services.AddScoped<IAuthService, AuthService>();
-    builder.Services.AddScoped<IEncryptionService, EncryptionService>();
-
-    // Примусово встановлюємо JWT ключ в конфігурацію, щоб AuthService міг його прочитати
-    builder.Configuration["Jwt:Key"] = jwtKey;
-
-    builder.Services.AddHostedService<JobSchedulerService>();
-    builder.Services.AddHostedService<AgentHealthCheckService>();
-    builder.Services.AddHostedService<RetentionPolicyService>();
-
-    var app = builder.Build();
-
-    var hostAddress = Dns.GetHostAddresses(Dns.GetHostName())
-        .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
-        ?.ToString() ?? "localhost";
-
-    if (!app.Urls.Any())
-    {
-        app.Urls.Add($"http://localhost:{defaultServerPort}");
-        app.Urls.Add($"http://{hostAddress}:{defaultServerPort}");
     }
 
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    private static void ConfigureMiddleware(WebApplication app)
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Backup API v1");
-        c.RoutePrefix = "swagger";
-    });
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Backup API v1");
+            c.RoutePrefix = "swagger";
+        });
 
-    using (var scope = app.Services.CreateScope())
+        app.UseSerilogRequestLogging();
+        app.UseCors();
+        app.UseStaticFiles();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapControllers();
+        app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+        app.MapFallbackToFile("index.html");
+    }
+
+    private static async Task InitializeApplicationAsync(WebApplication app)
     {
+        var hostAddress = Dns.GetHostAddresses(Dns.GetHostName())
+            .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+            ?.ToString() ?? "localhost";
+
+        if (!app.Urls.Any())
+        {
+            app.Urls.Add($"http://localhost:{DefaultServerPort}");
+            app.Urls.Add($"http://{hostAddress}:{DefaultServerPort}");
+        }
+
+        using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
         db.Database.Migrate();
         Log.Information("Database migrations applied");
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
-        var bootstrapAdminUsername = builder.Configuration["BootstrapAdmin:Username"] ?? "admin";
-        var bootstrapAdminEmail = builder.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
-        var bootstrapAdminPassword = builder.Configuration["BootstrapAdmin:Password"] ?? "admin123";
-        var configuredPublicServerUrl = builder.Configuration["Server:PublicUrl"];
-        var publicServerUrl = configuredPublicServerUrl;
+        var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "admin";
+        var bootstrapAdminEmail = app.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
+        var bootstrapAdminPassword = app.Configuration["BootstrapAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(bootstrapAdminPassword))
+        {
+            bootstrapAdminPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
+            Log.Warning(
+                "Bootstrap admin password was not configured. Generated a temporary password for user {Username}: {Password}",
+                bootstrapAdminUsername,
+                bootstrapAdminPassword);
+        }
+
+        var publicServerUrl = app.Configuration["Server:PublicUrl"];
         if (string.IsNullOrWhiteSpace(publicServerUrl))
         {
-            publicServerUrl = $"http://{hostAddress}:{defaultServerPort}";
+            publicServerUrl = $"http://{hostAddress}:{DefaultServerPort}";
         }
 
         var adminUser = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
@@ -230,7 +315,6 @@ try
         }
         else if (!adminUser.PasswordHash.Contains('.'))
         {
-            // Міграція старого SHA256 хешу на новий PBKDF2
             Log.Warning("Legacy password hash detected for user {Username}. Migrating to PBKDF2...", bootstrapAdminUsername);
             adminUser.PasswordHash = authService.HashPasswordStatic(bootstrapAdminPassword);
             await db.SaveChangesAsync();
@@ -252,28 +336,20 @@ try
         }
     }
 
-    app.UseSerilogRequestLogging();
-    app.UseCors();
-    app.UseStaticFiles();
-    app.UseAuthentication();
-    app.UseAuthorization();
+    private static string[] BuildDevelopmentCorsOrigins(string? configuredPublicUrl, int defaultServerPort)
+    {
+        var origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            $"http://localhost:{defaultServerPort}",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+        };
 
-    app.MapControllers();
+        if (Uri.TryCreate(configuredPublicUrl, UriKind.Absolute, out var publicUri))
+        {
+            origins.Add(publicUri.GetLeftPart(UriPartial.Authority));
+        }
 
-    app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-
-    app.MapFallbackToFile("index.html");
-
-    app.Run();
+        return origins.ToArray();
+    }
 }
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Server terminated unexpectedly");
-    return 1;
-}
-finally
-{
-    Log.CloseAndFlush();
-}
-
-return 0;

@@ -1,99 +1,74 @@
-using Microsoft.AspNetCore.Hosting;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Backup.Server.Database;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Grpc.Net.Client;
-using Backup.Server.Database;
-using Testcontainers.PostgreSql;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Xunit;
 
 namespace Backup.Server.IntegrationTests;
 
 public class IntegrationTestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgresContainer;
+    private SqliteConnection? _connection;
 
-    public IntegrationTestWebApplicationFactory()
-    {
-        _postgresContainer = new PostgreSqlBuilder()
-            .WithImage("postgres:14")
-            .WithDatabase("backup_test")
-            .WithUsername("postgres")
-            .WithPassword("postgres")
-            .Build();
-    }
-
-    protected override IHost CreateHost(IHostBuilder builder)
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<BackupDbContext>));
+            _connection = new SqliteConnection("Data Source=:memory:");
+            _connection.Open();
 
-            if (descriptor != null)
-            {
-                services.Remove(descriptor);
-            }
-
-            services.AddDbContext<BackupDbContext>((sp, options) =>
-            {
-                var connectionString = _postgresContainer.GetConnectionString();
-                options.UseNpgsql(connectionString);
-            });
+            services.RemoveAll(typeof(DbContextOptions<BackupDbContext>));
+            services.AddDbContext<BackupDbContext>(options => options.UseSqlite(_connection));
         });
-
-        return base.CreateHost(builder);
     }
 
     public async Task InitializeAsync()
     {
-        await _postgresContainer.StartAsync();
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
+        await db.Database.EnsureCreatedAsync();
     }
 
     public new async Task DisposeAsync()
     {
-        await _postgresContainer.StopAsync();
+        if (_connection != null)
+        {
+            await _connection.DisposeAsync();
+        }
     }
 }
 
-public class GrpcIntegrationTestFixture : IAsyncLifetime
+public static class TestAuthHelper
 {
-    private readonly HttpClient _httpClient;
-    private readonly HttpMessageHandler _handler;
-
-    public GrpcIntegrationTestFixture()
+    public static async Task<string> RegisterAndAuthenticateAsync(HttpClient client, string usernameSuffix)
     {
-        var factory = new IntegrationTestWebApplicationFactory();
-        _httpClient = factory.CreateClient();
-        _handler = factory.Server.CreateHandler();
-    }
-
-    public GrpcChannel CreateGrpcChannel()
-    {
-        var serverUrl = Environment.GetEnvironmentVariable("TEST_ServerUrl")
-            ?? _httpClient.BaseAddress?.ToString()
-            ?? "http://localhost:8000";
-
-        return GrpcChannel.ForAddress(serverUrl, new GrpcChannelOptions
+        var request = new
         {
-            HttpHandler = _handler
-        });
-    }
+            username = $"tester-{usernameSuffix}",
+            email = $"tester-{usernameSuffix}@example.com",
+            password = "StrongPass123!",
+            role = "Admin"
+        };
 
-    public HttpClient CreateHttpClient()
-    {
-        return _httpClient;
-    }
+        var response = await client.PostAsJsonAsync("/api/auth/register", request);
+        response.EnsureSuccessStatusCode();
 
-    public async Task InitializeAsync()
-    {
-        await Task.CompletedTask;
-    }
+        var payload = await response.Content.ReadFromJsonAsync<AuthTokenResponse>();
+        if (string.IsNullOrWhiteSpace(payload?.Token))
+        {
+            throw new InvalidOperationException("Auth token was not returned");
+        }
 
-    public async Task DisposeAsync()
-    {
-        _httpClient.Dispose();
-        await Task.CompletedTask;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", payload.Token);
+        return payload.Token;
     }
+}
+
+public class AuthTokenResponse
+{
+    public string? Token { get; set; }
 }
