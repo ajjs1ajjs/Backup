@@ -365,15 +365,23 @@ function Install-Server {
         if (Test-Path $uiProject) {
             Write-Log "Building UI..."
             Set-Location (Join-Path $projectRoot "src\ui")
-            npm install --production
+            npm install
             npm run build
             if (Test-Path "build") {
-                Move-Item "build" $uiDir -Force
+                $publishDir = Join-Path $serverDir "publish"
+                $wwwroot = Join-Path $publishDir "wwwroot"
+                Copy-Item "build/*" -Destination $wwwroot -Recurse -Force
             }
             Set-Location $projectRoot
         }
     } else {
         Write-Log "Warning: Node.js not found, skipping UI build"
+    }
+    
+    # Restart service
+    Write-Log "Restarting service..."
+    if (Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue) {
+        Restart-Service -Name "BackupServer" -Force
     }
     
     Write-Log "Server installation complete"
