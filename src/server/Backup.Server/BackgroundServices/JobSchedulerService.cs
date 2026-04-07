@@ -28,6 +28,8 @@ public class JobSchedulerService : BackgroundService
                 using var scope = _services.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
                 var scheduler = scope.ServiceProvider.GetRequiredService<SchedulerService>();
+                var backupService = scope.ServiceProvider.GetRequiredService<BackupExecutionService>();
+                var backupQueue = scope.ServiceProvider.GetRequiredService<IBackupQueue>();
 
                 var pendingJobs = await db.Jobs
                     .Where(j => j.Enabled && j.NextRun <= DateTime.UtcNow)
@@ -36,21 +38,20 @@ public class JobSchedulerService : BackgroundService
 
                 foreach (var job in pendingJobs)
                 {
-                    _logger.LogInformation("Triggering job {JobId}: {Name}", job.JobId, job.Name);
-                    
-                    var runHistory = new JobRunHistory
-                    {
-                        RunId = Guid.NewGuid().ToString(),
-                        JobId = job.JobId,
-                        StartTime = DateTime.UtcNow,
-                        Status = "running"
-                    };
-                    db.JobRunHistory.Add(runHistory);
-                    
+                    _logger.LogInformation("Scheduling job {JobId}: {Name}", job.JobId, job.Name);
                     job.LastRun = DateTime.UtcNow;
                     job.NextRun = scheduler.CalculateNextRun(job, job.LastRun);
-
                     await db.SaveChangesAsync(stoppingToken);
+
+                    var queueResult = await backupService.QueueJobAsync(job.JobId, stoppingToken);
+                    if (queueResult.Success)
+                    {
+                        await backupQueue.QueueAsync(queueResult.RunId, stoppingToken);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to queue scheduled job {JobId}: {Message}", job.JobId, queueResult.Message);
+                    }
                 }
             }
             catch (Exception ex)

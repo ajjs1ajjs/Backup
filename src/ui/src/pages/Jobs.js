@@ -234,6 +234,7 @@ export default function Jobs() {
                 <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>DESTINATION</TableCell>
                 <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>SCHEDULE</TableCell>
                 <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>LAST RUN</TableCell>
+                <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>RUN STATUS</TableCell>
                 <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>NEXT RUN</TableCell>
                 <TableCell sx={{ color: '#8b92a5', fontWeight: 600, fontSize: '0.75rem' }}>ACTIONS</TableCell>
               </TableRow>
@@ -262,6 +263,31 @@ export default function Jobs() {
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.destinationId || '-'}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{formatSchedule(job.schedule)}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.lastRun ? new Date(job.lastRun).toLocaleString() : '-'}</TableCell>
+                  <TableCell>
+                    {job.latestRun?.status ? (
+                      <Chip
+                        label={job.latestRun.status}
+                        size="small"
+                        sx={{
+                          fontSize: '0.7rem',
+                          height: 22,
+                          bgcolor:
+                            String(job.latestRun.status).toLowerCase() === 'completed' ? '#66bb6a20' :
+                            String(job.latestRun.status).toLowerCase() === 'running' ? '#4fc3f720' :
+                            String(job.latestRun.status).toLowerCase() === 'queued' ? '#ffa72620' :
+                            String(job.latestRun.status).toLowerCase() === 'failed' ? '#ef535020' :
+                            '#bdbdbd20',
+                          color:
+                            String(job.latestRun.status).toLowerCase() === 'completed' ? '#66bb6a' :
+                            String(job.latestRun.status).toLowerCase() === 'running' ? '#4fc3f7' :
+                            String(job.latestRun.status).toLowerCase() === 'queued' ? '#ffa726' :
+                            String(job.latestRun.status).toLowerCase() === 'failed' ? '#ef5350' :
+                            '#757575',
+                          fontWeight: 'bold'
+                        }}
+                      />
+                    ) : '-'}
+                  </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{job.nextRun ? new Date(job.nextRun).toLocaleString() : '-'}</TableCell>
                   <TableCell>
                     <Tooltip title="Run now">

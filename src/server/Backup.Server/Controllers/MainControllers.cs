@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Backup.Server.BackgroundServices;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
 
@@ -13,36 +14,73 @@ public class JobsController : ControllerBase
 {
     private readonly BackupDbContext _db;
     private readonly ILogger<JobsController> _logger;
+    private readonly Backup.Server.Services.BackupExecutionService _backupExecutionService;
+    private readonly IBackupQueue _backupQueue;
 
-    public JobsController(BackupDbContext db, ILogger<JobsController> logger)
+    public JobsController(
+        BackupDbContext db,
+        ILogger<JobsController> logger,
+        Backup.Server.Services.BackupExecutionService backupExecutionService,
+        IBackupQueue backupQueue)
     {
         _db = db;
         _logger = logger;
+        _backupExecutionService = backupExecutionService;
+        _backupQueue = backupQueue;
     }
 
     [HttpGet]
     [Authorize(Policy = "Viewer")]
     public async Task<ActionResult> GetJobs([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var jobs = await _db.Jobs
+        var jobsPage = await _db.Jobs
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(j => new
-            {
-                j.JobId,
-                j.Name,
-                j.JobType,
-                j.SourceId,
-                j.SourceType,
-                j.DestinationId,
-                j.Schedule,
-                j.Options,
-                j.Enabled,
-                j.LastRun,
-                j.NextRun,
-                j.CreatedAt
-            })
             .ToListAsync();
+
+        var jobIds = jobsPage.Select(job => job.JobId).ToList();
+        var latestRuns = await _db.JobRunHistory
+            .Where(run => jobIds.Contains(run.JobId))
+            .OrderByDescending(run => run.StartTime)
+            .ToListAsync();
+
+        var latestRunsByJobId = latestRuns
+            .GroupBy(run => run.JobId)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        var jobs = jobsPage
+            .Select(job =>
+            {
+                latestRunsByJobId.TryGetValue(job.JobId, out var latestRun);
+
+                return new
+                {
+                    job.JobId,
+                    job.Name,
+                    job.JobType,
+                    job.SourceId,
+                    job.SourceType,
+                    job.DestinationId,
+                    job.Schedule,
+                    job.Options,
+                    job.Enabled,
+                    job.LastRun,
+                    job.NextRun,
+                    job.CreatedAt,
+                    LatestRun = latestRun == null ? null : new
+                    {
+                        latestRun.RunId,
+                        latestRun.Status,
+                        latestRun.StartTime,
+                        latestRun.EndTime,
+                        latestRun.BytesProcessed,
+                        latestRun.FilesProcessed,
+                        latestRun.SpeedMbps,
+                        latestRun.ErrorMessage
+                    }
+                };
+            })
+            .ToList();
 
         var total = await _db.Jobs.CountAsync();
 
@@ -119,20 +157,17 @@ public class JobsController : ControllerBase
     {
         var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
         if (job == null) return NotFound();
-        
-        var runHistory = new JobRunHistory
+
+        var queueResult = await _backupExecutionService.QueueJobAsync(jobId);
+        if (!queueResult.Success)
         {
-            RunId = Guid.NewGuid().ToString(),
-            JobId = jobId,
-            StartTime = DateTime.UtcNow,
-            Status = "running"
-        };
-        
-        _db.JobRunHistory.Add(runHistory);
-        await _db.SaveChangesAsync();
-        
-        _logger.LogInformation("Started job {JobId}", jobId);
-        return Ok(new { runId = runHistory.RunId, message = "Job started" });
+            return BadRequest(new { message = queueResult.Message, runId = queueResult.RunId });
+        }
+
+        await _backupQueue.QueueAsync(queueResult.RunId);
+
+        _logger.LogInformation("Queued job {JobId} as run {RunId}", jobId, queueResult.RunId);
+        return Ok(new { runId = queueResult.RunId, message = queueResult.Message, status = "queued" });
     }
 
     [HttpPost("{jobId}/stop")]
@@ -149,6 +184,61 @@ public class JobsController : ControllerBase
         }
         
         return Ok(new { message = "Job stopped" });
+    }
+
+    [HttpGet("{jobId}/runs")]
+    [Authorize(Policy = "Viewer")]
+    public async Task<ActionResult> GetJobRuns(string jobId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var jobExists = await _db.Jobs.AnyAsync(j => j.JobId == jobId);
+        if (!jobExists) return NotFound();
+
+        var query = _db.JobRunHistory
+            .Where(r => r.JobId == jobId)
+            .OrderByDescending(r => r.StartTime);
+
+        var total = await query.CountAsync();
+        var runs = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new
+            {
+                r.RunId,
+                r.JobId,
+                r.StartTime,
+                r.EndTime,
+                r.Status,
+                r.BytesProcessed,
+                r.FilesProcessed,
+                r.SpeedMbps,
+                r.ErrorMessage
+            })
+            .ToListAsync();
+
+        return Ok(new { runs, total, page, pageSize });
+    }
+
+    [HttpGet("runs/{runId}")]
+    [Authorize(Policy = "Viewer")]
+    public async Task<ActionResult> GetRun(string runId)
+    {
+        var run = await _db.JobRunHistory
+            .Select(r => new
+            {
+                r.RunId,
+                r.JobId,
+                r.StartTime,
+                r.EndTime,
+                r.Status,
+                r.BytesProcessed,
+                r.FilesProcessed,
+                r.SpeedMbps,
+                r.ErrorMessage
+            })
+            .FirstOrDefaultAsync(r => r.RunId == runId);
+
+        if (run == null) return NotFound();
+        return Ok(run);
     }
 }
 

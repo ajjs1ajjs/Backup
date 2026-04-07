@@ -169,9 +169,12 @@ public partial class Program
         builder.Services.AddScoped<SchedulerService>();
         builder.Services.AddScoped<RepositoryService>();
         builder.Services.AddScoped<CloudStorageService>();
+        builder.Services.AddScoped<BackupExecutionService>();
         builder.Services.AddScoped<FastCloneService>();
         builder.Services.AddScoped<RestoreService>();
+        builder.Services.AddSingleton<IBackupQueue, BackupQueue>();
         builder.Services.AddSingleton<IRestoreQueue, RestoreQueue>();
+        builder.Services.AddHostedService<BackupProcessingService>();
         builder.Services.AddHostedService<JobSchedulerService>();
         builder.Services.AddHostedService<AgentHealthCheckService>();
         builder.Services.AddHostedService<RetentionPolicyService>();

@@ -1,114 +1,37 @@
-# Фаза 1: Архітектура, інфраструктура та контракти (Місяці 1-2)
+# Roadmap
 
-# На цьому етапі закладається фундамент для спілкування двох різних технологічних світів.
+## 1. Backup Engine
 
-# 
+- implement full backup execution beyond the current restore-focused MVP
+- add stronger backup point creation, metadata, and verification flows
+- improve retention and repository lifecycle handling
 
-# 1.1. Проєктування API та IPC: Визначення gRPC/Protobuf контрактів для обміну повідомленнями між C# сервером та C++ агентами (передача команд на старт бекапу, отримання статусів, логів).
+## 2. Hypervisor Depth
 
-# 
+- expand VMware integration beyond the current limited path
+- deepen KVM support
+- tighten inventory, discovery, and execution flows for managed workloads
 
-# 1.2. Вибір та налаштування БД: Розгортання реляційної бази даних (наприклад, PostgreSQL) для збереження конфігурацій, історії завдань та каталогів файлів. Налаштування Entity Framework Core (C#) для роботи з нею.
+## 3. Recovery Features
 
-# 
+- improve instant restore and file-level recovery behavior
+- add more robust cancel, retry, and progress reporting flows
+- extend recovery validation and operator feedback in the UI
 
-# 1.3. CI/CD пайплайни: Налаштування автоматичного збирання проєкту (CMake для C++ агентів під Windows/Linux, та .NET CLI для C# сервера).
+## 4. Deployment and CI
 
-# 
+- keep CI running unit and integration tests automatically
+- improve publish flow for the server and built UI assets
+- document production deployment expectations and secrets handling
 
-# Фаза 2: Розробка ядра обробки даних на C++ (Місяці 3-5)
+## 5. UX and Operator Flow
 
-# Тут створюються "м'язи" системи, які будуть перекачувати терабайти даних.
+- continue polishing remaining UI screens for consistency
+- improve dashboard and reporting usefulness
+- reduce confusion around partial or not-yet-implemented workflows
 
-# 
+## 6. Verification
 
-# 2.1. Транспортні агенти (Data Movers): Розробка багатопотокових служб на C++ для ефективного зчитування та запису блоків даних.
-
-# 
-
-# 2.2. Інтеграція з гіпервізорами: Робота з нативними бібліотеками (наприклад, VMware VDDK) на C++ для створення снапшотів та отримання доступу до віртуальних дисків (VMDK).
-
-# 
-
-# 2.3. CBT (Changed Block Tracking): Реалізація механізму запиту змінених блоків через API гіпервізора, щоб копіювати лише нові дані (інкрементний бекап).
-
-# 
-
-# 2.4. Обробка потоку: Впровадження алгоритмів потокової компресії (наприклад, Zstd) та хешування (SHA-256 або xxHash) для дедуплікації даних на стороні джерела (щоб не передавати по мережі зайве).
-
-# 
-
-# Фаза 3: Розробка керуючого сервера на C# (Місяці 4-6)
-
-# Створення "мозку" системи, який оркеструє всі процеси. Ця фаза може йти паралельно з Фазою 2.
-
-# 
-
-# 3.1. Management Service: Розробка основної служби-координатора на ASP.NET Core (Background Services).
-
-# 
-
-# 3.2. Планувальник завдань (Scheduler): Інтеграція бібліотек (наприклад, Quartz.NET) для гнучкого налаштування розкладів бекапу (щодня, щогодини, GFS-ротація).
-
-# 
-
-# 3.3. Керування репозиторіями: Логіка розподілу бекапів по дисках, контроль вільного місця та застосування політик зберігання (Retention policies — скільки точок відновлення тримати).
-
-# 
-
-# 3.4. RESTful API: Розробка API-ендпоінтів для майбутнього графічного інтерфейсу користувача.
-
-# 
-
-# Фаза 4: Інтеграція та сховища (Місяці 6-8)
-
-# Об'єднання двох систем і реалізація роботи з довгостроковим зберіганням.
-
-# 
-
-# 4.1. Злиття C# та C++: Інтеграційне тестування. C# сервер повинен успішно розгорнути C++ агента на цільовій машині, віддати команду на бекап і отримати успішний результат з метриками (швидкість, об'єм).
-
-# 
-
-# 4.2. Оптимізація ФС: Реалізація підтримки Fast Clone для ReFS (Windows) та XFS (Linux) на рівні C++ для миттєвого створення синтетичних повних бекапів без фізичного копіювання блоків.
-
-# 
-
-# 4.3. Базове відновлення: Реалізація зворотного процесу (Full VM Recovery) — розгортання віртуальної машини з бекапу назад на гіпервізор.
-
-# 
-
-# Фаза 5: Інтерфейс користувача та User Experience (Місяці 7-9)
-
-# Створення інструменту, яким буде користуватися адміністратор.
-
-# 
-
-# 5.1. Розробка UI: Створення вебпанелі (наприклад, на Blazor, React або Angular, які взаємодіють з вашим C# REST API).
-
-# 
-
-# 5.2. Дашборди та звіти: Візуалізація успішних/неуспішних завдань, швидкості мережі, використання місця на дисках.
-
-# 
-
-# 5.3. Сповіщення: Інтеграція модулів відправки Email-звітів або сповіщень у месенджери/webhook.
-
-# 
-
-# Фаза 6: Стабілізація та підготовка до релізу MVP (Місяці 9-12)
-
-# Найважливіший етап для Enterprise-рішень. Бекап-система не має права на помилку.
-
-# 
-
-# 6.1. Гранулярне відновлення (FLR): Розробка функціоналу монтування бекапу для витягування окремих файлів (File-Level Recovery).
-
-# 
-
-# 6.2. Стрес-тестування: Емуляція обривів мережі (C++ агенти повинні вміти відновлювати передачу з точки обриву), тестування паралельного бекапу 100+ віртуальних машин.
-
-# 
-
-# 6.3. Випуск MVP: Закрите тестування (PoC) на реальній, але не критичній інфраструктурі.
-
+- add broader API coverage for auth and edge cases
+- add more restore and repository integration scenarios
+- validate the full workflow continuously as the backup engine matures

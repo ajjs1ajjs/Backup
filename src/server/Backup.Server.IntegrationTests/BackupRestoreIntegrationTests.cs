@@ -43,21 +43,73 @@ public class JobApiIntegrationTests : IClassFixture<IntegrationTestWebApplicatio
     {
         await TestAuthHelper.RegisterAndAuthenticateAsync(_client, "run-job");
 
-        var createResponse = await _client.PostAsJsonAsync("/api/jobs", new
+        var tempRoot = Path.Combine(Path.GetTempPath(), "backup-integration-tests", Guid.NewGuid().ToString("N"));
+        var sourceFile = Path.Combine(tempRoot, "payload.txt");
+        var repositoryPath = Path.Combine(tempRoot, "repo");
+        Directory.CreateDirectory(tempRoot);
+        await File.WriteAllTextAsync(sourceFile, "integration backup payload");
+
+        try
         {
-            name = "Runnable Job",
-            jobType = "Full",
-            sourceId = "vm-002",
-            sourceType = "VirtualMachine",
-            destinationId = "repo-001",
-            enabled = true
-        });
+            var repositoryResponse = await _client.PostAsJsonAsync("/api/repositories", new
+            {
+                name = "Runnable Repo",
+                type = "Local",
+                path = repositoryPath,
+                status = "online"
+            });
+            Assert.Equal(HttpStatusCode.Created, repositoryResponse.StatusCode);
 
-        var createdBody = await createResponse.Content.ReadAsStringAsync();
-        var jobId = ExtractValue(createdBody, "jobId");
+            var repositoryBody = await repositoryResponse.Content.ReadAsStringAsync();
+            var repositoryId = ExtractValue(repositoryBody, "repositoryId");
 
-        var runResponse = await _client.PostAsync($"/api/jobs/{jobId}/run", null);
-        Assert.Equal(HttpStatusCode.OK, runResponse.StatusCode);
+            var createResponse = await _client.PostAsJsonAsync("/api/jobs", new
+            {
+                name = "Runnable Job",
+                jobType = "Full",
+                sourceId = sourceFile,
+                sourceType = "File",
+                destinationId = repositoryId,
+                enabled = true
+            });
+
+            var createdBody = await createResponse.Content.ReadAsStringAsync();
+            var jobId = ExtractValue(createdBody, "jobId");
+
+            var runResponse = await _client.PostAsync($"/api/jobs/{jobId}/run", null);
+            Assert.Equal(HttpStatusCode.OK, runResponse.StatusCode);
+
+            await WaitForConditionAsync(async () =>
+            {
+                var backupsResponse = await _client.GetAsync($"/api/backups?jobId={jobId}");
+                if (!backupsResponse.IsSuccessStatusCode)
+                {
+                    return false;
+                }
+
+                var content = await backupsResponse.Content.ReadAsStringAsync();
+                return content.Contains("Completed", StringComparison.OrdinalIgnoreCase)
+                    || content.Contains("completed", StringComparison.OrdinalIgnoreCase);
+            });
+
+            var backupsListResponse = await _client.GetAsync($"/api/backups?jobId={jobId}");
+            var backupsBody = await backupsListResponse.Content.ReadAsStringAsync();
+            Assert.Contains("completed", backupsBody, StringComparison.OrdinalIgnoreCase);
+
+            var runsResponse = await _client.GetAsync($"/api/jobs/{jobId}/runs");
+            Assert.Equal(HttpStatusCode.OK, runsResponse.StatusCode);
+            var runsBody = await runsResponse.Content.ReadAsStringAsync();
+            Assert.Contains("completed", runsBody, StringComparison.OrdinalIgnoreCase);
+            Assert.True(Directory.Exists(repositoryPath));
+            Assert.NotEmpty(Directory.GetFileSystemEntries(repositoryPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
     }
 
     private static string ExtractValue(string json, string propertyName)
@@ -65,6 +117,21 @@ public class JobApiIntegrationTests : IClassFixture<IntegrationTestWebApplicatio
         using var document = System.Text.Json.JsonDocument.Parse(json);
         return document.RootElement.GetProperty(propertyName).GetString()
             ?? throw new InvalidOperationException($"{propertyName} was not present");
+    }
+
+    private static async Task WaitForConditionAsync(Func<Task<bool>> condition, int maxAttempts = 20, int delayMs = 150)
+    {
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            if (await condition())
+            {
+                return;
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        throw new TimeoutException("Timed out waiting for background backup completion.");
     }
 }
 

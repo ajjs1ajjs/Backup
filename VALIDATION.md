@@ -1,194 +1,40 @@
-# Валідація проекту Backup System
+# Validation Status
 
-## Перевірка компонентів
+## Current State
 
-### ✅ Protos (7 файлів)
-- agent.proto ✓
-- job.proto ✓
-- backup.proto ✓
-- restore.proto ✓
-- repository.proto ✓
-- transfer.proto ✓
-- common.proto ✓
+This repository is no longer in an early scaffold-only state. The server, UI, and test contour have been stabilized to a working MVP level, but the product is not fully production-complete.
 
-### ✅ Server Services (16 файлів)
-- AgentServiceImpl.cs ✓
-- JobServiceImpl.cs ✓
-- BackupServiceImpl.cs ✓
-- RestoreServiceImpl.cs ✓
-- RepositoryServiceImpl.cs ✓
-- DashboardServiceImpl.cs ✓
-- FileTransferServiceImpl.cs ✓
-- TransferLogServiceImpl.cs ✓
-- AgentCommunicationService.cs ✓
-- AgentDeploymentService.cs ✓
-- SchedulerAndRepositoryServices.cs ✓
-- FastCloneAndRestoreServices.cs ✓
-- EmailNotificationService.cs ✓
-- TelegramSlackWebhookService.cs ✓
-- PdfReportService.cs ✓
-- FileLevelRecoveryService.cs ✓
-- StressTestService.cs ✓
+## Confirmed Locally
 
-### ✅ REST Controllers (7 файлів)
-- JobsController ✓
-- AgentsController ✓
-- RepositoriesController ✓
-- BackupsController ✓
-- RestoreController ✓
-- SettingsController ✓
-- ReportsController ✓
+The following were validated in the current repository state:
+- .NET 8 SDK installation and project restore
+- successful build of the server during test execution
+- passing unit tests
+- passing REST integration tests
 
-### ✅ Database
-- schema.sql ✓
-- Entities.cs ✓
-- BackupDbContext.cs ✓
+## Test Results
 
-### ✅ Background Services
-- JobSchedulerService.cs ✓
-- AgentHealthCheckService.cs ✓
-- RetentionPolicyService.cs ✓
+Validated locally:
+- `Backup.Server.Tests`: 3 passed
+- `Backup.Server.IntegrationTests`: 7 passed
 
-### ✅ C++ Agent
-- data_mover.h/cpp ✓
-- compression.h/cpp ✓
-- cbt.h/cpp ✓
-- hyperv_agent.h/cpp ✓
-- vmware_agent.h/cpp ✓
-- kvm_agent.h/cpp ✓
-- database_agent.h/cpp ✓
+## Implemented at a Working Level
 
-### ✅ UI (React)
-- App.js ✓
-- Layout.js ✓
-- Dashboard.js ✓
-- Jobs.js ✓
-- Backups.js ✓
-- Restore.js ✓
-- Repositories.js ✓
-- Agents.js ✓
-- Settings.js ✓
-- Reports.js ✓
-- Login.js ✓
-- ApiContext.js ✓
-- authStore.js ✓
+- ASP.NET Core REST server
+- JWT authentication and role-based access policies
+- SQLite persistence via EF Core
+- background services for scheduler, retention, and restore processing
+- React UI served from the server
+- repository, backup, restore, reports, settings, agents, hypervisors, and VM endpoints
 
-### ✅ CI/CD
-- .github/workflows/build.yml ✓
-- src/server/Dockerfile ✓
-- src/agent/Dockerfile ✓
+## Still Partial
 
-### ✅ Документація
-- roadmap.md ✓
-- requirements.md ✓
-- install.md ✓
-- PLAN_FACT.md ✓
-- API_DOCS.md ✓
-- RELEASE_NOTES.md ✓
-- TESTING.md ✓
+- full backup execution engine
+- deep hypervisor-native orchestration
+- complete cloud and replication workflows
+- production deployment hardening beyond the current baseline
 
----
+## Validation Notes
 
-## Статистика
-
-| Компонент | Файлів |
-|-----------|--------|
-| Protos | 7 |
-| Server Services | 16 |
-| Controllers | 7 |
-| Database | 3 |
-| Background Services | 3 |
-| C++ Agent | 7 |
-| UI | 12 |
-| CI/CD | 3 |
-| Docs | 8 |
-| **Всього** | **66** |
-
----
-
-## Тестування
-
-### Для запуску тестів потрібно:
-
-1. **.NET 8 SDK**
-```bash
-dotnet --version
-```
-
-2. **PostgreSQL 14+**
-```bash
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:14
-```
-
-3. **Node.js 20+**
-```bash
-node --version
-```
-
-### Запуск сервера
-```bash
-cd src/server/Backup.Server
-dotnet restore
-dotnet build
-dotnet run
-```
-
-### Запуск UI
-```bash
-cd src/ui
-npm install
-npm start
-```
-
-### Компіляція агента
-```bash
-cd src/agent/Backup.Agent
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make
-```
-
----
-
-## MVP Checklist
-
-### Backend
-- [x] gRPC Server
-- [x] REST API
-- [x] PostgreSQL
-- [x] Job Scheduler
-- [x] Agent Management
-- [x] Repository Management
-- [x] Notifications (Email, Telegram, Slack, Webhooks)
-- [x] PDF Reports
-- [x] Fast Clone
-- [x] File-Level Recovery
-- [x] Stress Testing
-
-### Agent
-- [x] C++ Core
-- [x] Hyper-V Support
-- [x] VMware Support
-- [x] KVM Support
-- [x] Database Support (MSSQL, PostgreSQL, Oracle)
-- [x] Compression
-- [x] CBT
-
-### UI
-- [x] Dashboard
-- [x] Jobs Management
-- [x] Backups View
-- [x] Restore Interface
-- [x] Repositories
-- [x] Agents
-- [x] Settings
-- [x] Reports
-
----
-
-## Підсумок
-
-✅ **Проект завершено на 100%**
-
-Всі компоненти створені та задокументовані.
-Проект готовий до розробки та тестування.
+- On Windows, backend test projects should be run sequentially because they share build outputs and can hit file locks if executed in parallel.
+- The repository is in a strong MVP stabilization state, not a final 100% completed product state.
