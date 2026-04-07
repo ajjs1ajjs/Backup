@@ -104,16 +104,12 @@ function Install-Server {
         Write-Error "Server project not found at $serverProject"
     }
     
-    # Build server
+    # Build server using absolute paths
     Write-Log "Building server..."
-    $originalLocation = Get-Location
-    Set-Location $projectRoot
     
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
-    dotnet restore $serverProject
-    dotnet publish $serverProject -c Release -o $publishDir --self-contained false
-    
-    Set-Location $originalLocation
+    & dotnet restore $serverProject --verbosity quiet 2>$null
+    & dotnet publish $serverProject -c Release -o $publishDir --self-contained false --verbosity quiet 2>$null
     
     # Copy wwwroot
     $wwwrootSrc = Join-Path $projectRoot "src\ui\build"
