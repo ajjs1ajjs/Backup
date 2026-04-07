@@ -47,13 +47,13 @@ Modern backup system with hybrid architecture (C# server + C++ agents) supportin
 
 ```powershell
 # One command to install everything
-& ([scriptblock]::Create((iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1).Content)) -AutoStart
+& ([scriptblock]::Create((iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1).Content)) -AutoStart
 ```
 
 Or download and run:
 ```powershell
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
-.\install-server.ps1 -AutoStart
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.ps1 -OutFile install.ps1
+.\install.ps1 -AutoStart
 ```
 
 ### Linux (bash — root)
