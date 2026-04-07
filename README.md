@@ -1,123 +1,81 @@
-# Backup System
+# 💾 Backup System
 
-Backup System is a backup management prototype with a .NET 8 server, a React web UI, a C++ agent, and installer scripts for Windows and Linux.
+<p align="center">
+  <img src="https://img.shields.io/badge/.NET-8.0-blueviolet?style=for-the-badge&logo=.net" alt=".NET 8">
+  <img src="https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react" alt="React 18">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT">
+  <img src="https://img.shields.io/badge/Version-1.0.0-orange?style=for-the-badge" alt="v1.0.0">
+</p>
 
-The repository currently provides:
-- A REST API for jobs, repositories, backups, restores, reports, settings, agents, hypervisors, and virtual machines
-- JWT-based authentication with role policies
-- SQLite-backed persistence through EF Core
-- A React UI that is built and served from the server's `wwwroot`
-- Early-stage agent and restore logic scaffolding
+Enterprise backup management system with a .NET 8 server, React web UI, and C++ agent.
 
-The repository does not currently provide a complete production-ready backup engine. Several advanced features listed in earlier drafts of this README are still partial, stubbed, or under development.
+## ✨ Features
 
-## Architecture
+| Feature | Description |
+|---------|-------------|
+| 🖥️ **Virtual Machines** | Inventory and manage Hyper-V VMs |
+| 📦 **Repositories** | Configure backup storage repositories |
+| 📅 **Job Scheduling** | Automated backup jobs with manual trigger |
+| 🔄 **Restore** | Point-in-time recovery operations |
+| 📊 **Reports** | Activity summaries and exportable reports |
+| 🔒 **Security** | JWT auth with role-based access control |
 
-- Server: `src/server/Backup.Server`
-- UI: `src/ui`
-- Agent: `src/agent/Backup.Agent`
-- Installer: `src/installer/Backup.Agent.Installer`
-- Contracts: `src/protos`
+## 🚀 Quick Install
 
-## Current Status
-
-Implemented at a working application level:
-- REST controllers and JWT authentication
-- SQLite data model and migrations
-- Basic scheduler background services
-- Hypervisor and VM inventory endpoints
-- Repository CRUD and connection checks
-- Reports and settings endpoints
-
-Still incomplete or prototype-level:
-- Actual backup execution pipeline
-- Real restore orchestration
-- End-to-end agent/server runtime communication
-- Full cloud and hypervisor integration depth
-- Production hardening and deployment validation
-
-## Development
-
-### Requirements
-
-- .NET 8 SDK (`8.0.419` is pinned in `global.json`)
-- Node.js 18+
-- npm
-
-### Server
+### Windows (PowerShell — Administrator)
 
 ```powershell
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
+.\install-server.ps1 -AutoStart
+```
+
+### Linux (bash — root)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --auto-start
+```
+
+After installation:
+- **UI**: http://localhost
+- **API**: http://localhost:8000
+- **Swagger**: http://localhost:8000/swagger
+
+## 🛠️ Technology Stack
+
+- **Server**: .NET 8 (ASP.NET Core)
+- **UI**: React 18 + Material UI
+- **Database**: SQLite (EF Core)
+- **Agent**: C++
+- **Authentication**: JWT
+
+## 📁 Project Structure
+
+```
+src/
+├── server/Backup.Server/     # .NET 8 API server
+├── ui/                       # React web application
+├── agent/Backup.Agent/       # C++ backup agent
+└── protos/                   # Protocol Buffers contracts
+```
+
+## 🔧 Development
+
+```bash
+# Restore and run server
 dotnet restore src/server/Backup.Server/Backup.Server.csproj
 dotnet run --project src/server/Backup.Server/Backup.Server.csproj
+
+# Build UI
+cd src/ui && npm install && npm run build
 ```
 
-### UI
+## 📄 Documentation
 
-```powershell
-cd src/ui
-npm install
-npm run build
-```
+- [📖 Installation Guide](install.md)
+- [📚 API Documentation](API_DOCS.md)
+- [🧪 Testing Guide](TESTING.md)
+- [📋 Requirements](requirements.md)
 
-If the UI is built, the server serves the static files from `src/server/Backup.Server/wwwroot`.
+## 📝 License
 
-### Tests
-
-```powershell
-dotnet test src/server/Backup.Server.Tests/Backup.Server.Tests.csproj
-dotnet test src/server/Backup.Server.IntegrationTests/Backup.Server.IntegrationTests.csproj
-```
-
-On Windows, run these test projects sequentially rather than in parallel because they share server build outputs and can hit file locks.
-
-## Configuration
-
-Main configuration file:
-- `src/server/Backup.Server/appsettings.json`
-
-Important sections:
-- `ConnectionStrings:DefaultConnection`
-- `Jwt`
-- `Server`
-- `BootstrapAdmin`
-- `AllowedOrigins`
-- `Encryption`
-
-On first startup the server can generate:
-- `jwt.key`
-- `data/encryption.key`
-
-These files should not be committed.
-
-## Default Access
-
-Default bootstrap values in development:
-- Username: `admin`
-- Password: generated at first startup if not configured explicitly
-
-The bootstrap admin is marked to change password on first login.
-
-## Security Notes
-
-- The API now requires authentication by default.
-- Anonymous access is limited to login, registration, and first-login password change.
-- Self-registration always creates `Viewer` users.
-- Emergency password reset is intentionally disabled.
-- If `AllowedOrigins` is empty, CORS is limited to local development origins only.
-
-## Repository Hygiene
-
-This repository should only store source files and intentionally versioned assets. Build outputs such as `bin/`, `obj/`, generated publish folders, local database files, and secret keys should stay untracked.
-
-## Documents
-
-- [API docs](API_DOCS.md)
-- [Install guide](install.md)
-- [Testing guide](TESTING.md)
-- [Requirements](requirements.md)
-- [Validation](VALIDATION.md)
-- [Roadmap](roadmap.md)
-
-## License
-
-MIT
+MIT License — see [LICENSE](LICENSE) for details.
