@@ -230,5 +230,9 @@ Write-Log "Backup Server installed successfully!" "SUCCESS"
 Write-Log "======================================" "SUCCESS"
 Write-Log ""
 Write-Log "Access UI: http://localhost:$Port"
-Write-Log "Login: admin / $AdminPassword"
+if ($AdminPassword) {
+    Write-Log "Login: admin / $AdminPassword"
+} else {
+    Write-Log "Login: admin / admin (change on first login)"
+}
 Write-Log ""

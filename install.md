@@ -80,7 +80,7 @@ sudo ./install.sh --jwt-key "my-secret-key" --auto-start
 | API | http://localhost:8000 |
 | Swagger | http://localhost:8000/swagger |
 
-**Login:** `admin` / generated or configured bootstrap password (change on first login)
+**Login:** `admin` / `admin` (required to change on first login)
 
 ---
 
