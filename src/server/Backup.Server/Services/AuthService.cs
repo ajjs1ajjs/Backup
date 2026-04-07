@@ -21,6 +21,7 @@ public interface IAuthService
     Task<string> GeneratePasswordResetTokenAsync(string email);
     Task<bool> ResetPasswordAsync(string token, string newPassword);
     string HashPasswordStatic(string password);
+    string GeneratePasswordChangeToken(string username);
 }
 
 public class AuthService : IAuthService
@@ -229,6 +230,34 @@ public class AuthService : IAuthService
         {
             return false;
         }
+    }
+
+    public string GeneratePasswordChangeToken(string username)
+    {
+        var user = _context.Users.FirstOrDefault(u => u.Username == username);
+        if (user == null)
+            throw new InvalidOperationException("User not found");
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.UserId),
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Role, user.Role),
+            new Claim("password_change", "true")
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] 
+            ?? throw new InvalidOperationException("JWT key not configured")));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"] ?? "BackupServer",
+            audience: _configuration["Jwt:Audience"] ?? "BackupClients",
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
 

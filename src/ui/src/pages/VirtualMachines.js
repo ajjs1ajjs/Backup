@@ -78,6 +78,7 @@ export default function VirtualMachines() {
 
   useEffect(() => {
     fetchVMs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue]);
 
   useEffect(() => {

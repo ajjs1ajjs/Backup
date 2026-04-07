@@ -43,11 +43,11 @@ public class AuthController : ControllerBase
             var result = await _authService.LoginAsync(request.Username, request.Password);
             if (result.MustChangePassword)
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new
-                {
-                    error = "Password change required",
-                    code = "PASSWORD_CHANGE_REQUIRED",
-                    mustChangePassword = true
+                var changePasswordToken = _authService.GeneratePasswordChangeToken(request.Username);
+                return Ok(new { 
+                    token = changePasswordToken,
+                    mustChangePassword = true,
+                    message = "Password change required"
                 });
             }
 
@@ -65,9 +65,36 @@ public class AuthController : ControllerBase
     {
         try
         {
+            var claims = User.Claims.ToList();
+            var isPasswordChangeToken = claims.Any(c => c.Type == "password_change" && c.Value == "true");
+            
+            if (!isPasswordChangeToken)
+            {
+                return BadRequest(new { error = "Invalid token for password change" });
+            }
+
             await _authService.ChangePasswordAsync(request.Username, request.CurrentPassword, request.NewPassword);
             var loginResult = await _authService.LoginAsync(request.Username, request.NewPassword);
             return Ok(new { token = loginResult.Token });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordFirstLoginRequest request)
+    {
+        try
+        {
+            await _authService.ChangePasswordAsync(request.Username, request.CurrentPassword, request.NewPassword);
+            return Ok(new { message = "Password changed successfully" });
         }
         catch (UnauthorizedAccessException ex)
         {

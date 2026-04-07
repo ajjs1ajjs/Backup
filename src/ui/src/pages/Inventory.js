@@ -52,8 +52,14 @@ export default function Inventory() {
   const { data: repos } = useApi('/api/repositories');
   const [tab, setTab] = useState(0);
 
-  const agentsList = Array.isArray(agents) ? agents : [];
-  const reposList = Array.isArray(repos) ? repos : [];
+  const agentsList = useMemo(() => 
+    Array.isArray(agents) ? agents : [], 
+    [agents]
+  );
+  const reposList = useMemo(() => 
+    Array.isArray(repos) ? repos : [], 
+    [repos]
+  );
 
   const tabs = useMemo(() => ([
     { label: 'All Workloads', count: agentsList.length },

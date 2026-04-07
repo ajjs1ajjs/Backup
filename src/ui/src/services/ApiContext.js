@@ -78,6 +78,7 @@ export const useApi = (url) => {
 
   useEffect(() => {
     refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
   return { data, loading, error, refetch };

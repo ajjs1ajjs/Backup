@@ -21,22 +21,26 @@ export const useAuthStore = create(
             body: JSON.stringify({ username, password })
           });
           
+          const data = await response.json().catch(() => ({}));
+          
           if (response.ok) {
-            const data = await response.json();
+            if (data.mustChangePassword) {
+              set({ authError: 'PASSWORD_CHANGE_REQUIRED' });
+              return false;
+            }
             set({ isAuthenticated: true, username, token: data.token, authError: '' });
             return true;
           }
 
-          const errorData = await response.json().catch(() => ({}));
-          if (errorData?.code === 'PASSWORD_CHANGE_REQUIRED') {
+          if (data?.mustChangePassword) {
             set({ authError: 'PASSWORD_CHANGE_REQUIRED' });
           } else {
-            set({ authError: 'INVALID_CREDENTIALS' });
+            set({ authError: data?.error || 'Invalid credentials' });
           }
           return false;
         } catch (error) {
           console.error('Login failed:', error);
-          set({ authError: 'NETWORK_ERROR' });
+          set({ authError: 'Network error. Check server connection.' });
           return false;
         }
       },

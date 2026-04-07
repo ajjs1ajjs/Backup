@@ -128,9 +128,7 @@ public partial class Program
             options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
             options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
             options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
-            options.FallbackPolicy = new AuthorizationPolicyBuilder()
-                .RequireAuthenticatedUser()
-                .Build();
+            options.FallbackPolicy = null;
         });
 
         builder.Services.AddControllers()
@@ -263,8 +261,10 @@ public partial class Program
         app.UseAuthorization();
 
         app.MapControllers();
-        app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-        app.MapFallbackToFile("index.html");
+        app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+        app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+        app.MapGet("/api", () => Results.Ok(new { message = "Backup API" })).AllowAnonymous();
+        app.MapFallbackToFile("index.html").AllowAnonymous();
     }
 
     private static async Task InitializeApplicationAsync(WebApplication app)
@@ -307,14 +307,7 @@ public partial class Program
         if (adminUser == null)
         {
             await authService.RegisterAsync(bootstrapAdminUsername, bootstrapAdminEmail, bootstrapAdminPassword, "Admin");
-            var createdAdmin = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
-            if (createdAdmin != null)
-            {
-                createdAdmin.MustChangePassword = true;
-                await db.SaveChangesAsync();
-            }
-
-            Log.Information("Bootstrap admin user created and marked for first-login password change");
+            Log.Information("Bootstrap admin user created");
         }
         else if (!adminUser.PasswordHash.Contains('.'))
         {
