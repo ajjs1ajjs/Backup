@@ -166,16 +166,20 @@ function New-WindowsService {
     sc.exe config $serviceName failurecnt= 3 failure= "restart/60000/restart/60000/restart/60000"
     
     Write-Log "Service created: $serviceName" "SUCCESS"
+    
+    Start-Sleep -Seconds 3
 }
 
 function Start-ServerService {
+    param([string]$ExePath)
+    
     Write-Log "Starting Backup Server..."
     Start-Sleep -Seconds 2
     
     $service = Get-Service -Name "BackupServer" -ErrorAction SilentlyContinue
     if (-not $service) {
         Write-Log "Service not found. Attempting to start manually..."
-        & "$ExePath" --urls "http://localhost:$Port" 2>$null
+        Start-Process -FilePath $ExePath -ArgumentList "--urls http://localhost:$Port" -WindowStyle Hidden
         Start-Sleep -Seconds 3
     }
     
@@ -217,8 +221,9 @@ Check-Dependencies
 $publishDir = Install-Server
 
 if ($AutoStart) {
-    New-WindowsService -ExePath (Join-Path $publishDir "Backup.Server.exe")
-    Start-ServerService
+    $exePath = Join-Path $publishDir "Backup.Server.exe"
+    New-WindowsService -ExePath $exePath
+    Start-ServerService -ExePath $exePath
 }
 
 Write-Log ""
