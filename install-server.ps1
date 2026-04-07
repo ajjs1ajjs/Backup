@@ -41,7 +41,6 @@ function Check-Admin {
 function Check-Dependencies {
     Write-Log "Checking dependencies..."
     
-    # Check .NET SDK
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
     if (-not $dotnet) {
         Write-Log ".NET SDK not found. Installing..."
@@ -60,7 +59,6 @@ function Check-Dependencies {
         Write-Log ".NET SDK found: $dotnetVersion" "SUCCESS"
     }
     
-    # Check Node.js
     $node = Get-Command node -ErrorAction SilentlyContinue
     if (-not $node) {
         Write-Log "Node.js not found. UI build may fail." "WARN"
@@ -69,7 +67,6 @@ function Check-Dependencies {
         Write-Log "Node.js found: $nodeVersion" "SUCCESS"
     }
     
-    # Check Git
     $git = Get-Command git -ErrorAction SilentlyContinue
     if (-not $git) {
         Write-Log "Git not found. Downloading source..." "WARN"
@@ -84,7 +81,6 @@ function Install-Server {
     $publishDir = Join-Path $InstallDir "publish"
     $srcDir = Join-Path $InstallDir "src"
     
-    # Create directories
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
     
@@ -92,7 +88,6 @@ function Install-Server {
         Write-Log "Using local source: $LocalSource"
         $projectRoot = $LocalSource
     } else {
-        # Clone repository
         $projectRoot = Join-Path $env:TEMP "Backup-$(Get-Random)"
         Write-Log "Cloning repository..."
         git clone --depth 1 https://github.com/ajjs1ajjs/Backup.git $projectRoot
@@ -104,14 +99,12 @@ function Install-Server {
         Write-Error "Server project not found at $serverProject"
     }
     
-    # Build server using absolute paths
     Write-Log "Building server..."
     
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
     & dotnet restore $serverProject --verbosity quiet 2>$null
     & dotnet publish $serverProject -c Release -o $publishDir --self-contained false --verbosity quiet 2>$null
     
-    # Copy wwwroot
     $wwwrootSrc = Join-Path $projectRoot "src\ui\build"
     $wwwrootDest = Join-Path $publishDir "wwwroot"
     
@@ -120,7 +113,6 @@ function Install-Server {
         Copy-Item -Path $wwwrootSrc -Destination $wwwrootDest -Recurse -Force
     }
     
-    # Configure appsettings
     $appsettingsPath = Join-Path $publishDir "appsettings.json"
     $appsettings = Get-Content $appsettingsPath -Raw | ConvertFrom-Json
     
@@ -133,7 +125,6 @@ function Install-Server {
     
     Write-Log "Server installed successfully" "SUCCESS"
     
-    # Cleanup temp
     if (-not $LocalSource) {
         Remove-Item $projectRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -148,7 +139,6 @@ function New-WindowsService {
     
     $serviceName = "BackupServer"
     
-    # Check if service exists
     $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     
     if ($service) {
@@ -158,7 +148,6 @@ function New-WindowsService {
         Start-Sleep -Seconds 2
     }
     
-    # Create service
     $exeFullPath = Join-Path $ExePath "Backup.Server.exe"
     $binPath = "`"$exeFullPath`" --urls http://localhost:$Port"
     sc.exe create $serviceName binPath= $binPath start= demand DisplayName= "Backup Server"
@@ -220,7 +209,6 @@ function Uninstall-Server {
     }
 }
 
-# Main
 Check-Admin
 
 if ($Uninstall) {
