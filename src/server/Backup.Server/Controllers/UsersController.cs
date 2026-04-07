@@ -11,10 +11,10 @@ namespace Backup.Server.Controllers;
 [Authorize(Roles = "admin")]
 public class UsersController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly BackupDbContext _context;
     private readonly Services.IAuthService _authService;
 
-    public UsersController(AppDbContext context, Services.IAuthService authService)
+    public UsersController(BackupDbContext context, Services.IAuthService authService)
     {
         _context = context;
         _authService = authService;
