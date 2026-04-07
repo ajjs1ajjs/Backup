@@ -318,11 +318,33 @@ function Uninstall-Agent {
     Write-Log "Agent uninstalled successfully"
 }
 
+function Clone-OrUpdate-Repo {
+    $repoUrl = "https://github.com/ajjs1ajjs/Backup.git"
+    $cloneRoot = Split-Path -Parent $InstallDir
+    $repoDir = Join-Path $cloneRoot "Backup"
+    
+    if (Test-Path (Join-Path $repoDir ".git")) {
+        Write-Log "Updating repository..."
+        Set-Location $repoDir
+        git pull
+    } else {
+        Write-Log "Cloning repository..."
+        if (Test-Path $repoDir) { Remove-Item $repoDir -Recurse -Force }
+        git clone $repoUrl $repoDir
+        Set-Location $repoDir
+    }
+    
+    return $repoDir
+}
+
 function Install-Server {
     Write-Log "Installing Backup Server..."
     
     $serverDir = Join-Path $InstallDir "server"
     $uiDir = Join-Path $serverDir "ui"
+    
+    # Clone or update repository
+    $projectRoot = Clone-OrUpdate-Repo
     
     # Check and install .NET SDK
     $dotnetPath = $null
@@ -345,8 +367,6 @@ function Install-Server {
         New-Item -ItemType Directory -Path $serverDir -Force | Out-Null
     }
     
-    # Find project root
-    $projectRoot = Split-Path -Parent (Split-Path -Parent (Get-Location))
     $serverProject = Join-Path $projectRoot "src\server\Backup.Server\Backup.Server.csproj"
     
     if (Test-Path $serverProject) {
