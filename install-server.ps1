@@ -106,11 +106,14 @@ function Install-Server {
     
     # Build server
     Write-Log "Building server..."
+    $originalLocation = Get-Location
     Set-Location $projectRoot
     
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
     dotnet restore $serverProject
     dotnet publish $serverProject -c Release -o $publishDir --self-contained false
+    
+    Set-Location $originalLocation
     
     # Copy wwwroot
     $wwwrootSrc = Join-Path $projectRoot "src\ui\build"
