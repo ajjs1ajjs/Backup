@@ -21,14 +21,12 @@ import {
   Paper,
   Select,
   Switch,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Tabs,
   TextField,
   Tooltip,
   Typography
@@ -103,9 +101,51 @@ export default function Jobs() {
   const [jobRuns, setJobRuns] = useState([]);
   const [scheduleTab, setScheduleTab] = useState(1);
   const [formData, setFormData] = useState(emptyForm);
+  const [scheduleFrequency, setScheduleFrequency] = useState('daily');
+  const [scheduleTime, setScheduleTime] = useState({ hour: 2, minute: '00' });
+  const [scheduleWeekDays, setScheduleWeekDays] = useState(['Mon']);
+  const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState(1);
+
+  const generateCronFromSchedule = () => {
+    const min = scheduleTime.minute;
+    const hour = scheduleTime.hour;
+    
+    if (scheduleFrequency === 'daily') {
+      return `${min} ${hour} * * *`;
+    } else if (scheduleFrequency === 'weekly') {
+      const days = scheduleWeekDays.length > 0 ? scheduleWeekDays.join(',') : '*';
+      return `${min} ${hour} * * ${days}`;
+    } else if (scheduleFrequency === 'monthly') {
+      return `${min} ${hour} ${scheduleDayOfMonth} * *`;
+    }
+    return '0 2 * * *';
+  };
+
+  const getSchedulePreview = () => {
+    const timeStr = `${String(scheduleTime.hour).padStart(2, '0')}:${scheduleTime.minute}`;
+    
+    if (scheduleFrequency === 'daily') {
+      return `Every day at ${timeStr}`;
+    } else if (scheduleFrequency === 'weekly') {
+      const days = scheduleWeekDays.length > 0 ? scheduleWeekDays.join(', ') : 'No days selected';
+      return `Every ${days} at ${timeStr}`;
+    } else if (scheduleFrequency === 'monthly') {
+      return `Every month on day ${scheduleDayOfMonth} at ${timeStr}`;
+    }
+    return 'Select a schedule';
+  };
+
+  useEffect(() => {
+    if (scheduleTab === 1) {
+      const cron = generateCronFromSchedule();
+      setFormData(prev => ({ ...prev, schedule: cron }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleFrequency, scheduleTime, scheduleWeekDays, scheduleDayOfMonth, scheduleTab]);
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -550,82 +590,215 @@ export default function Jobs() {
               <Box sx={{ 
                 bgcolor: '#f8f9fa', 
                 borderRadius: 2, 
-                p: 2,
+                p: 3,
                 border: '1px solid #e8eaed'
               }}>
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <ScheduleIcon sx={{ color: '#4fc3f7' }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1a1d23' }}>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <ScheduleIcon sx={{ color: '#4fc3f7', fontSize: 24 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1a1d23' }}>
                     Schedule Configuration
                   </Typography>
                 </Box>
-                <Tabs 
-                  value={scheduleTab} 
-                  onChange={(event, value) => setScheduleTab(value)} 
-                  sx={{ 
-                    mb: 2, 
-                    borderBottom: 1, 
-                    borderColor: 'divider',
-                    '& .MuiTab-root': { textTransform: 'none' }
-                  }}
-                >
-                  <Tab icon={<TimeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Manual" />
-                  <Tab icon={<CalendarIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Schedule" />
-                  <Tab label="Custom Cron" />
-                </Tabs>
 
-                {scheduleTab === 0 ? (
-                  <Box p={2} bgcolor="#fff" borderRadius={1} textAlign="center" border="1px dashed #e0e0e0">
-                    <Typography variant="body2" color="text.secondary">
-                      This job will run only when triggered manually or through the API.
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, cursor: 'pointer', 
+                      border: scheduleTab === 0 ? '2px solid #4fc3f7' : '1px solid #e8eaed',
+                      bgcolor: scheduleTab === 0 ? '#4fc3f710' : '#fff'
+                    }}
+                    onClick={() => setScheduleTab(0)}>
+                      <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                        <TimeIcon sx={{ fontSize: 40, color: scheduleTab === 0 ? '#4fc3f7' : '#8b92a5', mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>Manual</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Run only on demand
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, cursor: 'pointer',
+                      border: scheduleTab === 1 ? '2px solid #4fc3f7' : '1px solid #e8eaed',
+                      bgcolor: scheduleTab === 1 ? '#4fc3f710' : '#fff'
+                    }}
+                    onClick={() => setScheduleTab(1)}>
+                      <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                        <CalendarIcon sx={{ fontSize: 40, color: scheduleTab === 1 ? '#4fc3f7' : '#8b92a5', mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>Schedule</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Set custom schedule
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, cursor: 'pointer',
+                      border: scheduleTab === 2 ? '2px solid #4fc3f7' : '1px solid #e8eaed',
+                      bgcolor: scheduleTab === 2 ? '#4fc3f710' : '#fff'
+                    }}
+                    onClick={() => setScheduleTab(2)}>
+                      <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                        <ScheduleIcon sx={{ fontSize: 40, color: scheduleTab === 2 ? '#4fc3f7' : '#8b92a5', mb: 1 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>Cron</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Advanced cron format
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {scheduleTab === 0 && (
+                  <Box mt={3} p={3} bgcolor="#fff" borderRadius={2} textAlign="center" border="1px dashed #e0e0e0">
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#1a1d23', mb: 1 }}>
+                      Manual Execution Only
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      Click "Run Now" button to execute this job.
+                    <Typography variant="body2" color="text.secondary">
+                      This job will not run automatically. Use "Run Now" button to execute.
                     </Typography>
                   </Box>
-                ) : scheduleTab === 1 ? (
-                  <Grid container spacing={2}>
-                    {schedulePresets.map((preset) => (
-                      <Grid item xs={12} sm={6} key={preset.cron}>
-                        <Box
-                          onClick={() => setFormData({ ...formData, schedule: preset.cron })}
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            border: formData.schedule === preset.cron ? '2px solid #4fc3f7' : '1px solid #e8eaed',
-                            bgcolor: formData.schedule === preset.cron ? '#4fc3f710' : '#fff',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                              borderColor: '#4fc3f7',
-                              bgcolor: '#4fc3f708'
-                            }
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1a1d23' }}>
-                            {preset.label}
+                )}
+
+                {scheduleTab === 1 && (
+                  <Box mt={3} p={3} bgcolor="#fff" borderRadius={2}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Frequency</Typography>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Frequency</InputLabel>
+                          <Select
+                            value={scheduleFrequency}
+                            label="Frequency"
+                            onChange={(e) => setScheduleFrequency(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            <MenuItem value="daily">Daily</MenuItem>
+                            <MenuItem value="weekly">Weekly</MenuItem>
+                            <MenuItem value="monthly">Monthly</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Time</Typography>
+                        <Box display="flex" gap={1}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Hour</InputLabel>
+                            <Select
+                              value={scheduleTime.hour}
+                              label="Hour"
+                              onChange={(e) => setScheduleTime({ ...scheduleTime, hour: e.target.value })}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              {Array.from({ length: 24 }, (_, i) => (
+                                <MenuItem key={i} value={i}>{String(i).padStart(2, '0')}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <Typography sx={{ alignSelf: 'center', fontWeight: 600 }}>:</Typography>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Min</InputLabel>
+                            <Select
+                              value={scheduleTime.minute}
+                              label="Min"
+                              onChange={(e) => setScheduleTime({ ...scheduleTime, minute: e.target.value })}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              {['00', '15', '30', '45'].map(m => (
+                                <MenuItem key={m} value={m}>{m}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      </Grid>
+
+                      {scheduleFrequency === 'weekly' && (
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Day of Week</Typography>
+                          <Box display="flex" flexWrap="wrap" gap={1}>
+                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                              <Chip
+                                key={day}
+                                label={day}
+                                onClick={() => {
+                                  const days = scheduleWeekDays.includes(day)
+                                    ? scheduleWeekDays.filter(d => d !== day)
+                                    : [...scheduleWeekDays, day];
+                                  setScheduleWeekDays(days);
+                                }}
+                                color={scheduleWeekDays.includes(day) ? 'primary' : 'default'}
+                                variant={scheduleWeekDays.includes(day) ? 'filled' : 'outlined'}
+                                sx={{ 
+                                  borderRadius: 2,
+                                  bgcolor: scheduleWeekDays.includes(day) ? '#4fc3f7' : 'transparent',
+                                  '&.MuiChip-filled': { bgcolor: '#4fc3f7', color: '#fff' }
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </Grid>
+                      )}
+
+                      {scheduleFrequency === 'monthly' && (
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Day of Month</Typography>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Day</InputLabel>
+                            <Select
+                              value={scheduleDayOfMonth}
+                              label="Day"
+                              onChange={(e) => setScheduleDayOfMonth(e.target.value)}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              {Array.from({ length: 31 }, (_, i) => (
+                                <MenuItem key={i + 1} value={i + 1}>{i + 1}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+
+                      <Grid item xs={12}>
+                        <Box sx={{ bgcolor: '#e3f2fd', borderRadius: 2, p: 2, mt: 2 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1565c0', mb: 1 }}>
+                            Schedule Preview
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {preset.description}
+                          <Typography variant="body2" color="text.secondary">
+                            {getSchedulePreview()}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontFamily: 'monospace' }}>
-                            {preset.cron}
+                          <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#666' }}>
+                            Cron: {generateCronFromSchedule()}
                           </Typography>
                         </Box>
                       </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <TextField
-                    fullWidth
-                    label="Cron Expression"
-                    value={formData.schedule || ''}
-                    onChange={(event) => setFormData({ ...formData, schedule: event.target.value })}
-                    size="small"
-                    placeholder="0 2 * * *"
-                    helperText="Format: minute hour day month weekday. Example: 0 2 * * * = Daily at 2:00 AM"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
+                    </Grid>
+                  </Box>
+                )}
+
+                {scheduleTab === 2 && (
+                  <Box mt={3} p={3} bgcolor="#fff" borderRadius={2}>
+                    <TextField
+                      fullWidth
+                      label="Cron Expression"
+                      value={formData.schedule || ''}
+                      onChange={(event) => setFormData({ ...formData, schedule: event.target.value })}
+                      size="small"
+                      placeholder="0 2 * * *"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontFamily: 'monospace' } }}
+                    />
+                    <Box mt={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        <strong>Format:</strong> minute hour day-of-month month day-of-week
+                      </Typography>
+                      <Box sx={{ bgcolor: '#f5f5f5', borderRadius: 1, p: 1.5, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        <strong>Examples:</strong><br/>
+                        0 2 * * * = Daily at 2:00 AM<br/>
+                        0 0 * * 0 = Every Sunday at midnight<br/>
+                        0 8 * * 1-5 = Mon-Fri at 8:00 AM<br/>
+                        0 3 1 * * = First day of month at 3:00 AM
+                      </Box>
+                    </Box>
+                  </Box>
                 )}
               </Box>
             </Grid>
