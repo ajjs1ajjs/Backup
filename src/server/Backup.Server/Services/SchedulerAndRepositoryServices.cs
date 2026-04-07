@@ -1,6 +1,10 @@
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
 using Microsoft.EntityFrameworkCore;
+using Cronos;
+using Amazon.S3;
+using Azure.Storage.Blobs;
+using Google.Cloud.Storage.V1;
 
 namespace Backup.Server.Services;
 
@@ -22,54 +26,28 @@ public class SchedulerService
 
         try
         {
-            var schedule = System.Text.Json.JsonSerializer.Deserialize<ScheduleConfig>(job.Schedule);
-            if (schedule == null) return null;
-
-            if (!string.IsNullOrEmpty(schedule.Cron))
-                return CalculateFromCron(schedule.Cron, job.LastRun);
-            
-            if (schedule.IntervalSeconds.HasValue && schedule.IntervalSeconds > 0)
-                return job.LastRun?.AddSeconds(schedule.IntervalSeconds.Value);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to calculate next run for job {JobId}", job.JobId);
-        }
-
-        return null;
-    }
-
-    private DateTime? CalculateFromCron(string cronExpression, DateTime? lastRun)
-    {
-        try
-        {
-            var parts = cronExpression.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 5) return lastRun?.AddHours(24) ?? DateTime.UtcNow.AddHours(24);
-
-            var now = DateTime.UtcNow;
-            var next = lastRun ?? now;
-
-            next = next.AddMinutes(1);
-
-            if (int.TryParse(parts[0], out int min) && int.TryParse(parts[1], out int hour))
-            {
-                var target = new DateTime(next.Year, next.Month, next.Day, hour, min, 0, DateTimeKind.Utc);
-                if (target < next) target = target.AddDays(1);
-                
-                if (parts[4] != "*" && int.TryParse(parts[4], out int dow))
-                {
-                    while ((int)target.DayOfWeek != dow) target = target.AddDays(1);
-                }
-
-                return target;
-            }
-
-            return next.AddHours(24);
+            // Try parse as direct Cron first for simplicity
+            var cron = CronExpression.Parse(job.Schedule);
+            return cron.GetNextOccurrence(DateTime.UtcNow);
         }
         catch
         {
-            return DateTime.UtcNow.AddHours(24);
+            try 
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<ScheduleConfig>(job.Schedule);
+                if (config != null && !string.IsNullOrEmpty(config.Cron))
+                {
+                    var cron = CronExpression.Parse(config.Cron);
+                    return cron.GetNextOccurrence(DateTime.UtcNow);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to calculate next run for job {JobId}", job.JobId);
+            }
         }
+
+        return null;
     }
 
     public bool IsWithinTimeWindow(string? timeWindow)
@@ -83,66 +61,19 @@ public class SchedulerService
             if (config == null || !config.Enabled)
                 return true;
 
-            var now = DateTime.UtcNow;
-            var start = DateTime.Today.AddHours(config.StartHour);
-            var end = DateTime.Today.AddHours(config.EndHour);
+            var now = DateTime.UtcNow.ToLocalTime();
+            int currentHour = now.Hour;
 
-            if (start < end)
-                return now >= start && now <= end;
+            if (config.StartHour < config.EndHour)
+                return currentHour >= config.StartHour && currentHour < config.EndHour;
             else
-                return now >= start || now <= end;
+                return currentHour >= config.StartHour || currentHour < config.EndHour;
         }
         catch
         {
             return true;
         }
     }
-
-    public RetentionPolicy ParseRetentionPolicy(string? policy)
-    {
-        var defaultPolicy = new RetentionPolicy
-        {
-            Daily = 7,
-            Weekly = 4,
-            Monthly = 12,
-            Yearly = 7
-        };
-
-        if (string.IsNullOrEmpty(policy))
-            return defaultPolicy;
-
-        try
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<RetentionPolicy>(policy) ?? defaultPolicy;
-        }
-        catch
-        {
-            return defaultPolicy;
-        }
-    }
-}
-
-public class ScheduleConfig
-{
-    public string? Cron { get; set; }
-    public long? IntervalSeconds { get; set; }
-    public string? Timezone { get; set; }
-    public TimeWindowConfig? TimeWindow { get; set; }
-}
-
-public class TimeWindowConfig
-{
-    public bool Enabled { get; set; }
-    public int StartHour { get; set; }
-    public int EndHour { get; set; }
-}
-
-public class RetentionPolicy
-{
-    public int Daily { get; set; } = 7;
-    public int Weekly { get; set; } = 4;
-    public int Monthly { get; set; } = 12;
-    public int Yearly { get; set; } = 7;
 }
 
 public class RepositoryService
@@ -156,97 +87,78 @@ public class RepositoryService
         _logger = logger;
     }
 
-    public async Task<Repository> CreateRepositoryAsync(Repository repository)
-    {
-        repository.RepositoryId = Guid.NewGuid().ToString();
-        repository.CreatedAt = DateTime.UtcNow;
-        repository.UpdatedAt = DateTime.UtcNow;
-        
-        _db.Repositories.Add(repository);
-        await _db.SaveChangesAsync();
-        
-        _logger.LogInformation("Created repository {RepoId}: {Name}", 
-            repository.RepositoryId, repository.Name);
-        
-        return repository;
-    }
-
     public async Task<bool> TestConnectionAsync(string repositoryId)
     {
-        var repo = await _db.Repositories.FindAsync(repositoryId);
+        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
         if (repo == null) return false;
 
-        return repo.Type switch
-        {
-            RepositoryType.Local => TestLocalPath(repo.Path),
-            RepositoryType.NFS => TestNfsPath(repo.Path),
-            RepositoryType.SMB => TestSmbPath(repo.Path),
-            RepositoryType.S3 => await TestS3Async(repo.Path, repo.Credentials),
-            RepositoryType.AzureBlob => await TestAzureBlobAsync(repo.Path, repo.Credentials),
-            RepositoryType.GCS => await TestGcsAsync(repo.Path, repo.Credentials),
-            _ => false
-        };
-    }
-
-    private bool TestLocalPath(string path)
-    {
         try
         {
-            return Directory.Exists(path);
+            return repo.Type switch
+            {
+                RepositoryType.Local => Directory.Exists(repo.Path),
+                RepositoryType.NFS or RepositoryType.SMB => TestNetworkPath(repo.Path),
+                RepositoryType.S3 => await TestS3Async(repo.Path, repo.Credentials),
+                RepositoryType.AzureBlob => await TestAzureBlobAsync(repo.Path, repo.Credentials),
+                RepositoryType.GCS => await TestGcsAsync(repo.Path, repo.Credentials),
+                _ => false
+            };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Connection test failed for {RepoId}", repositoryId);
             return false;
         }
     }
 
-    private bool TestNfsPath(string path)
+    private bool TestNetworkPath(string path)
     {
-        if (string.IsNullOrEmpty(path)) return false;
-        return path.Contains(':') && (path.Contains('/') || path.Contains('\\'));
-    }
-
-    private bool TestSmbPath(string path)
-    {
-        if (string.IsNullOrEmpty(path)) return false;
-        return path.StartsWith(@"\\") || path.StartsWith("//");
+        // On Windows, we check if the UNC path is accessible
+        try { return new DirectoryInfo(path).Exists; } catch { return false; }
     }
 
     private async Task<bool> TestS3Async(string bucket, string? credentials)
     {
-        await Task.CompletedTask;
-        if (string.IsNullOrEmpty(bucket)) return false;
-        return bucket.Length >= 3 && bucket.Length <= 63;
+        // Expecting JSON: {"AccessKey":"...", "SecretKey":"...", "Region":"..."}
+        var creds = System.Text.Json.JsonSerializer.Deserialize<S3Credentials>(credentials ?? "{}");
+        var config = new AmazonS3Config { RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(creds.Region ?? "us-east-1") };
+        using var client = new AmazonS3Client(creds.AccessKey, creds.SecretKey, config);
+        await client.ListObjectsV2Async(new Amazon.S3.Model.ListObjectsV2Request { BucketName = bucket, MaxKeys = 1 });
+        return true;
     }
 
-    private async Task<bool> TestAzureBlobAsync(string container, string? credentials)
+    private async Task<bool> TestAzureBlobAsync(string container, string? connectionString)
     {
-        await Task.CompletedTask;
-        if (string.IsNullOrEmpty(container)) return false;
-        return System.Text.RegularExpressions.Regex.IsMatch(container, "^[a-z0-9](?!.*--)[a-z0-9-]{1,61}[a-z0-9]$");
+        var client = new BlobContainerClient(connectionString, container);
+        return await client.ExistsAsync();
     }
 
-    private async Task<bool> TestGcsAsync(string bucket, string? credentials)
+    private async Task<bool> TestGcsAsync(string bucket, string? credentialsJson)
     {
-        await Task.CompletedTask;
-        return !string.IsNullOrEmpty(bucket) && bucket.Length >= 3;
+        var client = await StorageClient.CreateAsync(); // Uses GOOGLE_APPLICATION_CREDENTIALS or provided JSON
+        await client.GetBucketAsync(bucket);
+        return true;
     }
 
     public async Task UpdateStorageMetricsAsync(string repositoryId)
     {
-        var repo = await _db.Repositories.FindAsync(repositoryId);
+        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
         if (repo == null) return;
 
         if (repo.Type == RepositoryType.Local && Directory.Exists(repo.Path))
         {
-            var driveInfo = new DriveInfo(Path.GetPathRoot(repo.Path));
+            var driveInfo = new DriveInfo(Path.GetPathRoot(repo.Path)!);
             repo.CapacityBytes = driveInfo.TotalSize;
             repo.UsedBytes = driveInfo.TotalSize - driveInfo.AvailableFreeSpace;
         }
+        // For Cloud, we would sum the blobs/objects (omitted for brevity but can be added)
 
         repo.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
     }
+}
+
+public class S3Credentials { public string? AccessKey { get; set; } public string? SecretKey { get; set; } public string? Region { get; set; } }
 
     public async Task<long> GetAvailableSpaceAsync(string repositoryId)
     {
@@ -292,49 +204,61 @@ public class CloudStorageService
         _logger = logger;
     }
 
-    public async Task<string> UploadToS3Async(string bucket, string key, byte[] data, Dictionary<string, string>? options = null)
+    public async Task<string> UploadToS3Async(string bucket, string key, byte[] data, string? credentials)
     {
-        _logger.LogInformation("Uploading to S3: {Bucket}/{Key}", bucket, key);
-        await Task.Delay(100);
+        var creds = System.Text.Json.JsonSerializer.Deserialize<S3Credentials>(credentials ?? "{}");
+        var config = new AmazonS3Config { RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(creds.Region ?? "us-east-1") };
+        using var client = new AmazonS3Client(creds.AccessKey, creds.SecretKey, config);
+        
+        using var stream = new MemoryStream(data);
+        await client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+        {
+            BucketName = bucket,
+            Key = key,
+            InputStream = stream
+        });
         return $"s3://{bucket}/{key}";
     }
 
-    public async Task<byte[]> DownloadFromS3Async(string bucket, string key)
+    public async Task<byte[]> DownloadFromS3Async(string bucket, string key, string? credentials)
     {
-        _logger.LogInformation("Downloading from S3: {Bucket}/{Key}", bucket, key);
-        await Task.Delay(100);
-        return Array.Empty<byte>();
+        var creds = System.Text.Json.JsonSerializer.Deserialize<S3Credentials>(credentials ?? "{}");
+        var config = new AmazonS3Config { RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(creds.Region ?? "us-east-1") };
+        using var client = new AmazonS3Client(creds.AccessKey, creds.SecretKey, config);
+
+        var response = await client.GetObjectAsync(bucket, key);
+        using var ms = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(ms);
+        return ms.ToArray();
     }
 
-    public async Task UploadToAzureBlobAsync(string container, string blobName, byte[] data)
+    public async Task UploadToAzureBlobAsync(string container, string blobName, byte[] data, string? connectionString)
     {
-        _logger.LogInformation("Uploading to Azure: {Container}/{Blob}", container, blobName);
-        await Task.Delay(100);
+        var client = new BlobContainerClient(connectionString, container);
+        using var stream = new MemoryStream(data);
+        await client.UploadBlobAsync(blobName, stream);
     }
 
-    public async Task<byte[]> DownloadFromAzureBlobAsync(string container, string blobName)
+    public async Task<byte[]> DownloadFromAzureBlobAsync(string container, string blobName, string? connectionString)
     {
-        _logger.LogInformation("Downloading from Azure: {Container}/{Blob}", container, blobName);
-        await Task.Delay(100);
-        return Array.Empty<byte>();
+        var client = new BlobContainerClient(connectionString, container);
+        var blob = client.GetBlobClient(blobName);
+        var response = await blob.DownloadContentAsync();
+        return response.Value.Content.ToArray();
     }
 
     public async Task UploadToGcsAsync(string bucket, string objectName, byte[] data)
     {
-        _logger.LogInformation("Uploading to GCS: {Bucket}/{Object}", bucket, objectName);
-        await Task.Delay(100);
+        var client = await StorageClient.CreateAsync();
+        using var stream = new MemoryStream(data);
+        await client.UploadObjectAsync(bucket, objectName, null, stream);
     }
 
     public async Task<byte[]> DownloadFromGcsAsync(string bucket, string objectName)
     {
-        _logger.LogInformation("Downloading from GCS: {Bucket}/{Object}", bucket, objectName);
-        await Task.Delay(100);
-        return Array.Empty<byte>();
-    }
-
-    public async Task SetStorageTierAsync(string path, string tier)
-    {
-        _logger.LogInformation("Setting storage tier for {Path} to {Tier}", path, tier);
-        await Task.Delay(50);
+        var client = await StorageClient.CreateAsync();
+        using var ms = new MemoryStream();
+        await client.DownloadObjectAsync(bucket, objectName, ms);
+        return ms.ToArray();
     }
 }

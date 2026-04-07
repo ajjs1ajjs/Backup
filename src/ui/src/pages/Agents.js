@@ -49,12 +49,19 @@ export default function Agents() {
               {agents.map((agent) => (
                 <TableRow key={agent.id || agent.agentId}>
                   <TableCell><ComputerIcon sx={{ mr: 1, verticalAlign: 'middle' }} />{agent.hostname || '-'}</TableCell>
-                  <TableCell><Chip label={agent.agentType || 'невідомо'} size="small" /></TableCell>
+                  <TableCell><Chip label={String(agent.agentType || 'Unknown')} size="small" /></TableCell>
                   <TableCell>{agent.osType || '-'}</TableCell>
                   <TableCell>{agent.ipAddress || '-'}</TableCell>
                   <TableCell>{agent.agentVersion || '-'}</TableCell>
                   <TableCell>
-                    <Chip label={agent.status || 'офлайн'} color={agent.status === 'idle' ? 'success' : agent.status === 'backing_up' ? 'warning' : 'error'} size="small" />
+                    <Chip 
+                      label={String(agent.status || 'Offline')} 
+                      color={
+                        String(agent.status).toLowerCase() === 'idle' ? 'success' : 
+                        String(agent.status).toLowerCase() === 'backing_up' ? 'warning' : 'error'
+                      } 
+                      size="small" 
+                    />
                   </TableCell>
                   <TableCell>{agent.lastHeartbeat ? new Date(agent.lastHeartbeat).toLocaleString() : '-'}</TableCell>
                   <TableCell>

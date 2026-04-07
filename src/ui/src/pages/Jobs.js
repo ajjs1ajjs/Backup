@@ -23,11 +23,11 @@ const schedulePresets = [
 ];
 
 const jobTypeColors = {
-  full_backup: '#4fc3f7',
-  incremental: '#66bb6a',
-  differential: '#ffa726',
-  verify: '#ab47bc',
-  restore: '#ef5350'
+  Full: '#4fc3f7',
+  Incremental: '#66bb6a',
+  Differential: '#ffa726',
+  Replication: '#ab47bc',
+  Restore: '#ef5350'
 };
 
 export default function Jobs() {
@@ -84,9 +84,9 @@ export default function Jobs() {
 
   const openCreate = () => {
     setEditJob(null);
-    setScheduleTab(0);
+    setScheduleTab(1); // Default to Simple
     setFormData({
-      name: '', jobType: 'full_backup', sourceId: '', sourceType: 'vm',
+      name: '', jobType: 'Full', sourceId: '', sourceType: 'vm',
       sourceHost: '', destinationId: '', schedule: '0 2 * * *', enabled: true,
       options: JSON.stringify({ compression: 'zstd', retention: 7 })
     });
@@ -95,10 +95,15 @@ export default function Jobs() {
 
   const openEdit = (job) => {
     setEditJob(job);
-    setScheduleTab(0);
+    
+    let tab = 2;
+    if (!job.schedule) tab = 0;
+    else if (job.schedule.split(' ').length === 5) tab = 1;
+    
+    setScheduleTab(tab);
     setFormData({
       name: job.name || '',
-      jobType: job.jobType || 'full_backup',
+      jobType: job.jobType || 'Full',
       sourceId: job.sourceId || '',
       sourceType: job.sourceType || 'vm',
       sourceHost: job.sourceHost || '',
@@ -112,13 +117,14 @@ export default function Jobs() {
 
   const handleSaveJob = async () => {
     try {
+      const dataToSave = { ...formData, schedule: scheduleTab === 0 ? null : formData.schedule };
       if (editJob) {
         await fetchWithAuth(`/api/jobs/${editJob.jobId}`, {
           method: 'PUT',
-          body: JSON.stringify({ ...formData, jobId: editJob.jobId })
+          body: JSON.stringify({ ...dataToSave, jobId: editJob.jobId })
         });
       } else {
-        await fetchWithAuth('/api/jobs', { method: 'POST', body: JSON.stringify(formData) });
+        await fetchWithAuth('/api/jobs', { method: 'POST', body: JSON.stringify(dataToSave) });
       }
       setOpen(false);
       loadData();
@@ -178,7 +184,7 @@ export default function Jobs() {
                   <TableCell>{statusIcon(job)}</TableCell>
                   <TableCell sx={{ fontWeight: 500 }}>{job.name}</TableCell>
                   <TableCell>
-                    <Chip label={job.jobType?.replace('_', ' ') || 'full'} size="small"
+                    <Chip label={String(job.jobType || 'Full').replace('_', ' ')} size="small"
                       sx={{ fontSize: '0.7rem', height: 22, bgcolor: (jobTypeColors[job.jobType] || '#999') + '20', color: jobTypeColors[job.jobType] || '#999', fontWeight: 'bold' }} />
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>
@@ -274,24 +280,105 @@ export default function Jobs() {
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Розклад</Typography>
-              <Tabs value={scheduleTab} onChange={(e, v) => setScheduleTab(v)} sx={{ mb: 2 }}>
-                <Tab label="Пресети" />
+              <Tabs value={scheduleTab} onChange={(e, v) => setScheduleTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Tab label="Ручний" />
+                <Tab label="Простий" />
                 <Tab label="Cron" />
               </Tabs>
 
               {scheduleTab === 0 ? (
-                <Box display="flex" flexDirection="column" gap={1}>
-                  {schedulePresets.map((preset) => (
-                    <Button key={preset.cron} variant={formData.schedule === preset.cron ? 'contained' : 'outlined'}
-                      size="small" onClick={() => setFormData({ ...formData, schedule: preset.cron })}
-                      sx={{ justifyContent: 'flex-start', textTransform: 'none' }}>
-                      {preset.label}
-                    </Button>
-                  ))}
+                <Box p={2} bgcolor="#f8f9fa" borderRadius={1} textAlign="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Завдання буде запускатися тільки вручну або через API.
+                  </Typography>
+                  <Button variant="outlined" sx={{ mt: 1 }} size="small" onClick={() => setFormData({ ...formData, schedule: null })}>
+                    Встановити ручний режим
+                  </Button>
+                </Box>
+              ) : scheduleTab === 1 ? (
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <Box display="flex" gap={2} alignItems="center">
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Періодичність</InputLabel>
+                      <Select
+                        value={formData.schedule?.includes('* * *') ? 'daily' : (formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[4] !== '*' ? 'weekly' : 'monthly')}
+                        label="Періодичність"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'daily') setFormData({ ...formData, schedule: '0 2 * * *' });
+                          else if (val === 'weekly') setFormData({ ...formData, schedule: '0 2 * * 1' });
+                          else setFormData({ ...formData, schedule: '0 2 1 * *' });
+                        }}
+                      >
+                        <MenuItem value="daily">Щодня</MenuItem>
+                        <MenuItem value="weekly">Щотижня</MenuItem>
+                        <MenuItem value="monthly">Щомісяця</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      label="Час"
+                      type="time"
+                      size="small"
+                      value={(() => {
+                        const parts = (formData.schedule || '0 2 * * *').split(' ');
+                        const h = parts[1].padStart(2, '0');
+                        const m = parts[0].padStart(2, '0');
+                        return `${h}:${m}`;
+                      })()}
+                      onChange={(e) => {
+                        const [h, m] = e.target.value.split(':');
+                        const parts = (formData.schedule || '0 2 * * *').split(' ');
+                        parts[0] = parseInt(m).toString();
+                        parts[1] = parseInt(h).toString();
+                        setFormData({ ...formData, schedule: parts.join(' ') });
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
+
+                  {formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[4] !== '*' && (
+                    <FormControl size="small" fullWidth>
+                      <InputLabel>День тижня</InputLabel>
+                      <Select
+                        value={formData.schedule?.split(' ')[4]}
+                        label="День тижня"
+                        onChange={(e) => {
+                          const parts = formData.schedule.split(' ');
+                          parts[4] = e.target.value;
+                          setFormData({ ...formData, schedule: parts.join(' ') });
+                        }}
+                      >
+                        <MenuItem value="0">Неділя</MenuItem>
+                        <MenuItem value="1">Понеділок</MenuItem>
+                        <MenuItem value="2">Вівторок</MenuItem>
+                        <MenuItem value="3">Середа</MenuItem>
+                        <MenuItem value="4">Четвер</MenuItem>
+                        <MenuItem value="5">П'ятниця</MenuItem>
+                        <MenuItem value="6">Субота</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+
+                  {formData.schedule?.split(' ').length === 5 && formData.schedule?.split(' ')[2] !== '*' && (
+                    <TextField
+                      label="День місяця"
+                      type="number"
+                      size="small"
+                      fullWidth
+                      InputProps={{ inputProps: { min: 1, max: 31 } }}
+                      value={formData.schedule?.split(' ')[2]}
+                      onChange={(e) => {
+                        const parts = formData.schedule.split(' ');
+                        parts[2] = e.target.value;
+                        setFormData({ ...formData, schedule: parts.join(' ') });
+                      }}
+                    />
+                  )}
                 </Box>
               ) : (
                 <Tooltip title="Формат: хвилини (0-59) години (0-23) дні (1-31) місяці (1-12) дні_тижня (0-6)">
-                  <TextField fullWidth label="Cron вираз" value={formData.schedule}
+                  <TextField fullWidth label="Cron вираз" value={formData.schedule || ''}
                     onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
                     size="small" placeholder="0 2 * * *" helperText="хв год день місяць день_тижня" />
                 </Tooltip>

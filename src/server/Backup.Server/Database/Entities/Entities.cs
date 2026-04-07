@@ -79,7 +79,6 @@ public class VirtualMachine
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
-    [Required]
     [MaxLength(64)]
     public string VmId { get; set; } = string.Empty;
 

@@ -90,7 +90,6 @@ export default function VirtualMachines() {
         method: 'POST',
         body: JSON.stringify({
           ...newVM,
-          vmId: '',
           status: 'running',
           disks: JSON.stringify([]),
           tags: JSON.stringify({})

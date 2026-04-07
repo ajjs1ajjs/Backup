@@ -46,12 +46,21 @@ export default function Backups() {
             <TableBody>
               {backups.map((backup) => (
                 <TableRow key={backup.id || backup.backupId}>
-                  <TableCell>{(backup.id || backup.backupId).substring(0, 8)}...</TableCell>
-                  <TableCell><Chip label={backup.backupType || 'full'} size="small" /></TableCell>
-                  <TableCell>{backup.repositoryId ? backup.repositoryId.substring(0, 8) + '...' : '-'}</TableCell>
+                  <TableCell>{(backup.id || backup.backupId || '').substring(0, 8)}...</TableCell>
+                  <TableCell><Chip label={String(backup.backupType || 'Full').replace('_', ' ')} size="small" /></TableCell>
+                  <TableCell>{backup.repositoryId ? String(backup.repositoryId).substring(0, 8) + '...' : '-'}</TableCell>
                   <TableCell>{backup.sizeBytes ? (backup.sizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '-'}</TableCell>
                   <TableCell>
-                    <Chip label={backup.status || 'unknown'} color={backup.status === 'completed' ? 'success' : backup.status === 'failed' ? 'error' : 'warning'} size="small" />
+                    <Chip 
+                      label={String(backup.status || 'Pending')} 
+                      color={
+                        String(backup.status).toLowerCase() === 'completed' || String(backup.status) === 'Completed' ? 'success' : 
+                        String(backup.status).toLowerCase() === 'failed' || String(backup.status) === 'Failed' ? 'error' : 
+                        String(backup.status).toLowerCase() === 'inprogress' || String(backup.status) === 'InProgress' ? 'info' :
+                        'warning'
+                      } 
+                      size="small" 
+                    />
                   </TableCell>
                   <TableCell>{backup.createdAt ? new Date(backup.createdAt).toLocaleString() : '-'}</TableCell>
                   <TableCell>

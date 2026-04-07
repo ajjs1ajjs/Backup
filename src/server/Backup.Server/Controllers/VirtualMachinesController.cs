@@ -131,14 +131,68 @@ public class VirtualMachinesController : ControllerBase
         }
         else if (hypervisor.Type == "vmware")
         {
-            discovered = new List<object> { new { name = "VMware discovery not yet implemented", vmId = "" } };
+            discovered = await DiscoverVmwareVMs(hypervisor);
         }
         else if (hypervisor.Type == "kvm")
         {
-            discovered = new List<object> { new { name = "KVM discovery not yet implemented", vmId = "" } };
+            discovered = await DiscoverKvmVMs(hypervisor);
         }
 
         return Ok(discovered);
+    }
+
+    private async Task<List<object>> DiscoverKvmVMs(Hypervisor hypervisor)
+    {
+        var vms = new List<object>();
+        try
+        {
+            // Use virsh to list all domains (VMs)
+            var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ssh",
+                    Arguments = $"{hypervisor.Username}@{hypervisor.Host} \"virsh list --all --uuid --name\"",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            if (!string.IsNullOrEmpty(output))
+            {
+                var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2)
+                    {
+                        vms.Add(new
+                        {
+                            vmId = parts[0],
+                            name = parts[1],
+                            hypervisorType = "kvm",
+                            hypervisorHost = hypervisor.Host,
+                            status = "running" // Simplified
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "KVM discovery failed on {Host}", hypervisor.Host);
+        }
+        return vms;
+    }
+
+    private async Task<List<object>> DiscoverVmwareVMs(Hypervisor hypervisor)
+    {
+        // For VMware, typically we'd use govc CLI or VMware.Vim SDK
+        return new List<object> { new { name = "VMware requires govc or PowerCLI on server", vmId = "stub" } };
     }
 
     private async Task<List<object>> DiscoverHyperVVMs(Hypervisor hypervisor)
