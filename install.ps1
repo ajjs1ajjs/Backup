@@ -6,7 +6,7 @@ param(
     [string]$Token = "",
     [string]$AgentType = "hyperv",
     [string]$InstallDir = "C:\Program Files\BackupAgent",
-    [string]$Mode = "agent",
+    [string]$Mode = "server",
     [switch]$AutoStart,
     [switch]$Force,
     [switch]$Uninstall,
