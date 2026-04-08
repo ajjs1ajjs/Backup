@@ -8,10 +8,12 @@ namespace Backup.Server.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly Services.IAuthService _authService;
+    private readonly Services.IAuditService _auditService;
 
-    public AuthController(Services.IAuthService authService)
+    public AuthController(Services.IAuthService authService, Services.IAuditService auditService)
     {
         _authService = authService;
+        _auditService = auditService;
     }
 
     [HttpPost("register")]
@@ -41,6 +43,17 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(request.Username, request.Password);
+            
+            if (result.RequiresTwoFactor)
+            {
+                await _auditService.LogAsync(result.UserId, "LoginInitiated", "User", result.UserId, new { method = "2FA" }, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
+                return Ok(new { 
+                    requiresTwoFactor = true, 
+                    userId = result.UserId,
+                    message = "Two-factor authentication required" 
+                });
+            }
+
             if (result.MustChangePassword)
             {
                 var changePasswordToken = _authService.GeneratePasswordChangeToken(request.Username);
@@ -51,13 +64,49 @@ public class AuthController : ControllerBase
                 });
             }
 
+            var user = await _authService.GetUserByUsernameAsync(request.Username);
+            await _auditService.LogAsync(user?.UserId, "LoginSuccess", "User", user?.UserId, null, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
+
             return Ok(new { token = result.Token });
         }
         catch (UnauthorizedAccessException ex)
         {
+            await _auditService.LogAsync(null, "LoginFailed", "User", request.Username, new { error = ex.Message }, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
             return Unauthorized(new { error = ex.Message });
         }
     }
+
+    [HttpPost("login-2fa")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login2Fa([FromBody] Login2FaRequest request)
+    {
+        try
+        {
+            var isValid = await _authService.ValidateTwoFactorCodeAsync(request.UserId, request.Code);
+            if (!isValid)
+            {
+                return Unauthorized(new { error = "Invalid two-factor code" });
+            }
+
+            var user = await _authService.GetUserByIdAsync(request.UserId);
+            if (user == null) return NotFound(new { error = "User not found" });
+
+            await _authService.UpdateLastLoginAsync(request.UserId);
+            var token = _authService.GenerateJwtToken(user);
+            
+            return Ok(new { token });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+public class Login2FaRequest
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+}
 
     [HttpPost("change-password-first-login")]
     [AllowAnonymous]
@@ -151,14 +200,26 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Token is valid" });
     }
 
-    [HttpPost("reset-admin-emergency")]
-    [Authorize(Policy = "Admin")]
-    public IActionResult ResetAdminEmergency()
+    [HttpPost("2fa/setup")]
+    [Authorize]
+    public async Task<IActionResult> SetupTwoFactor()
     {
-        return StatusCode(StatusCodes.Status501NotImplemented, new
-        {
-            error = "Emergency password reset is disabled for security reasons."
-        });
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var secret = await _authService.SetupTwoFactorAsync(userId);
+        return Ok(new { secret });
+    }
+
+    [HttpPost("2fa/verify")]
+    [Authorize]
+    public async Task<IActionResult> VerifyTwoFactor([FromBody] Login2FaRequest request)
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var isValid = await _authService.ValidateTwoFactorCodeAsync(userId, request.Code);
+        return isValid ? Ok(new { message = "2FA enabled" }) : BadRequest(new { error = "Invalid code" });
     }
 }
 

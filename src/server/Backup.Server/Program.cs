@@ -178,6 +178,7 @@ public partial class Program
 
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+        builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<SchedulerService>();
         builder.Services.AddScoped<RepositoryService>();
         builder.Services.AddScoped<ICloudStorageService, CloudStorageService>();

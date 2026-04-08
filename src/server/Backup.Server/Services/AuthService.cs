@@ -22,8 +22,11 @@ public interface IAuthService
     Task<bool> ResetPasswordAsync(string token, string newPassword);
     Task UpdateTwoFactorSecretAsync(string userId, string secret);
     Task<string?> GetTwoFactorSecretAsync(string userId);
+    Task<string> SetupTwoFactorAsync(string userId);
+    Task<bool> ValidateTwoFactorCodeAsync(string userId, string code);
     string HashPasswordStatic(string password);
     string GeneratePasswordChangeToken(string username);
+    string GenerateJwtToken(User user);
 }
 
 public class AuthService : IAuthService
@@ -95,6 +98,16 @@ public class AuthService : IAuthService
         if (!VerifyPassword(password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid credentials");
 
+        if (!string.IsNullOrEmpty(user.TwoFactorSecret))
+        {
+            return new LoginResult 
+            { 
+                RequiresTwoFactor = true,
+                UserId = user.UserId,
+                MustChangePassword = user.MustChangePassword
+            };
+        }
+
         user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
@@ -103,6 +116,27 @@ public class AuthService : IAuthService
             MustChangePassword = user.MustChangePassword,
             Token = user.MustChangePassword ? null : GenerateJwtToken(user)
         };
+    }
+
+    public async Task<string> SetupTwoFactorAsync(string userId)
+    {
+        var secretBytes = OtpNet.KeyGeneration.GenerateRandomKey(20);
+        var secretBase32 = OtpNet.Base32Encoding.ToString(secretBytes);
+        
+        await UpdateTwoFactorSecretAsync(userId, secretBase32);
+        
+        return secretBase32;
+    }
+
+    public async Task<bool> ValidateTwoFactorCodeAsync(string userId, string code)
+    {
+        var secretBase32 = await GetTwoFactorSecretAsync(userId);
+        if (string.IsNullOrEmpty(secretBase32)) return false;
+
+        var secretBytes = OtpNet.Base32Encoding.ToBytes(secretBase32);
+        var totp = new OtpNet.Totp(secretBytes);
+        
+        return totp.VerifyTotp(code, out _, new OtpNet.VerificationWindow(1, 1));
     }
 
     public async Task ChangePasswordAsync(string username, string currentPassword, string newPassword)
@@ -189,7 +223,7 @@ public class AuthService : IAuthService
         return HashPassword(password);
     }
 
-    private string GenerateJwtToken(User user)
+    public string GenerateJwtToken(User user)
     {
         var jwtKey = _configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey))
@@ -300,4 +334,6 @@ public class LoginResult
 {
     public string? Token { get; set; }
     public bool MustChangePassword { get; set; }
+    public bool RequiresTwoFactor { get; set; }
+    public string? UserId { get; set; }
 }
