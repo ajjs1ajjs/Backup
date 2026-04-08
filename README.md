@@ -82,27 +82,36 @@
 
 ### Windows (PowerShell - Administrator)
 
-**One-command installation:**
+**🚀 Recommended: Full Automatic Installation**
+This command cleans up old installations, builds the latest version, configures SQLite, and runs the server in the background.
 
 ```powershell
-# Download and run the installer
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
-.\install-server.ps1 -AutoStart
+# Copy and paste this single command to install everything:
+sc.exe delete BackupServer 2>$null; Remove-Item -Path "C:\BackupServer" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\Users\$env:USERNAME\AppData\Local\Temp\Backup-latest" -Recurse -Force -ErrorAction SilentlyContinue; cd C:\Users\andreichuk.y\AppData\Local; iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1; .\install-server.ps1 -AutoStart
 ```
-
-**What the installer does:**
-1. ✅ Installs prerequisites: .NET 8 SDK, Node.js
-2. 📥 Clones the latest version from GitHub
-3. 🔨 Builds server and UI from source
-4. ⚙️ Creates Windows service with auto-start
-5. 🔑 Generates secure JWT signing key
-6. 🚀 Starts the server automatically
 
 **After installation:**
 - 🌐 **Web UI**: http://localhost
 - 🔌 **API**: http://localhost:8000
 - 📖 **Swagger**: http://localhost:8000/swagger
-- 👤 **Default login**: `admin` / (check server logs for bootstrap password)
+- 👤 **Default login**: `admin`
+- 🔑 **Default password**: `admin`
+- ✅ **Background Service**: Server runs in background; you can close the console window.
+
+> ⚠️ **Important**: You will be required to change the default password upon first login for security reasons.
+
+---
+
+**Manual Step-by-Step (Alternative):**
+If you prefer to run steps manually:
+
+```powershell
+# 1. Download installer
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
+
+# 2. Run installer
+.\install-server.ps1 -AutoStart
+```
 
 ---
 
