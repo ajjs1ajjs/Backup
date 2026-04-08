@@ -449,7 +449,7 @@ public class RestoreService
         }
     }
 
-    public async Task<List<string>> BrowseRestore FilesAsync(string restoreId, string path)
+    public async Task<List<string>> BrowseRestoreFilesAsync(string restoreId, string path)
     {
         var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
         if (restore == null)
