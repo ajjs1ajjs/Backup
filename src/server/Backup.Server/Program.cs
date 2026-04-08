@@ -122,19 +122,17 @@ public partial class Program
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
         })
-        .AddJwtBearer(options =>
+        .AddJwtBearer(options => { /* ... ваш поточний JWT ... */ })
+        .AddOpenIdConnect("oidc", options =>
         {
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = jwtIssuer,
-                ValidAudience = jwtAudience,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                ClockSkew = TimeSpan.Zero
-            };
+            options.Authority = builder.Configuration["Oidc:Authority"];
+            options.ClientId = builder.Configuration["Oidc:ClientId"];
+            options.ClientSecret = builder.Configuration["Oidc:ClientSecret"];
+            options.ResponseType = "code";
+            options.SaveTokens = true;
+            options.Scope.Add("openid");
+            options.Scope.Add("profile");
+            options.Scope.Add("email");
         });
 
         builder.Services.AddAuthorization(options =>
@@ -192,6 +190,7 @@ public partial class Program
         builder.Services.AddHostedService<AgentHealthCheckService>();
         builder.Services.AddHostedService<RetentionPolicyService>();
         builder.Services.AddHostedService<RestoreProcessingService>();
+        builder.Services.AddHostedService<TelegramBotService>();
 
         var app = builder.Build();
         ConfigureMiddleware(app);
