@@ -69,7 +69,8 @@ function Install-DotNet {
         & $scriptPath -Channel 8.0 -InstallDir "C:\Program Files\dotnet"
         Write-Log ".NET SDK 8.0 installed successfully"
         Remove-Item $scriptPath -Force -ErrorAction SilentlyContinue
-    } catch {
+    }
+    catch {
         Write-Error-Custom "Failed to install .NET SDK. Please install manually from https://dotnet.microsoft.com/download"
     }
 }
@@ -92,15 +93,21 @@ function Clone-OrUpdate-Repo {
 
     if (Test-Path (Join-Path $cloneDir ".git")) {
         Write-Log "Updating repository..."
-        Set-Location $cloneDir
-        git pull
-    } else {
+        Push-Location $cloneDir
+        try {
+            git pull | Out-Null
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    else {
         Write-Log "Cloning repository..."
         if (Test-Path $cloneDir) { Remove-Item $cloneDir -Recurse -Force }
-        git clone $repoUrl $cloneDir
+        git clone $repoUrl $cloneDir | Out-Null
     }
 
-    return $cloneDir
+    return $cloneDir.Trim()
 }
 
 function Build-Server {
@@ -159,24 +166,24 @@ function New-Config {
         ConnectionStrings = @{
             DefaultConnection = "Data Source=$InstallDir\backup.db"
         }
-        Jwt = @{
-            Key = $jwtKey
-            Issuer = "BackupServer"
+        Jwt               = @{
+            Key      = $jwtKey
+            Issuer   = "BackupServer"
             Audience = "BackupClients"
         }
-        Server = @{
+        Server            = @{
             PublicUrl = "http://localhost:8000"
         }
-        BootstrapAdmin = @{
+        BootstrapAdmin    = @{
             Username = "admin"
-            Email = "admin@backupsystem.com"
+            Email    = "admin@backupsystem.com"
             Password = ""
         }
-        AllowedOrigins = @()
-        Encryption = @{
+        AllowedOrigins    = @()
+        Encryption        = @{
             KeyFilePath = ""
         }
-        Serilog = @{
+        Serilog           = @{
             MinimumLevel = "Information"
         }
     } | ConvertTo-Json -Depth 10
@@ -219,7 +226,8 @@ function Start-ServerService {
     $service = Get-Service -Name "BackupServer"
     if ($service.Status -eq "Running") {
         Write-Log "Backup Server started successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Error-Custom "Failed to start Backup Server"
     }
 }
