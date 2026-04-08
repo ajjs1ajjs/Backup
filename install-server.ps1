@@ -95,7 +95,10 @@ function Clone-OrUpdate-Repo {
         Write-Log "Updating repository..."
         Push-Location $cloneDir
         try {
-            git pull | Out-Null
+            # Reset any local changes to avoid merge conflicts
+            git checkout -- . 2>&1 | Out-Null
+            git clean -fd 2>&1 | Out-Null
+            git pull 2>&1 | Out-Null
         }
         finally {
             Pop-Location
