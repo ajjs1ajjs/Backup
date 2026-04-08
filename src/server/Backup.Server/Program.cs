@@ -335,33 +335,23 @@ public partial class Program
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
         var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "admin";
         var bootstrapAdminEmail = app.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
-        var bootstrapAdminPassword = app.Configuration["BootstrapAdmin:Password"];
         
-        if (string.IsNullOrWhiteSpace(bootstrapAdminPassword))
-        {
-            var bytes = RandomNumberGenerator.GetBytes(16);
-            bootstrapAdminPassword = Convert.ToBase64String(bytes)[..12];
-            Log.Warning("No BootstrapAdmin:Password provided. Generated random password: {Password}. CHANGE THIS IMMEDIATELY.", bootstrapAdminPassword);
-        }
-
-        var publicServerUrl = app.Configuration["Server:PublicUrl"];
-        if (string.IsNullOrWhiteSpace(publicServerUrl))
-        {
-            publicServerUrl = $"http://{hostAddress}:{DefaultServerPort}";
-        }
+        // Default password is "admin" - user must change it on first login
+        var bootstrapAdminPassword = "admin";
 
         var adminUser = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
         if (adminUser == null)
         {
             await authService.RegisterAsync(bootstrapAdminUsername, bootstrapAdminEmail, bootstrapAdminPassword, "Admin");
-            Log.Information("Bootstrap admin user created");
+            Log.Information("Bootstrap admin user created with default password. Must change on first login.");
         }
         else if (!adminUser.PasswordHash.Contains('.'))
         {
             Log.Warning("Legacy password hash detected for user {Username}. Migrating to PBKDF2...", bootstrapAdminUsername);
             adminUser.PasswordHash = authService.HashPasswordStatic(bootstrapAdminPassword);
+            adminUser.MustChangePassword = true;
             await db.SaveChangesAsync();
-            Log.Information("Password migrated successfully for {Username}", bootstrapAdminUsername);
+            Log.Information("Password migrated successfully for {Username}. Must change on next login.", bootstrapAdminUsername);
         }
 
         var publicUrlSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "server.public_url");
