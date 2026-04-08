@@ -18,6 +18,7 @@ public class BackupDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Hypervisor> Hypervisors => Set<Hypervisor>();
+    public DbSet<Chunk> Chunks => Set<Chunk>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

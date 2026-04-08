@@ -190,7 +190,6 @@ public partial class Program
         builder.Services.AddHostedService<AgentHealthCheckService>();
         builder.Services.AddHostedService<RetentionPolicyService>();
         builder.Services.AddHostedService<RestoreProcessingService>();
-        builder.Services.AddHostedService<TelegramBotService>();
 
         var app = builder.Build();
         ConfigureMiddleware(app);

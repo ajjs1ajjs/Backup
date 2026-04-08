@@ -208,6 +208,16 @@ public class Job
     public DateTime? NextRun { get; set; }
 }
 
+[Table("chunks")]
+public class Chunk
+{
+    [Key]
+    public string Hash { get; set; } = string.Empty;
+    public byte[] Data { get; set; } = Array.Empty<byte>();
+    public long ReferenceCount { get; set; } = 1;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 [Table("backup_points")]
 public class BackupPoint
 {
