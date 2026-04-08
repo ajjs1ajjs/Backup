@@ -94,10 +94,19 @@ public partial class Program
         }
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? "Host=localhost;Database=backup_db;Username=postgres;Password=postgres";
+            ?? "Data Source=" + Path.Combine(AppContext.BaseDirectory, "backup.db");
 
         builder.Services.AddDbContext<BackupDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        {
+            if (connectionString.StartsWith("Host=") || connectionString.Contains("Username="))
+            {
+                options.UseNpgsql(connectionString);
+            }
+            else
+            {
+                options.UseSqlite(connectionString);
+            }
+        });
 
         builder.WebHost.ConfigureKestrel(options =>
         {
