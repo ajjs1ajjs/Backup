@@ -354,6 +354,12 @@ public partial class Program
             Log.Information("Password migrated successfully for {Username}. Must change on next login.", bootstrapAdminUsername);
         }
 
+        var publicServerUrl = app.Configuration["Server:PublicUrl"];
+        if (string.IsNullOrWhiteSpace(publicServerUrl))
+        {
+            publicServerUrl = $"http://{hostAddress}:{DefaultServerPort}";
+        }
+
         var publicUrlSetting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "server.public_url");
         if (publicUrlSetting == null)
         {
