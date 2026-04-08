@@ -114,14 +114,7 @@ public class Login2FaRequest
     {
         try
         {
-            var claims = User.Claims.ToList();
-            var isPasswordChangeToken = claims.Any(c => c.Type == "password_change" && c.Value == "true");
-            
-            if (!isPasswordChangeToken)
-            {
-                return BadRequest(new { error = "Invalid token for password change" });
-            }
-
+            // Validate credentials directly via ChangePasswordAsync (checks current password)
             await _authService.ChangePasswordAsync(request.Username, request.CurrentPassword, request.NewPassword);
             var loginResult = await _authService.LoginAsync(request.Username, request.NewPassword);
             return Ok(new { token = loginResult.Token });
