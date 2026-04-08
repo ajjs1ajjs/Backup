@@ -94,10 +94,24 @@ public partial class Program
         }
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? "Data Source=backup.db";
+            ?? "Host=localhost;Database=backup_db;Username=postgres;Password=postgres";
 
         builder.Services.AddDbContext<BackupDbContext>(options =>
-            options.UseSqlite(connectionString));
+            options.UseNpgsql(connectionString));
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ListenAnyIP(DefaultServerPort, listenOptions =>
+            {
+                listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
+            });
+        });
+
+        builder.Services.AddGrpc();
+
+        var agentManager = new AgentGrpcService(builder.Services.BuildServiceProvider(), builder.Logging.CreateLogger<AgentGrpcService>());
+        builder.Services.AddSingleton<IAgentManager>(agentManager);
+        builder.Services.AddSingleton<AgentGrpcService>(agentManager);
 
         var jwtKey = EnsureJwtKey(builder.Configuration);
         var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
@@ -166,7 +180,7 @@ public partial class Program
         builder.Services.AddScoped<IEncryptionService, EncryptionService>();
         builder.Services.AddScoped<SchedulerService>();
         builder.Services.AddScoped<RepositoryService>();
-        builder.Services.AddScoped<CloudStorageService>();
+        builder.Services.AddScoped<ICloudStorageService, CloudStorageService>();
         builder.Services.AddScoped<BackupExecutionService>();
         builder.Services.AddScoped<FastCloneService>();
         builder.Services.AddScoped<RestoreService>();
@@ -260,6 +274,7 @@ public partial class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
+        app.MapGrpcService<AgentGrpcService>();
         app.MapControllers();
         app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
         app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
@@ -291,8 +306,9 @@ public partial class Program
         
         if (string.IsNullOrWhiteSpace(bootstrapAdminPassword))
         {
-            bootstrapAdminPassword = "admin";
-            Log.Information("Using default bootstrap admin password: admin");
+            var bytes = RandomNumberGenerator.GetBytes(16);
+            bootstrapAdminPassword = Convert.ToBase64String(bytes)[..12];
+            Log.Warning("No BootstrapAdmin:Password provided. Generated random password: {Password}. CHANGE THIS IMMEDIATELY.", bootstrapAdminPassword);
         }
 
         var publicServerUrl = app.Configuration["Server:PublicUrl"];

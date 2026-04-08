@@ -87,11 +87,19 @@ public class SchedulerService
 public class RepositoryService
 {
     private readonly BackupDbContext _db;
+    private readonly ICloudStorageService _cloudStorage;
+    private readonly IEncryptionService _encryption;
     private readonly ILogger<RepositoryService> _logger;
 
-    public RepositoryService(BackupDbContext db, ILogger<RepositoryService> logger)
+    public RepositoryService(
+        BackupDbContext db, 
+        ICloudStorageService cloudStorage,
+        IEncryptionService encryption,
+        ILogger<RepositoryService> logger)
     {
         _db = db;
+        _cloudStorage = cloudStorage;
+        _encryption = encryption;
         _logger = logger;
     }
 
@@ -105,19 +113,29 @@ public class RepositoryService
 
         try
         {
-            return repo.Type switch
+            var decryptedCreds = string.IsNullOrEmpty(repo.Credentials) 
+                ? null 
+                : _encryption.Decrypt(repo.Credentials);
+
+            var result = repo.Type switch
             {
                 RepositoryType.Local => Directory.Exists(repo.Path),
                 RepositoryType.NFS or RepositoryType.SMB => TestNetworkPath(repo.Path),
-                RepositoryType.S3 => await TestS3Async(repo.Path, repo.Credentials),
-                RepositoryType.AzureBlob => await TestAzureBlobAsync(repo.Path, repo.Credentials),
-                RepositoryType.GCS => await TestGcsAsync(repo.Path, repo.Credentials),
+                RepositoryType.S3 => await _cloudStorage.TestS3ConnectionAsync(repo.Path, decryptedCreds),
+                RepositoryType.AzureBlob => await _cloudStorage.TestAzureConnectionAsync(repo.Path, decryptedCreds),
                 _ => false
             };
+
+            repo.Status = result ? "online" : "error";
+            repo.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return result;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Connection test failed for {RepoId}", repositoryId);
+            repo.Status = "error";
+            await _db.SaveChangesAsync();
             return false;
         }
     }
@@ -216,102 +234,6 @@ public class RepositoryService
         var client = new BlobContainerClient(connectionString, container);
         return await client.ExistsAsync();
     }
-
-    private static async Task<bool> TestGcsAsync(string bucket, string? credentialsJson)
-    {
-        StorageClient client;
-        if (string.IsNullOrWhiteSpace(credentialsJson))
-        {
-            client = await StorageClient.CreateAsync();
-        }
-        else
-        {
-            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(credentialsJson));
-            client = await StorageClient.CreateAsync(Google.Apis.Auth.OAuth2.GoogleCredential.FromStream(stream));
-        }
-
-        await client.GetBucketAsync(bucket);
-        return true;
-    }
-}
-
-public class CloudStorageService
-{
-    public async Task<string> UploadToS3Async(string bucket, string key, byte[] data, string? credentials)
-    {
-        var creds = JsonSerializer.Deserialize<S3Credentials>(credentials ?? "{}") ?? new S3Credentials();
-        var config = new AmazonS3Config
-        {
-            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(creds.Region ?? "us-east-1")
-        };
-
-        using var client = new AmazonS3Client(creds.AccessKey, creds.SecretKey, config);
-        using var stream = new MemoryStream(data);
-        await client.PutObjectAsync(new PutObjectRequest
-        {
-            BucketName = bucket,
-            Key = key,
-            InputStream = stream
-        });
-
-        return $"s3://{bucket}/{key}";
-    }
-
-    public async Task<byte[]> DownloadFromS3Async(string bucket, string key, string? credentials)
-    {
-        var creds = JsonSerializer.Deserialize<S3Credentials>(credentials ?? "{}") ?? new S3Credentials();
-        var config = new AmazonS3Config
-        {
-            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(creds.Region ?? "us-east-1")
-        };
-
-        using var client = new AmazonS3Client(creds.AccessKey, creds.SecretKey, config);
-        using var response = await client.GetObjectAsync(bucket, key);
-        using var ms = new MemoryStream();
-        await response.ResponseStream.CopyToAsync(ms);
-        return ms.ToArray();
-    }
-
-    public async Task UploadToAzureBlobAsync(string container, string blobName, byte[] data, string? connectionString)
-    {
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("Azure Blob connection string is required");
-        }
-
-        var client = new BlobContainerClient(connectionString, container);
-        using var stream = new MemoryStream(data);
-        await client.UploadBlobAsync(blobName, stream);
-    }
-
-    public async Task<byte[]> DownloadFromAzureBlobAsync(string container, string blobName, string? connectionString)
-    {
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("Azure Blob connection string is required");
-        }
-
-        var client = new BlobContainerClient(connectionString, container);
-        var blob = client.GetBlobClient(blobName);
-        var response = await blob.DownloadContentAsync();
-        return response.Value.Content.ToArray();
-    }
-
-    public async Task UploadToGcsAsync(string bucket, string objectName, byte[] data)
-    {
-        var client = await StorageClient.CreateAsync();
-        using var stream = new MemoryStream(data);
-        await client.UploadObjectAsync(bucket, objectName, null, stream);
-    }
-
-    public async Task<byte[]> DownloadFromGcsAsync(string bucket, string objectName)
-    {
-        var client = await StorageClient.CreateAsync();
-        using var ms = new MemoryStream();
-        await client.DownloadObjectAsync(bucket, objectName, ms);
-        return ms.ToArray();
-    }
-}
 
 public class S3Credentials
 {

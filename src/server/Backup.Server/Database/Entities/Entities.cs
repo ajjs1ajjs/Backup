@@ -190,6 +190,9 @@ public class Job
     [MaxLength(64)]
     public string DestinationId { get; set; } = string.Empty;
 
+    [MaxLength(64)]
+    public string? AgentId { get; set; }
+
     public string? Schedule { get; set; }
 
     public string Options { get; set; } = "{}";
@@ -362,6 +365,11 @@ public class User
 
     [MaxLength(64)]
     public string? TwoFactorSecret { get; set; }
+
+    [MaxLength(128)]
+    public string? PasswordResetToken { get; set; }
+
+    public DateTime? PasswordResetTokenExpiry { get; set; }
 }
 
 [Table("audit_logs")]

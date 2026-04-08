@@ -30,7 +30,7 @@ public class EmailNotificationService : INotificationService
 
         _smtpClient = new SmtpClient(smtpHost, smtpPort)
         {
-            EnableSsl = bool.Parse(config["Smtp:EnableSsl"] ?? "false"),
+            EnableSsl = bool.Parse(config["Smtp:EnableSsl"] ?? "true"),
             Credentials = string.IsNullOrEmpty(username) 
                 ? null 
                 : new NetworkCredential(username, password)

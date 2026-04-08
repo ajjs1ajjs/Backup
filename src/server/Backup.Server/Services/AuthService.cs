@@ -20,6 +20,8 @@ public interface IAuthService
     Task UpdateLastLoginAsync(string userId);
     Task<string> GeneratePasswordResetTokenAsync(string email);
     Task<bool> ResetPasswordAsync(string token, string newPassword);
+    Task UpdateTwoFactorSecretAsync(string userId, string secret);
+    Task<string?> GetTwoFactorSecretAsync(string userId);
     string HashPasswordStatic(string password);
     string GeneratePasswordChangeToken(string username);
 }
@@ -28,11 +30,30 @@ public class AuthService : IAuthService
 {
     private readonly BackupDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IEncryptionService _encryption;
 
-    public AuthService(BackupDbContext context, IConfiguration configuration)
+    public AuthService(BackupDbContext context, IConfiguration configuration, IEncryptionService encryption)
     {
         _context = context;
         _configuration = configuration;
+        _encryption = encryption;
+    }
+
+    public async Task UpdateTwoFactorSecretAsync(string userId, string secret)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user != null)
+        {
+            user.TwoFactorSecret = string.IsNullOrEmpty(secret) ? null : _encryption.Encrypt(secret);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<string?> GetTwoFactorSecretAsync(string userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user == null || string.IsNullOrEmpty(user.TwoFactorSecret)) return null;
+        return _encryption.Decrypt(user.TwoFactorSecret);
     }
 
     public async Task<string> RegisterAsync(string username, string email, string password, string role = "Viewer")
@@ -131,21 +152,34 @@ public class AuthService : IAuthService
         }
     }
 
-    public Task<string> GeneratePasswordResetTokenAsync(string email)
+    public async Task<string> GeneratePasswordResetTokenAsync(string email)
     {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+        if (user == null) return string.Empty;
+
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-        return Task.FromResult(token);
+        user.PasswordResetToken = token;
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(2);
+        await _context.SaveChangesAsync();
+
+        return token;
     }
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword)
     {
         if (string.IsNullOrWhiteSpace(token)) return false;
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.IsActive);
+        var user = await _context.Users.FirstOrDefaultAsync(u => 
+            u.PasswordResetToken == token && 
+            u.PasswordResetTokenExpiry > DateTime.UtcNow && 
+            u.IsActive);
+
         if (user == null) return false;
 
         user.PasswordHash = HashPassword(newPassword);
         user.MustChangePassword = false;
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiry = null;
         await _context.SaveChangesAsync();
         return true;
     }

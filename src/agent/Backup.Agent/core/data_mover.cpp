@@ -38,7 +38,11 @@ public:
 
     uint64_t GetSize() const override { return size_; }
     std::string GetChecksum() const override { return checksum_; }
-    void SetChunkSize(uint64_t size) { chunk_size_ = size; }
+    void SetChunkSize(uint64_t size) { 
+        const uint64_t MAX_CHUNK_SIZE = 64 * 1024 * 1024; // 64 MB
+        chunk_size_ = std::min(size, MAX_CHUNK_SIZE);
+        if (chunk_size_ == 0) chunk_size_ = 64 * 1024; // Default to 64 KB if 0
+    }
 
 private:
     std::string path_;

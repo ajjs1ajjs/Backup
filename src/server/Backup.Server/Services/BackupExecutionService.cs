@@ -9,11 +9,22 @@ namespace Backup.Server.Services;
 public class BackupExecutionService
 {
     private readonly BackupDbContext _db;
+    private readonly IAgentManager _agentManager;
+    private readonly ICloudStorageService _cloudStorage;
+    private readonly IEncryptionService _encryption;
     private readonly ILogger<BackupExecutionService> _logger;
 
-    public BackupExecutionService(BackupDbContext db, ILogger<BackupExecutionService> logger)
+    public BackupExecutionService(
+        BackupDbContext db, 
+        IAgentManager agentManager, 
+        ICloudStorageService cloudStorage,
+        IEncryptionService encryption,
+        ILogger<BackupExecutionService> logger)
     {
         _db = db;
+        _agentManager = agentManager;
+        _cloudStorage = cloudStorage;
+        _encryption = encryption;
         _logger = logger;
     }
 
@@ -117,7 +128,7 @@ public class BackupExecutionService
             return result;
         }
 
-        if (repository.Type != RepositoryType.Local)
+        if (repository.Type != RepositoryType.Local && repository.Type != RepositoryType.S3 && repository.Type != RepositoryType.AzureBlob)
         {
             run.Status = "failed";
             run.EndTime = DateTime.UtcNow;
@@ -127,7 +138,7 @@ public class BackupExecutionService
             return result;
         }
 
-        if (string.IsNullOrWhiteSpace(repository.Path))
+        if (repository.Type == RepositoryType.Local && string.IsNullOrWhiteSpace(repository.Path))
         {
             run.Status = "failed";
             run.EndTime = DateTime.UtcNow;
@@ -143,6 +154,36 @@ public class BackupExecutionService
         run.FilesProcessed = 0;
         run.SpeedMbps = 0;
         await _db.SaveChangesAsync(cancellationToken);
+
+        // --- НОВА ЛОГІКА ДЛЯ АГЕНТІВ ---
+        if (!string.IsNullOrEmpty(job.AgentId))
+        {
+            if (_agentManager.IsAgentOnline(job.AgentId))
+            {
+                var command = new Backup.Contracts.ServerCommand
+                {
+                    StartBackup = new Backup.Contracts.StartBackupCommand
+                    {
+                        JobId = job.JobId,
+                        BackupType = job.JobType.ToString(),
+                        SourcePath = sourcePath,
+                        DestinationPath = repository.Path,
+                        CompressionEnabled = true
+                    }
+                };
+
+                if (await _agentManager.SendCommandAsync(job.AgentId, command))
+                {
+                    _logger.LogInformation("Sent backup command to agent {AgentId} for job {JobId}", job.AgentId, job.JobId);
+                    result.Success = true;
+                    result.Message = "Backup command sent to agent";
+                    return result; // Роботу продовжить агент, сервер лише моніторить
+                }
+            }
+            
+            _logger.LogWarning("Agent {AgentId} is offline for job {JobId}. Falling back to local execution if possible.", job.AgentId, job.JobId);
+        }
+        // ------------------------------
 
         var backupPoint = new BackupPoint
         {
@@ -168,28 +209,92 @@ public class BackupExecutionService
 
         try
         {
-            Directory.CreateDirectory(repository.Path);
-            var targetPath = BuildDestinationPath(repository.Path, backupPoint.BackupId, sourcePath);
-            await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
-
-            if (File.Exists(sourcePath))
+            if (repository.Type == RepositoryType.Local)
             {
-                backupPoint.OriginalSizeBytes = new FileInfo(sourcePath).Length;
-                await _db.SaveChangesAsync(cancellationToken);
-                await CopyFileWithProgressAsync(sourcePath, targetPath, run, cancellationToken);
+                Directory.CreateDirectory(repository.Path);
+                var targetPath = BuildDestinationPath(repository.Path, backupPoint.BackupId, sourcePath);
+                await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
+
+                if (File.Exists(sourcePath))
+                {
+                    backupPoint.OriginalSizeBytes = new FileInfo(sourcePath).Length;
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await CopyFileWithProgressAsync(sourcePath, targetPath, run, cancellationToken);
+                }
+                else
+                {
+                    backupPoint.OriginalSizeBytes = Directory
+                        .GetFiles(sourcePath, "*", SearchOption.AllDirectories)
+                        .Sum(file => new FileInfo(file).Length);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await CopyDirectoryWithProgressAsync(sourcePath, targetPath, run, cancellationToken);
+                }
+
+                backupPoint.FilePath = targetPath;
+                backupPoint.SizeBytes = GetPathSize(targetPath);
+                backupPoint.Checksum = await ComputeChecksumAsync(targetPath, cancellationToken);
             }
-            else
+            else if (repository.Type == RepositoryType.S3)
             {
-                backupPoint.OriginalSizeBytes = Directory
-                    .GetFiles(sourcePath, "*", SearchOption.AllDirectories)
-                    .Sum(file => new FileInfo(file).Length);
-                await _db.SaveChangesAsync(cancellationToken);
-                await CopyDirectoryWithProgressAsync(sourcePath, targetPath, run, cancellationToken);
+                var bucket = repository.Path; // In S3 repo, Path acts as bucket name
+                var key = $"{backupPoint.BackupId}_{Path.GetFileName(sourcePath)}";
+                
+                var decryptedCreds = string.IsNullOrEmpty(repository.Credentials) 
+                    ? null 
+                    : _encryption.Decrypt(repository.Credentials);
+
+                await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
+
+                if (File.Exists(sourcePath))
+                {
+                    backupPoint.OriginalSizeBytes = new FileInfo(sourcePath).Length;
+                    await _db.SaveChangesAsync(cancellationToken);
+                    
+                    using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    await _cloudStorage.UploadToS3Async(bucket, key, fileStream, decryptedCreds, cancellationToken);
+                    
+                    run.BytesProcessed = backupPoint.OriginalSizeBytes;
+                    run.FilesProcessed = 1;
+                }
+                else
+                {
+                    throw new NotSupportedException("Directory backup to S3 is not yet supported in this version.");
+                }
+
+                backupPoint.FilePath = $"s3://{bucket}/{key}";
+                backupPoint.SizeBytes = backupPoint.OriginalSizeBytes;
+            }
+            else if (repository.Type == RepositoryType.AzureBlob)
+            {
+                var container = repository.Path;
+                var blobName = $"{backupPoint.BackupId}_{Path.GetFileName(sourcePath)}";
+                
+                var connectionString = string.IsNullOrEmpty(repository.Credentials) 
+                    ? null 
+                    : _encryption.Decrypt(repository.Credentials);
+
+                await EnsureRunNotCancelledAsync(run.RunId, cancellationToken);
+
+                if (File.Exists(sourcePath))
+                {
+                    backupPoint.OriginalSizeBytes = new FileInfo(sourcePath).Length;
+                    await _db.SaveChangesAsync(cancellationToken);
+                    
+                    using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    await _cloudStorage.UploadToAzureBlobAsync(container, blobName, fileStream, connectionString, cancellationToken);
+                    
+                    run.BytesProcessed = backupPoint.OriginalSizeBytes;
+                    run.FilesProcessed = 1;
+                }
+                else
+                {
+                    throw new NotSupportedException("Directory backup to Azure Blob is not yet supported.");
+                }
+
+                backupPoint.FilePath = $"azure://{container}/{blobName}";
+                backupPoint.SizeBytes = backupPoint.OriginalSizeBytes;
             }
 
-            backupPoint.FilePath = targetPath;
-            backupPoint.SizeBytes = GetPathSize(targetPath);
-            backupPoint.Checksum = await ComputeChecksumAsync(targetPath, cancellationToken);
             backupPoint.Status = BackupStatus.Completed;
             backupPoint.CompletedAt = DateTime.UtcNow;
 
