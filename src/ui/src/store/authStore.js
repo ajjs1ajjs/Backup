@@ -25,7 +25,7 @@ export const useAuthStore = create(
           
           if (response.ok) {
             if (data.mustChangePassword) {
-              set({ authError: 'PASSWORD_CHANGE_REQUIRED' });
+              set({ authError: 'PASSWORD_CHANGE_REQUIRED', token: data.token });
               return false;
             }
             set({ isAuthenticated: true, username, token: data.token, authError: '' });
@@ -33,7 +33,7 @@ export const useAuthStore = create(
           }
 
           if (data?.mustChangePassword) {
-            set({ authError: 'PASSWORD_CHANGE_REQUIRED' });
+            set({ authError: 'PASSWORD_CHANGE_REQUIRED', token: data?.token });
           } else {
             set({ authError: data?.error || 'Invalid credentials' });
           }
@@ -44,11 +44,11 @@ export const useAuthStore = create(
           return false;
         }
       },
-      changePasswordFirstLogin: async (username, currentPassword, newPassword) => {
+      changePasswordFirstLogin: async (username, token, newPassword) => {
         const response = await fetch(`${API_URL}/api/auth/change-password-first-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, currentPassword, newPassword })
+          body: JSON.stringify({ username, token, newPassword })
         });
 
         if (!response.ok) {

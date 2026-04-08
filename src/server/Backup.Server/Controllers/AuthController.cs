@@ -114,8 +114,7 @@ public class Login2FaRequest
     {
         try
         {
-            // Validate credentials directly via ChangePasswordAsync (checks current password)
-            await _authService.ChangePasswordAsync(request.Username, request.CurrentPassword, request.NewPassword);
+            await _authService.ChangePasswordWithTokenAsync(request.Username, request.Token, request.NewPassword);
             var loginResult = await _authService.LoginAsync(request.Username, request.NewPassword);
             return Ok(new { token = loginResult.Token });
         }
@@ -234,5 +233,6 @@ public class ChangePasswordFirstLoginRequest
 {
     public string Username { get; set; } = string.Empty;
     public string CurrentPassword { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
 }

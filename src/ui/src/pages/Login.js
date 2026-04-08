@@ -12,7 +12,7 @@ export default function Login() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, changePasswordFirstLogin, authError } = useAuthStore();
+  const { login, changePasswordFirstLogin, authError, token } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -52,7 +52,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await changePasswordFirstLogin(username, password, newPassword);
+      await changePasswordFirstLogin(username, token, newPassword);
       navigate('/dashboard');
     } catch (changeError) {
       setError(changeError.message);

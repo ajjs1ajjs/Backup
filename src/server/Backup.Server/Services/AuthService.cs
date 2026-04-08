@@ -14,6 +14,7 @@ public interface IAuthService
     Task<string> RegisterAsync(string username, string email, string password, string role = "Viewer");
     Task<LoginResult> LoginAsync(string username, string password);
     Task ChangePasswordAsync(string username, string currentPassword, string newPassword);
+    Task ChangePasswordWithTokenAsync(string username, string token, string newPassword);
     Task<User?> GetUserByIdAsync(string userId);
     Task<User?> GetUserByUsernameAsync(string username);
     Task<bool> ValidatePasswordAsync(string userId, string password);
@@ -158,6 +159,59 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid credentials");
 
         if (!VerifyPassword(currentPassword, user.PasswordHash))
+            throw new UnauthorizedAccessException("Invalid credentials");
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            throw new InvalidOperationException("New password must be at least 8 characters");
+
+        if (VerifyPassword(newPassword, user.PasswordHash))
+            throw new InvalidOperationException("New password must be different from current password");
+
+        user.PasswordHash = HashPassword(newPassword);
+        user.MustChangePassword = false;
+        user.LastLoginAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ChangePasswordWithTokenAsync(string username, string token, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("Invalid token for password change");
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            
+            handler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = key,
+                ValidateIssuer = true,
+                ValidIssuer = _configuration["Jwt:Issuer"] ?? "BackupServer",
+                ValidateAudience = true,
+                ValidAudience = _configuration["Jwt:Audience"] ?? "BackupClients",
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            }, out SecurityToken validatedToken);
+
+            var jwtToken = (JwtSecurityToken)validatedToken;
+            var tokenUsername = jwtToken.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+            var isPasswordChange = jwtToken.Claims.FirstOrDefault(x => x.Type == "password_change")?.Value;
+
+            if (tokenUsername != username || isPasswordChange != "true")
+            {
+                throw new InvalidOperationException("Invalid token for password change");
+            }
+        }
+        catch (SecurityTokenException)
+        {
+            throw new InvalidOperationException("Invalid token for password change");
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        if (user == null || !user.IsActive)
             throw new UnauthorizedAccessException("Invalid credentials");
 
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
