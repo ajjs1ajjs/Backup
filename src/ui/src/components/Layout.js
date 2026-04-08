@@ -77,6 +77,7 @@ const navSections = [
     label: 'CONFIGURATION',
     items: [
       { text: 'Users', icon: <GroupIcon />, path: '/users' },
+      { text: 'Audit Logs', icon: <ReportIcon />, path: '/audit-logs' },
       { text: 'Settings', icon: <SettingsIcon />, path: '/settings' }
     ]
   }

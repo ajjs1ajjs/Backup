@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
 import { useApi, fetchWithAuth } from '../services/ApiContext';
+import TwoFactorSetup from '../components/TwoFactorSetup';
 
 export default function Settings() {
   const { data: settings, loading, refetch } = useApi('/api/settings');
@@ -122,7 +123,8 @@ export default function Settings() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>Security</Typography>
-          <Box display="flex" flexDirection="column" gap={2}>
+          <TwoFactorSetup onEnabled={() => window.location.reload()} />
+          <Box display="flex" flexDirection="column" gap={2} mt={2}>
             <TextField
               label="Encryption Algorithm"
               select
@@ -133,15 +135,6 @@ export default function Settings() {
               <MenuItem value="aes256">AES-256</MenuItem>
               <MenuItem value="aes128">AES-128</MenuItem>
             </TextField>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={localSettings['security.2fa'] === 'true'}
-                  onChange={(e) => setLocalSettings({ ...localSettings, 'security.2fa': e.target.checked.toString() })}
-                />
-              }
-              label="Require two-factor authentication"
-            />
           </Box>
         </CardContent>
       </Card>
