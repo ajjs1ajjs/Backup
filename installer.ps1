@@ -1,4 +1,4 @@
-# Backup System Installer - Enterprise Edition
+# Backup System Installer - Enterprise Edition (Full)
 $ErrorActionPreference = "Stop"
 
 Write-Host "[*] Checking dependencies..."
@@ -14,6 +14,8 @@ Function Install-Dep {
 Install-Dep "Microsoft.DotNet.SDK.8" "dotnet"
 Install-Dep "OpenJS.NodeJS" "node"
 Install-Dep "PostgreSQL.PostgreSQL.16" "psql"
+# Встановлення Build Tools для C++ та VSS
+Install-Dep "Microsoft.VisualStudio.2022.BuildTools" "msbuild"
 
 $path = "C:\BackupServer"
 if (!(Test-Path $path)) { New-Item -ItemType Directory -Path $path }
@@ -23,8 +25,17 @@ $temp = Join-Path $env:TEMP ("Backup-" + [Guid]::NewGuid().ToString())
 git clone https://github.com/ajjs1ajjs/Backup.git $temp
 
 Write-Host "[*] Building server (cleaning obj)..."
-dotnet clean
+Remove-Item -Path "$temp\src\server\Backup.Server\obj" -Recurse -Force -ErrorAction SilentlyContinue
+Set-Location "$temp\src\server\Backup.Server"
 dotnet publish -c Release -o "$path\publish"
+
+Write-Host "[*] Building C++ Agent with VSS support..."
+Set-Location "$temp\src\agent\Backup.Agent"
+mkdir build
+Set-Location build
+cmake ..
+cmake --build . --config Release
+Copy-Item "Release\Backup.Agent.exe" "$path\publish\Backup.Agent.exe"
 
 # Config
 if (!(Test-Path "$path\appsettings.json")) {
@@ -44,6 +55,5 @@ sc.exe start $serviceName
 
 Write-Host "[======================================]"
 Write-Host "[+] Installation complete."
-Write-Host "[+] Server runs as Windows Service 'BackupServer'"
-Write-Host "[+] Access UI: http://localhost:8000"
+Write-Host "[+] Server and VSS-Agent installed!"
 Write-Host "[======================================]"
