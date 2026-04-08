@@ -156,11 +156,6 @@ function Build-Server {
 function New-Config {
     $configFile = Join-Path $PublishDir "appsettings.json"
 
-    if (Test-Path $configFile) {
-        Write-Log "Configuration file already exists, skipping..."
-        return
-    }
-
     Write-Log "Creating configuration file..."
 
     $jwtKey = [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
@@ -191,7 +186,7 @@ function New-Config {
         }
     } | ConvertTo-Json -Depth 10
 
-    $config | Out-File -FilePath $configFile -Encoding UTF8
+    $config | Out-File -FilePath $configFile -Encoding UTF8 -Force
     Write-Log "Configuration created at $configFile"
 }
 
