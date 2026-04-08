@@ -45,9 +45,9 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private Task HandlePollingErrorAsync(Exception ex, CancellationToken ct)
+    private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception ex, HandleErrorSource source, CancellationToken ct)
     {
-        _logger.LogError(ex, "Telegram bot polling error");
+        _logger.LogError(ex, "Telegram bot polling error from {Source}", source);
         return Task.CompletedTask;
     }
 }
