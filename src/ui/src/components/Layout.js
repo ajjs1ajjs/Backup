@@ -35,7 +35,9 @@ import {
   Restore as RestoreIcon,
   Settings as SettingsIcon,
   Storage as StorageIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Brightness4 as DarkIcon,
+  Brightness7 as LightIcon
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 
@@ -83,7 +85,7 @@ const navSections = [
   }
 ];
 
-export default function Layout() {
+export default function Layout({ mode, setMode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, username } = useAuthStore();
@@ -200,6 +202,9 @@ export default function Layout() {
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 500, color: '#333', fontSize: '1rem' }}>
             {currentTitle}
           </Typography>
+          <IconButton sx={{ color: '#666' }} onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
+            {mode === 'light' ? <DarkIcon /> : <LightIcon />}
+          </IconButton>
           <IconButton sx={{ color: '#666' }}>
             <Badge badgeContent={0} color="error">
               <NotificationsIcon />

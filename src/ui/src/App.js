@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { ApiProvider } from './services/ApiContext';
@@ -22,26 +22,15 @@ import Hypervisors from './pages/Hypervisors';
 import Users from './pages/Users';
 import AuditLogs from './pages/AuditLogs';
 
-const theme = createTheme({
+const getTheme = (mode) => createTheme({
   palette: {
-    mode: 'light',
+    mode,
     primary: { main: '#4fc3f7' },
     secondary: { main: '#ab47bc' },
-    success: { main: '#66bb6a' },
-    warning: { main: '#ffa726' },
-    error: { main: '#ef5350' },
-    background: { default: '#f5f6f8', paper: '#ffffff' },
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h5: { fontWeight: 600 },
-    h6: { fontWeight: 600 },
-  },
-  components: {
-    MuiButton: { styleOverrides: { root: { textTransform: 'none', borderRadius: 8 } } },
-    MuiCard: { styleOverrides: { root: { borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)' } } },
-    MuiPaper: { styleOverrides: { root: { boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } } },
-    MuiTableCell: { styleOverrides: { root: { borderBottom: '1px solid #f0f0f0' } } },
+    background: { 
+      default: mode === 'light' ? '#f5f6f8' : '#121212', 
+      paper: mode === 'light' ? '#ffffff' : '#1e1e1e' 
+    },
   },
 });
 
@@ -51,6 +40,9 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  const [mode, setMode] = useState('light');
+  const theme = useMemo(() => getTheme(mode), [mode]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -58,7 +50,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route path="/" element={<ProtectedRoute><Layout mode={mode} setMode={setMode} /></ProtectedRoute>}>
               <Route index element={<Navigate to="/dashboard" />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="jobs" element={<Jobs />} />
