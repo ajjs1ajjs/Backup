@@ -1,138 +1,40 @@
-# Backup System — Installation Guide
+# 📖 Встановлення Fortress Backup Enterprise
 
-## Quick Install
+Система підтримує повністю автоматичне розгортання на Windows.
 
-### Windows (PowerShell — Administrator)
+## Автоматична інсталяція (Windows)
 
-```powershell
-# Download and run with auto-start
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
-.\install-server.ps1 -AutoStart
-```
-
-### Linux (bash — root)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | sudo bash -s -- --auto-start
-```
-
----
-
-## What Gets Installed
-
-| Component | Windows | Linux |
-|-----------|---------|-------|
-| .NET SDK 8.0 | ✅ (if missing) | ✅ (if missing) |
-| Node.js 18 | ✅ (if missing) | ✅ (if missing) |
-| Git | ✅ (if missing) | ✅ (if missing) |
-| Nginx | ❌ | ✅ (if missing) |
-| PostgreSQL | ❌ (uses SQLite) | ❌ (uses SQLite) |
-| Backup Server (port 8000) | ✅ Windows Service | ✅ systemd service |
-| Backup UI (port 80) | ✅ (wwwroot) | ✅ (Nginx) |
-
----
-
-## Detailed Installation
-
-### Windows
+1. Відкрийте **PowerShell** від імені Адміністратора.
+2. Виконайте наступні команди для встановлення системи "з нуля":
 
 ```powershell
-# Download script
-iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1
+# 1. Завантажити оновлений інсталятор
+iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/installer.ps1 -OutFile installer.ps1
 
-# Run with defaults
-.\install-server.ps1 -AutoStart
-
-# Custom options
-.\install-server.ps1 -InstallDir "D:\Backup" -Port 9000 -AdminPassword "MyPass123" -AutoStart
-
-# Use local source (skip download)
-.\install-server.ps1 -LocalSource "C:\Projects\Backup\src\server\Backup.Server" -AutoStart
-
-# Uninstall
-.\install-server.ps1 -Uninstall
+# 2. Запустити інсталяцію (встановить .NET, Node, PostgreSQL, Build Tools та запустить сервер як службу)
+.\installer.ps1 -AutoStart
 ```
 
-### Linux
-
-```bash
-# Download script
-curl -fsSL -o install.sh https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh
-sudo chmod +x install.sh
-
-# Run with defaults
-sudo ./install.sh --auto-start
-
-# Custom JWT key
-sudo ./install.sh --jwt-key "my-secret-key" --auto-start
-
-# Show help
-./install.sh --help
-```
+## Що робить інсталятор?
+- **Залежності:** Автоматично перевіряє та встановлює через `winget`: `.NET 8 SDK`, `Node.js`, `PostgreSQL 16`, `MSVC Build Tools`.
+- **Збірка:** Клонує актуальну версію коду, очищує кеші та збирає сервер і **C++ Агент з підтримкою VSS**.
+- **Сервіс:** Створює та запускає Windows-службу `BackupServer`.
+- **Конфігурація:** Створює `appsettings.json` із підключенням до локального `PostgreSQL`.
 
 ---
 
-## Access After Installation
+## 🛠️ Після інсталяції
+1. **Веб-інтерфейс:** Перейдіть на `http://localhost:8000`.
+2. **Перший вхід:** Використовуйте `admin` / `Admin123!`.
+3. **Налаштування:**
+   - Перейдіть у розділ **Settings**, щоб підключити HashiCorp Vault для шифрування.
+   - Встановіть **2FA** у профілі користувача для підвищення безпеки.
+   - Налаштуйте репозиторії (S3, Azure або Local).
 
-| Service | URL |
-|---------|-----|
-| UI | http://localhost |
-| API | http://localhost:8000 |
-| Swagger | http://localhost:8000/swagger |
-
-**Login:** `admin` / `admin` (required to change on first login)
-
----
-
-## Service Management
-
-### Windows
-
+## 💡 Troubleshooting
+Якщо збірка не проходить (наприклад, помилки `CS0246` або `NU1202`), це означає, що середовище кешує старі файли. Виконайте:
 ```powershell
-# Status
-Get-Service -Name BackupServer
-
-# Start / Stop / Restart
-Start-Service -Name BackupServer
-Stop-Service -Name BackupServer
-Restart-Service -Name BackupServer
-
-# Logs (daily rolling files)
-Get-Content "C:\BackupServer\publish\logs\backup-server-$(Get-Date -Format 'yyyyMMdd').log" -Tail 50
+# Очищення тимчасових файлів
+Remove-Item -Path "C:\Users\$env:USERNAME\AppData\Local\Temp\Backup-*" -Recurse -Force
+# Перезапустіть installer.ps1
 ```
-
-### Linux
-
-```bash
-# Status
-sudo systemctl status backup-server
-
-# Start / Stop / Restart
-sudo systemctl start backup-server
-sudo systemctl stop backup-server
-sudo systemctl restart backup-server
-
-# Logs
-sudo journalctl -u backup-server -f
-```
-
----
-
-## Uninstall
-
-### Windows
-
-```powershell
-.\install-server.ps1 -Uninstall
-```
-
-### Linux
-
-```bash
-sudo systemctl stop backup-server
-sudo systemctl disable backup-server
-sudo rm -rf /opt/backup
-sudo rm -f /etc/systemd/system/backup-server.service
-sudo systemctl daemon-reload
-```
-
