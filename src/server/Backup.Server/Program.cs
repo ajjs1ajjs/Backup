@@ -307,8 +307,20 @@ public partial class Program
 
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
-        db.Database.Migrate();
-        Log.Information("Database migrations applied");
+        
+        var connectionString = app.Configuration.GetConnectionString("DefaultConnection");
+        var useSqlite = !string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("Data Source=") || connectionString.Contains(".db"));
+        
+        if (useSqlite)
+        {
+            db.Database.EnsureCreated();
+            Log.Information("SQLite database created/verified");
+        }
+        else
+        {
+            db.Database.Migrate();
+            Log.Information("Database migrations applied");
+        }
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
         var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "admin";
