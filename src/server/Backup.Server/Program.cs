@@ -109,7 +109,10 @@ public partial class Program
 
         builder.Services.AddGrpc();
 
-        var agentManager = new AgentGrpcService(builder.Services.BuildServiceProvider(), builder.Logging.CreateLogger<AgentGrpcService>());
+        var agentManager = new AgentGrpcService(
+            builder.Services.BuildServiceProvider(),
+            builder.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>().CreateLogger<AgentGrpcService>()
+        );
         builder.Services.AddSingleton<IAgentManager>(agentManager);
         builder.Services.AddSingleton<AgentGrpcService>(agentManager);
 

@@ -22,27 +22,30 @@ public class TelegramBotService : BackgroundService
         if (string.IsNullOrEmpty(token)) return;
 
         _botClient = new TelegramBotClient(token);
-        
+
         var receiverOptions = new ReceiverOptions { AllowedUpdates = { } };
         _botClient.StartReceiving(
             updateHandler: HandleUpdateAsync,
-            pollingErrorHandler: HandlePollingErrorAsync,
+            errorHandler: HandlePollingErrorAsync,
             receiverOptions: receiverOptions,
             cancellationToken: stoppingToken
         );
 
         _logger.LogInformation("Telegram Bot Service started");
+
+        // Keep the service running
+        await Task.CompletedTask;
     }
 
     private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
     {
         if (update.Message?.Text == "/status")
         {
-            await botClient.SendTextMessageAsync(update.Message.Chat.Id, "System is healthy. All backups are operational.");
+            await botClient.SendMessage(update.Message.Chat.Id, "System is healthy. All backups are operational.", cancellationToken: ct);
         }
     }
 
-    private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception ex, CancellationToken ct)
+    private Task HandlePollingErrorAsync(Exception ex, CancellationToken ct)
     {
         _logger.LogError(ex, "Telegram bot polling error");
         return Task.CompletedTask;

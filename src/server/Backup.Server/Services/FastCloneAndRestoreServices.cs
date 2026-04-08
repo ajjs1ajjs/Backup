@@ -449,6 +449,51 @@ public class RestoreService
         }
     }
 
+    public async Task<List<string>> BrowseRestore FilesAsync(string restoreId, string path)
+    {
+        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
+        if (restore == null)
+        {
+            return new List<string>();
+        }
+
+        var restorePath = string.IsNullOrWhiteSpace(restore.DestinationPath)
+            ? ResolveTargetPath(restore)
+            : restore.DestinationPath;
+
+        if (!Directory.Exists(restorePath))
+        {
+            return new List<string>();
+        }
+
+        var fullPath = path == "/" ? restorePath : Path.Combine(restorePath, path.TrimStart('/'));
+
+        if (!Directory.Exists(fullPath))
+        {
+            return new List<string>();
+        }
+
+        var entries = Directory.GetFileSystemEntries(fullPath);
+        return entries.Select(e => Path.GetFileName(e)).ToList();
+    }
+
+    private string ResolveTargetPath(Restore restore)
+    {
+        if (!string.IsNullOrWhiteSpace(restore.DestinationPath))
+        {
+            return restore.DestinationPath;
+        }
+
+        var baseRestorePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "BackupRestores"
+        );
+
+        Directory.CreateDirectory(baseRestorePath);
+
+        return Path.Combine(baseRestorePath, restore.RestoreId);
+    }
+
     private string? ResolveBackupPath(BackupPoint backup)
     {
         if (!string.IsNullOrWhiteSpace(backup.FilePath) && (File.Exists(backup.FilePath) || Directory.Exists(backup.FilePath)))
