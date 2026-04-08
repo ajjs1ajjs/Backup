@@ -234,6 +234,7 @@ public class RepositoryService
         var client = new BlobContainerClient(connectionString, container);
         return await client.ExistsAsync();
     }
+}
 
 public class S3Credentials
 {
