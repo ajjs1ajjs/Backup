@@ -202,11 +202,25 @@ public class FastCloneResult
 public class RestoreService
 {
     private readonly BackupDbContext _db;
+    private readonly IAgentManager _agentManager;
+    private readonly ICloudStorageService _cloudStorage;
+    private readonly IEncryptionService _encryption;
+    private readonly INotificationService _notifications;
     private readonly ILogger<RestoreService> _logger;
 
-    public RestoreService(BackupDbContext db, ILogger<RestoreService> logger)
+    public RestoreService(
+        BackupDbContext db, 
+        IAgentManager agentManager,
+        ICloudStorageService cloudStorage,
+        IEncryptionService encryption,
+        INotificationService notifications,
+        ILogger<RestoreService> logger)
     {
         _db = db;
+        _agentManager = agentManager;
+        _cloudStorage = cloudStorage;
+        _encryption = encryption;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -236,7 +250,7 @@ public class RestoreService
             Status = "queued",
             CreatedAt = DateTime.UtcNow,
             BytesRestored = 0,
-            TotalBytes = 0
+            TotalBytes = backup.SizeBytes
         };
 
         _db.Restores.Add(restore);
@@ -280,17 +294,54 @@ public class RestoreService
                 return result;
             }
 
+            var repository = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == backup.RepositoryId, cancellationToken);
+            if (repository == null)
+            {
+                restore.Status = "failed";
+                restore.ErrorMessage = "Repository not found";
+                restore.CompletedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+                result.Message = restore.ErrorMessage;
+                return result;
+            }
+
             restore.Status = "running";
             restore.StartedAt = DateTime.UtcNow;
             restore.ErrorMessage = null;
             restore.BytesRestored = 0;
-            restore.TotalBytes = 0;
+            restore.TotalBytes = backup.SizeBytes;
             await _db.SaveChangesAsync(cancellationToken);
+
+            // --- gRPC RESTORE FOR AGENTS ---
+            var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == backup.JobId, cancellationToken);
+            if (job != null && !string.IsNullOrEmpty(job.AgentId) && _agentManager.IsAgentOnline(job.AgentId))
+            {
+                var command = new Backup.Contracts.ServerCommand
+                {
+                    StartRestore = new Backup.Contracts.StartRestoreCommand
+                    {
+                        JobId = job.JobId,
+                        BackupPath = backup.FilePath,
+                        DestinationPath = restore.DestinationPath,
+                        FullRestore = true
+                    }
+                };
+
+                if (await _agentManager.SendCommandAsync(job.AgentId, command))
+                {
+                    _logger.LogInformation("Sent restore command to agent {AgentId} for restore {RestoreId}", job.AgentId, restoreId);
+                    result.Success = true;
+                    result.Message = "Restore command sent to agent";
+                    return result;
+                }
+            }
+            // ------------------------------
 
             var targetPath = ResolveTargetPath(restore);
             restore.DestinationPath = targetPath;
             await _db.SaveChangesAsync(cancellationToken);
-            result = await RestoreBackupContentAsync(backup, restore, targetPath, cancellationToken);
+            
+            result = await RestoreBackupContentAsync(backup, repository, restore, targetPath, cancellationToken);
 
             restore.Status = result.Success ? "completed" : (string.Equals(restore.Status, "cancelled", StringComparison.OrdinalIgnoreCase) ? "cancelled" : "failed");
             restore.CompletedAt = DateTime.UtcNow;
@@ -298,6 +349,13 @@ public class RestoreService
             await _db.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Restore {RestoreId} completed with status {Status}", restoreId, restore.Status);
+
+            await _notifications.SendAsync(
+                "admin@backupsystem.com",
+                $"Restore Completed: {restore.RestoreId}",
+                NotificationTemplates.RestoreCompleted(restore.RestoreId, backup.VmId ?? "Unknown VM")
+            );
+
             return result;
         }
         catch (OperationCanceledException)
@@ -310,6 +368,8 @@ public class RestoreService
                 restore.ErrorMessage = "Restore cancelled";
                 await _db.SaveChangesAsync(CancellationToken.None);
             }
+
+            await _notifications.SendAsync("admin@backupsystem.com", $"Restore CANCELLED: {restoreId}", NotificationTemplates.JobFailed("Restore", "Restore was cancelled"));
 
             result.Message = "Restore execution cancelled";
             return result;
@@ -326,102 +386,66 @@ public class RestoreService
             }
 
             _logger.LogError(ex, "Restore execution failed for {RestoreId}", restoreId);
+
+            await _notifications.SendAsync("admin@backupsystem.com", $"Restore FAILED: {restoreId}", NotificationTemplates.JobFailed("Restore", ex.Message));
+
             result.Message = ex.Message;
             return result;
         }
     }
 
-    public async Task<IReadOnlyList<RestoreFileEntry>> BrowseRestoreFilesAsync(string restoreId, string path)
+    private async Task<RestoreExecutionResult> RestoreBackupContentAsync(BackupPoint backup, Repository repository, Restore restore, string targetPath, CancellationToken cancellationToken)
     {
-        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
-        if (restore == null || string.IsNullOrWhiteSpace(restore.DestinationPath))
-        {
-            return Array.Empty<RestoreFileEntry>();
-        }
-
-        var basePath = Path.GetFullPath(restore.DestinationPath);
-        var relativePath = path == "/" ? string.Empty : path.TrimStart('/', '\\');
-        var targetPath = Path.GetFullPath(Path.Combine(basePath, relativePath));
-
-        if (!targetPath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase) || !Directory.Exists(targetPath))
-        {
-            return Array.Empty<RestoreFileEntry>();
-        }
-
-        return Directory
-            .GetFileSystemEntries(targetPath)
-            .Select(entry =>
-            {
-                var isDirectory = Directory.Exists(entry);
-                var info = isDirectory
-                    ? new DirectoryInfo(entry) as FileSystemInfo
-                    : new FileInfo(entry);
-                var entryPath = Path.GetRelativePath(basePath, entry).Replace('\\', '/');
-
-                return new RestoreFileEntry
-                {
-                    Name = Path.GetFileName(entry),
-                    Path = "/" + entryPath.TrimStart('/'),
-                    IsDirectory = isDirectory,
-                    SizeBytes = isDirectory ? 0 : ((FileInfo)info).Length,
-                    LastModifiedAt = info.LastWriteTimeUtc
-                };
-            })
-            .OrderByDescending(entry => entry.IsDirectory)
-            .ThenBy(entry => entry.Name)
-            .ToList();
-    }
-
-    private static string ResolveTargetPath(Restore restore)
-    {
-        if (string.Equals(restore.RestoreType, "instant_restore", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(restore.DestinationPath))
-            {
-                return restore.DestinationPath;
-            }
-
-            return Path.Combine(Path.GetTempPath(), "instant_restore", restore.BackupId);
-        }
-
-        return string.IsNullOrWhiteSpace(restore.DestinationPath)
-            ? Path.Combine(Path.GetTempPath(), "restore", restore.BackupId)
-            : restore.DestinationPath;
-    }
-
-    private async Task<RestoreExecutionResult> RestoreBackupContentAsync(BackupPoint backup, Restore restore, string targetPath, CancellationToken cancellationToken)
-    {
-        var sourcePath = ResolveBackupPath(backup);
-        if (sourcePath == null)
-        {
-            return new RestoreExecutionResult
-            {
-                Success = false,
-                Message = "Backup source path not found"
-            };
-        }
-
         try
         {
-            var restoredPath = await CopyBackupToDestinationAsync(sourcePath, targetPath, restore, cancellationToken);
-
-            return new RestoreExecutionResult
+            if (repository.Type == RepositoryType.Local)
             {
-                Success = true,
-                RestoreId = restore.RestoreId,
-                Message = "Restore completed successfully",
-                NewVMId = Path.GetFileName(restoredPath)
-            };
+                if (string.IsNullOrEmpty(backup.FilePath)) throw new InvalidOperationException("Backup file path is empty");
+                var restoredPath = await CopyBackupToDestinationAsync(backup.FilePath, targetPath, restore, cancellationToken);
+                return new RestoreExecutionResult { Success = true, RestoreId = restore.RestoreId, Message = "Local restore completed", NewVMId = Path.GetFileName(restoredPath) };
+            }
+            else if (repository.Type == RepositoryType.S3)
+            {
+                var bucket = repository.Path;
+                var key = backup.FilePath?.Replace($"s3://{bucket}/", string.Empty);
+                if (string.IsNullOrEmpty(key)) throw new InvalidOperationException("Invalid S3 key");
+
+                var decryptedCreds = string.IsNullOrEmpty(repository.Credentials) ? null : _encryption.Decrypt(repository.Credentials);
+                
+                using var cloudStream = await _cloudStorage.DownloadFromS3Async(bucket, key, decryptedCreds, cancellationToken);
+                var destinationFile = Path.Combine(targetPath, Path.GetFileName(key));
+                Directory.CreateDirectory(targetPath);
+
+                await using var fileStream = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
+                await cloudStream.CopyToAsync(fileStream, cancellationToken);
+
+                restore.BytesRestored = backup.SizeBytes;
+                return new RestoreExecutionResult { Success = true, RestoreId = restore.RestoreId, Message = "S3 restore completed" };
+            }
+            else if (repository.Type == RepositoryType.AzureBlob)
+            {
+                var container = repository.Path;
+                var blobName = backup.FilePath?.Replace($"azure://{container}/", string.Empty);
+                if (string.IsNullOrEmpty(blobName)) throw new InvalidOperationException("Invalid Azure blob name");
+
+                var connectionString = string.IsNullOrEmpty(repository.Credentials) ? null : _encryption.Decrypt(repository.Credentials);
+                
+                using var cloudStream = await _cloudStorage.DownloadFromAzureBlobAsync(container, blobName, connectionString, cancellationToken);
+                var destinationFile = Path.Combine(targetPath, Path.GetFileName(blobName));
+                Directory.CreateDirectory(targetPath);
+
+                await using var fileStream = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
+                await cloudStream.CopyToAsync(fileStream, cancellationToken);
+
+                restore.BytesRestored = backup.SizeBytes;
+                return new RestoreExecutionResult { Success = true, RestoreId = restore.RestoreId, Message = "Azure restore completed" };
+            }
+
+            return new RestoreExecutionResult { Success = false, Message = $"Repository type {repository.Type} not supported for restore" };
         }
         catch (Exception ex)
         {
-            restore.ErrorMessage = ex.Message;
-            return new RestoreExecutionResult
-            {
-                Success = false,
-                RestoreId = restore.RestoreId,
-                Message = ex.Message
-            };
+            return new RestoreExecutionResult { Success = false, RestoreId = restore.RestoreId, Message = ex.Message };
         }
     }
 

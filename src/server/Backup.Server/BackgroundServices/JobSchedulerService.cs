@@ -148,8 +148,43 @@ public class RetentionPolicyService : BackgroundService
 
                 foreach (var backup in expiredBackups)
                 {
-                    _logger.LogInformation("Marking backup {BackupId} as expired", backup.BackupId);
-                    backup.Status = BackupStatus.Expired;
+                    try 
+                    {
+                        _logger.LogInformation("Deleting expired backup {BackupId} from {Path}", backup.BackupId, backup.FilePath);
+                        
+                        var repository = await db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == backup.RepositoryId, stoppingToken);
+                        if (repository != null && !string.IsNullOrEmpty(backup.FilePath))
+                        {
+                            if (repository.Type == RepositoryType.Local && File.Exists(backup.FilePath))
+                            {
+                                File.Delete(backup.FilePath);
+                            }
+                            else if (repository.Type == RepositoryType.S3)
+                            {
+                                var cloudStorage = scope.ServiceProvider.GetRequiredService<ICloudStorageService>();
+                                var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+                                var bucket = repository.Path;
+                                var key = backup.FilePath.Replace($"s3://{bucket}/", string.Empty);
+                                var creds = string.IsNullOrEmpty(repository.Credentials) ? null : encryption.Decrypt(repository.Credentials);
+                                await cloudStorage.DeleteFromS3Async(bucket, key, creds, stoppingToken);
+                            }
+                            else if (repository.Type == RepositoryType.AzureBlob)
+                            {
+                                var cloudStorage = scope.ServiceProvider.GetRequiredService<ICloudStorageService>();
+                                var encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+                                var container = repository.Path;
+                                var blobName = backup.FilePath.Replace($"azure://{container}/", string.Empty);
+                                var connectionString = string.IsNullOrEmpty(repository.Credentials) ? null : encryption.Decrypt(repository.Credentials);
+                                await cloudStorage.DeleteFromAzureBlobAsync(container, blobName, connectionString, stoppingToken);
+                            }
+                        }
+
+                        backup.Status = BackupStatus.Expired;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to delete backup file for {BackupId}", backup.BackupId);
+                    }
                 }
 
                 if (expiredBackups.Any())

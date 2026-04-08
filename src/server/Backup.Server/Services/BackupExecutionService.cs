@@ -12,6 +12,7 @@ public class BackupExecutionService
     private readonly IAgentManager _agentManager;
     private readonly ICloudStorageService _cloudStorage;
     private readonly IEncryptionService _encryption;
+    private readonly INotificationService _notifications;
     private readonly ILogger<BackupExecutionService> _logger;
 
     public BackupExecutionService(
@@ -19,12 +20,14 @@ public class BackupExecutionService
         IAgentManager agentManager, 
         ICloudStorageService cloudStorage,
         IEncryptionService encryption,
+        INotificationService notifications,
         ILogger<BackupExecutionService> logger)
     {
         _db = db;
         _agentManager = agentManager;
         _cloudStorage = cloudStorage;
         _encryption = encryption;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -317,6 +320,13 @@ public class BackupExecutionService
             result.Success = true;
             result.BackupId = backupPoint.BackupId;
             result.Message = "Backup completed successfully";
+
+            await _notifications.SendAsync(
+                "admin@backupsystem.com", // Можна змінити на email користувача
+                $"Backup Job Completed: {job.Name}",
+                NotificationTemplates.JobCompleted(job.Name, (run.EndTime.Value - startedAt).ToString(@"hh\:mm\:ss"), (run.BytesProcessed / 1024 / 1024).ToString() + " MB")
+            );
+
             return result;
         }
         catch (OperationCanceledException)
@@ -327,6 +337,8 @@ public class BackupExecutionService
             run.EndTime = DateTime.UtcNow;
             run.ErrorMessage = "Backup cancelled";
             await _db.SaveChangesAsync(CancellationToken.None);
+
+            await _notifications.SendAsync("admin@backupsystem.com", $"Backup Cancelled: {job.Name}", NotificationTemplates.JobFailed(job.Name, "Backup was cancelled"));
 
             result.Message = "Backup cancelled";
             return result;
@@ -341,6 +353,9 @@ public class BackupExecutionService
             await _db.SaveChangesAsync(cancellationToken);
 
             _logger.LogError(ex, "Backup run {RunId} failed", runId);
+
+            await _notifications.SendAsync("admin@backupsystem.com", $"Backup FAILED: {job.Name}", NotificationTemplates.JobFailed(job.Name, ex.Message));
+
             result.Message = ex.Message;
             return result;
         }
