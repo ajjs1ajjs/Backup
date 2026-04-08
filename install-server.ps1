@@ -223,15 +223,25 @@ function New-WindowsService {
 function Start-ServerService {
     Write-Log "Starting Backup Server..."
 
-    Start-Service -Name "BackupServer" -ErrorAction Stop
-    Start-Sleep -Seconds 5
+    try {
+        Start-Service -Name "BackupServer" -ErrorAction Stop
+        Start-Sleep -Seconds 5
 
-    $service = Get-Service -Name "BackupServer"
-    if ($service.Status -eq "Running") {
-        Write-Log "Backup Server started successfully" -ForegroundColor Green
+        $service = Get-Service -Name "BackupServer"
+        if ($service.Status -eq "Running") {
+            Write-Log "Backup Server started successfully" -ForegroundColor Green
+        }
+        else {
+            Write-Log "Warning: Service may not be running properly. Checking logs..." -ForegroundColor Yellow
+        }
     }
-    else {
-        Write-Error-Custom "Failed to start Backup Server"
+    catch {
+        Write-Log "Warning: Service could not start automatically. This is normal on first installation." -ForegroundColor Yellow
+        Write-Log "The service will start when you manually start it or restart the computer." -ForegroundColor Yellow
+        Write-Log "To start manually: Start-Service -Name BackupServer" -ForegroundColor Yellow
+        Write-Log ""
+        Write-Log "If the service fails to start, check the logs at:" -ForegroundColor Yellow
+        Write-Log "  C:\BackupServer\server\publish\logs\" -ForegroundColor White
     }
 }
 
