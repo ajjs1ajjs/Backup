@@ -134,18 +134,25 @@ public partial class Program
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
         })
-        .AddJwtBearer(options => { /* ... ваш поточний JWT ... */ })
-        .AddOpenIdConnect("oidc", options =>
+        .AddJwtBearer(options => { /* ... ваш поточний JWT ... */ });
+
+        // OpenIdConnect - optional, only if configured
+        var oidcAuthority = builder.Configuration["Oidc:Authority"];
+        if (!string.IsNullOrEmpty(oidcAuthority))
         {
-            options.Authority = builder.Configuration["Oidc:Authority"];
-            options.ClientId = builder.Configuration["Oidc:ClientId"];
-            options.ClientSecret = builder.Configuration["Oidc:ClientSecret"];
-            options.ResponseType = "code";
-            options.SaveTokens = true;
-            options.Scope.Add("openid");
-            options.Scope.Add("profile");
-            options.Scope.Add("email");
-        });
+            builder.Services.AddAuthentication()
+                .AddOpenIdConnect("oidc", options =>
+                {
+                    options.Authority = oidcAuthority;
+                    options.ClientId = builder.Configuration["Oidc:ClientId"];
+                    options.ClientSecret = builder.Configuration["Oidc:ClientSecret"];
+                    options.ResponseType = "code";
+                    options.SaveTokens = true;
+                    options.Scope.Add("openid");
+                    options.Scope.Add("profile");
+                    options.Scope.Add("email");
+                });
+        }
 
         builder.Services.AddAuthorization(options =>
         {
@@ -202,6 +209,9 @@ public partial class Program
         builder.Services.AddHostedService<AgentHealthCheckService>();
         builder.Services.AddHostedService<RetentionPolicyService>();
         builder.Services.AddHostedService<RestoreProcessingService>();
+        
+        // Register notification service stub
+        builder.Services.AddSingleton<INotificationService, NotificationServiceStub>();
 
         var app = builder.Build();
         ConfigureMiddleware(app);
