@@ -23,8 +23,7 @@ $temp = Join-Path $env:TEMP ("Backup-" + [Guid]::NewGuid().ToString())
 git clone https://github.com/ajjs1ajjs/Backup.git $temp
 
 Write-Host "[*] Building server (cleaning obj)..."
-Remove-Item -Path "$temp\src\server\Backup.Server\obj" -Recurse -Force -ErrorAction SilentlyContinue
-Set-Location "$temp\src\server\Backup.Server"
+dotnet clean
 dotnet publish -c Release -o "$path\publish"
 
 # Config

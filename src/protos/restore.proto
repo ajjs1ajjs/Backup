@@ -103,7 +103,7 @@ message BrowseBackupFilesRequest {
 }
 
 message BrowseBackupFilesResponse {
-    repeated BackupFileInfo files = 1;
+    repeated string files = 1;
     string current_path = 2;
     bool has_more = 3;
 }
