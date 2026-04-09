@@ -1,4 +1,4 @@
-﻿# Backup Server Installer - Enterprise Edition
+# Backup Server Installer - Enterprise Edition
 # Version: 1.0.0
 param(
     [switch]$AutoStart,
@@ -130,9 +130,11 @@ function Build-Server {
     # Restore and publish
     Write-Log "Restoring NuGet packages..."
     dotnet restore $serverProject
+    if ($LASTEXITCODE -ne 0) { Write-Error-Custom "Failed to restore NuGet packages" }
 
     Write-Log "Publishing server..."
     dotnet publish $serverProject -c Release -o $PublishDir
+    if ($LASTEXITCODE -ne 0) { Write-Error-Custom "Failed to publish server" }
 
     # Build UI if available
     $uiDir = Join-Path $repoDir "src\ui"
@@ -190,21 +192,30 @@ function New-Config {
     Write-Log "Configuration created at $configFile"
 }
 
-function New-WindowsService {
-    Write-Log "Creating Windows service..."
-
-    $exePath = Join-Path $PublishDir "Backup.Server.exe"
+function Stop-ExistingDeployment {
     $serviceName = "BackupServer"
-
-    # Check if service exists
     $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     if ($service) {
-        Write-Log "Service already exists, stopping and removing..."
+        Write-Log "Stopping existing service..."
         Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
         sc.exe delete $serviceName | Out-Null
         Start-Sleep -Seconds 2
     }
+    
+    $process = Get-Process -Name "Backup.Server" -ErrorAction SilentlyContinue
+    if ($process) {
+        Write-Log "Killing remaining process..."
+        Stop-Process -Name "Backup.Server" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+    }
+}
+
+function New-WindowsService {
+    Write-Log "Creating Windows service..."
+
+    $exePath = Join-Path $PublishDir "Backup.Server.exe"
+    $serviceName = "BackupServer"
 
     # Create service
     $binPath = "`"$exePath`" --urls=http://0.0.0.0:8000"
@@ -275,6 +286,7 @@ Write-Log "========================================="
 Write-Log "Installing Backup Server v$Version..."
 Write-Log "========================================="
 
+Stop-ExistingDeployment
 Install-DotNet
 Install-NodeJS
 Build-Server
