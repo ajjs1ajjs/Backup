@@ -181,10 +181,10 @@ public class AuthService : IAuthService
         try
         {
             var handler = new JwtSecurityTokenHandler();
-            var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured");
+            var jwtKey = GetJwtKey();
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             
-            handler.ValidateToken(token, new TokenValidationParameters
+            var principal = handler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = key,
@@ -196,9 +196,8 @@ public class AuthService : IAuthService
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
 
-            var jwtToken = (JwtSecurityToken)validatedToken;
-            var tokenUsername = jwtToken.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
-            var isPasswordChange = jwtToken.Claims.FirstOrDefault(x => x.Type == "password_change")?.Value;
+            var tokenUsername = principal.FindFirst(ClaimTypes.Name)?.Value;
+            var isPasswordChange = principal.FindFirst("password_change")?.Value;
 
             if (tokenUsername != username || isPasswordChange != "true")
             {
@@ -291,18 +290,7 @@ public class AuthService : IAuthService
 
     public string GenerateJwtToken(User user)
     {
-        var jwtKey = _configuration["Jwt:Key"];
-        if (string.IsNullOrWhiteSpace(jwtKey))
-        {
-            var jwtKeyPath = Path.Combine(AppContext.BaseDirectory, "jwt.key");
-            if (File.Exists(jwtKeyPath))
-            {
-                jwtKey = File.ReadAllText(jwtKeyPath).Trim();
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(jwtKey))
-            throw new InvalidOperationException("Jwt:Key is not configured");
+        var jwtKey = GetJwtKey();
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -381,8 +369,8 @@ public class AuthService : IAuthService
             new Claim("password_change", "true")
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] 
-            ?? throw new InvalidOperationException("JWT key not configured")));
+        var jwtKey = GetJwtKey();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
@@ -393,6 +381,24 @@ public class AuthService : IAuthService
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private string GetJwtKey()
+    {
+        var jwtKey = _configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+        {
+            var jwtKeyPath = Path.Combine(AppContext.BaseDirectory, "jwt.key");
+            if (File.Exists(jwtKeyPath))
+            {
+                jwtKey = File.ReadAllText(jwtKeyPath).Trim();
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            throw new InvalidOperationException("Jwt:Key is not configured");
+
+        return jwtKey;
     }
 }
 
