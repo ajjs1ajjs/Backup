@@ -201,12 +201,16 @@ public class AuthService : IAuthService
 
             if (tokenUsername != username || isPasswordChange != "true")
             {
-                throw new InvalidOperationException("Invalid token for password change");
+                throw new InvalidOperationException($"Invalid token for password change: user mismatch. Expected {username}, got {tokenUsername}. isPasswordChange: {isPasswordChange}");
             }
         }
-        catch (SecurityTokenException)
+        catch (SecurityTokenException ex)
         {
-            throw new InvalidOperationException("Invalid token for password change");
+            throw new InvalidOperationException($"Invalid token for password change: {ex.Message}");
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidOperationException($"Invalid token for password change. ArgumentException: {ex.Message}");
         }
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);

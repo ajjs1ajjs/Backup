@@ -241,6 +241,28 @@ export default function Login() {
             >
               {loading ? 'Please wait...' : showChangePassword ? 'Change Password' : 'Sign In'}
             </Button>
+            {showChangePassword && (
+              <Button
+                fullWidth
+                variant="text"
+                disabled={loading}
+                onClick={() => {
+                  useAuthStore.setState({ authError: '', token: null });
+                  setShowChangePassword(false);
+                  setError('');
+                }}
+                sx={{
+                  mt: 1,
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  color: '#8b92a5',
+                  '&:hover': { color: '#4fc3f7' }
+                }}
+              >
+                Back to Login
+              </Button>
+            )}
           </form>
 
           <Box mt={3} textAlign="center">
