@@ -8,7 +8,7 @@ namespace Backup.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "admin")]
+[Authorize(Policy = "Admin")]
 public class AuditController : ControllerBase
 {
     private readonly BackupDbContext _db;
