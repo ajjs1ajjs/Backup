@@ -14,19 +14,20 @@ Authorization: Bearer <token>
 ### First Login Flow
 
 - On first installation, bootstrap admin credentials are created from configuration:
-  - `BootstrapAdmin:Username` (default `admin`)
-  - `BootstrapAdmin:Password` (generated at first startup if not configured)
+- `BootstrapAdmin:Username` (default `Admin`)
+- `BootstrapAdmin:Password` (default `Lkmo291263@`)
 - First login with bootstrap admin returns:
-  - HTTP `403`
-  - `code: "PASSWORD_CHANGE_REQUIRED"`
+  - HTTP `200`
+  - `mustChangePassword: true`
+  - `token: "<password-change-token>"`
 - Use password-change endpoint, then login again (or use returned token).
 
 #### POST /api/auth/change-password-first-login
 Change bootstrap password on first login.
 ```json
 Body: {
-  "username": "admin",
-  "currentPassword": "<generated-or-configured-bootstrap-password>",
+  "username": "Admin",
+  "token": "<password-change-token-from-login-response>",
   "newPassword": "StrongPassword123!"
 }
 ```
@@ -190,5 +191,5 @@ Agent status events
 ```
 
 ## Rate Limits
-- Rate limiting is currently disabled in this build configuration.
-
+- Anonymous auth endpoints are rate-limited by client IP.
+- Current default: 5 requests per minute for `register`, `login`, `login-2fa`, and `change-password-first-login`.

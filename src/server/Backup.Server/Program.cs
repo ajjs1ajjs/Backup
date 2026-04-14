@@ -4,6 +4,7 @@ using Backup.Server.Database.Entities;
 using Backup.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,6 +13,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace Backup.Server;
 
@@ -93,12 +95,11 @@ public partial class Program
             });
         }
 
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? "Data Source=" + Path.Combine(AppContext.BaseDirectory, "backup.db");
+        var connectionString = ResolveConnectionString(builder.Configuration);
 
         builder.Services.AddDbContext<BackupDbContext>(options =>
         {
-            if (connectionString.StartsWith("Host=") || connectionString.Contains("Username="))
+            if (IsPostgresConnectionString(connectionString))
             {
                 options.UseNpgsql(connectionString);
             }
@@ -173,6 +174,25 @@ public partial class Program
             options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
             options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
             options.FallbackPolicy = null;
+        });
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("AuthPolicy", context =>
+            {
+                var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey,
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true
+                    });
+            });
         });
 
         builder.Services.AddControllers()
@@ -295,16 +315,25 @@ public partial class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
+        if (IsSwaggerEnabled(app))
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Backup API v1");
-            c.RoutePrefix = "swagger";
-        });
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Backup API v1");
+                c.RoutePrefix = "swagger";
+            });
+        }
+        else
+        {
+            Log.Information("Swagger UI is disabled. Run in Development or set Swagger:Enabled=true to enable it.");
+        }
 
         app.UseSerilogRequestLogging();
-        app.UseCors();
         app.UseStaticFiles();
+        app.UseRouting();
+        app.UseCors();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
 
@@ -331,8 +360,8 @@ public partial class Program
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
         
-        var connectionString = app.Configuration.GetConnectionString("DefaultConnection");
-        var useSqlite = !string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("Data Source=") || connectionString.Contains(".db"));
+        var connectionString = ResolveConnectionString(app.Configuration);
+        var useSqlite = !IsPostgresConnectionString(connectionString);
         
         if (useSqlite)
         {
@@ -346,25 +375,31 @@ public partial class Program
         }
 
         var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
-        var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "admin";
+        var bootstrapAdminUsername = app.Configuration["BootstrapAdmin:Username"] ?? "Admin";
         var bootstrapAdminEmail = app.Configuration["BootstrapAdmin:Email"] ?? "admin@backupsystem.com";
-        
-        // Default password is "admin" - user must change it on first login
-        var bootstrapAdminPassword = "admin";
+        var configuredBootstrapAdminPassword = app.Configuration["BootstrapAdmin:Password"];
 
         var adminUser = await authService.GetUserByUsernameAsync(bootstrapAdminUsername);
         if (adminUser == null)
         {
+            var bootstrapAdminPassword = ResolveBootstrapAdminPassword(configuredBootstrapAdminPassword);
             await authService.RegisterAsync(bootstrapAdminUsername, bootstrapAdminEmail, bootstrapAdminPassword, "Admin");
-            Log.Information("Bootstrap admin user created with default password. Must change on first login.");
+            Log.Warning(
+                "Bootstrap admin user created for {Username}. Initial password: {Password}. Change it immediately after first login.",
+                bootstrapAdminUsername,
+                bootstrapAdminPassword);
         }
         else if (!adminUser.PasswordHash.Contains('.'))
         {
-            Log.Warning("Legacy password hash detected for user {Username}. Migrating to PBKDF2...", bootstrapAdminUsername);
+            var bootstrapAdminPassword = ResolveBootstrapAdminPassword(configuredBootstrapAdminPassword);
+            Log.Warning("Legacy password hash detected for user {Username}. Resetting bootstrap password.", bootstrapAdminUsername);
             adminUser.PasswordHash = authService.HashPasswordStatic(bootstrapAdminPassword);
             adminUser.MustChangePassword = true;
             await db.SaveChangesAsync();
-            Log.Information("Password migrated successfully for {Username}. Must change on next login.", bootstrapAdminUsername);
+            Log.Warning(
+                "Bootstrap admin password reset for {Username}. Temporary password: {Password}. Change it immediately after login.",
+                bootstrapAdminUsername,
+                bootstrapAdminPassword);
         }
 
         var publicServerUrl = app.Configuration["Server:PublicUrl"];
@@ -403,5 +438,49 @@ public partial class Program
         }
 
         return origins.ToArray();
+    }
+
+    private static string ResolveConnectionString(IConfiguration configuration)
+    {
+        var configuredConnectionString = configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrWhiteSpace(configuredConnectionString))
+        {
+            return configuredConnectionString;
+        }
+
+        return "Data Source=" + Path.Combine(AppContext.BaseDirectory, "backup.db");
+    }
+
+    private static bool IsPostgresConnectionString(string connectionString)
+    {
+        return connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)
+            || connectionString.Contains("Username=", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSwaggerEnabled(WebApplication app)
+    {
+        return app.Environment.IsDevelopment()
+            || app.Configuration.GetValue<bool>("Swagger:Enabled");
+    }
+
+    private static string ResolveBootstrapAdminPassword(string? configuredPassword)
+    {
+        return string.IsNullOrWhiteSpace(configuredPassword)
+            ? GenerateBootstrapPassword()
+            : configuredPassword;
+    }
+
+    private static string GenerateBootstrapPassword()
+    {
+        const string allowedChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$?";
+        var bytes = RandomNumberGenerator.GetBytes(24);
+        var chars = new char[24];
+
+        for (var i = 0; i < chars.Length; i++)
+        {
+            chars[i] = allowedChars[bytes[i] % allowedChars.Length];
+        }
+
+        return new string(chars);
     }
 }

@@ -105,7 +105,8 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound(new { error = "User not found" });
 
-        if (user.Username == "admin" && request.Role != "admin")
+        if (string.Equals(user.Username, "Admin", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(request.Role, "Admin", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { error = "Cannot change admin role" });
 
         if (!string.IsNullOrEmpty(request.Username) && request.Username != user.Username)
@@ -148,7 +149,7 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound(new { error = "User not found" });
 
-        if (user.Username == "admin")
+        if (string.Equals(user.Username, "Admin", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { error = "Cannot delete admin user" });
 
         _context.Users.Remove(user);

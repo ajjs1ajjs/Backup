@@ -175,11 +175,14 @@ function New-Config {
             PublicUrl = "http://localhost:8000"
         }
         BootstrapAdmin    = @{
-            Username = "admin"
+            Username = "Admin"
             Email    = "admin@backupsystem.com"
-            Password = ""
+            Password = "Lkmo291263@"
         }
         AllowedOrigins    = @()
+        Swagger           = @{
+            Enabled = $false
+        }
         Encryption        = @{
             KeyFilePath = ""
         }
@@ -305,11 +308,11 @@ Write-Log ""
 Write-Log "Access the application:" -ForegroundColor Yellow
 Write-Log "  UI: http://localhost" -ForegroundColor White
 Write-Log "  API: http://localhost:8000" -ForegroundColor White
-Write-Log "  Swagger: http://localhost:8000/swagger" -ForegroundColor White
+Write-Log "  Swagger: enabled in Development or when Swagger:Enabled=true" -ForegroundColor White
 Write-Log ""
 Write-Log "Login credentials:" -ForegroundColor Yellow
-Write-Log "  Username: admin" -ForegroundColor White
-Write-Log "  Password: Check server logs for bootstrap password" -ForegroundColor White
+Write-Log "  Username: Admin" -ForegroundColor White
+Write-Log "  Password: Lkmo291263@" -ForegroundColor White
 Write-Log ""
 Write-Log "To start server manually:" -ForegroundColor Yellow
 Write-Log "  Start-Service -Name BackupServer" -ForegroundColor White

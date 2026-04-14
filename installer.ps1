@@ -39,7 +39,7 @@ Copy-Item "Release\Backup.Agent.exe" "$path\publish\Backup.Agent.exe"
 
 # Config
 if (!(Test-Path "$path\appsettings.json")) {
-    $json = '{ "ConnectionStrings": { "DefaultConnection": "Host=localhost;Database=backup_db;Username=postgres;Password=postgres" }, "Server": { "PublicUrl": "http://localhost:8000" } }'
+    $json = '{ "ConnectionStrings": { "DefaultConnection": "Data Source=C:\\BackupServer\\backup.db" }, "Server": { "PublicUrl": "http://localhost:8000" }, "BootstrapAdmin": { "Username": "Admin", "Email": "admin@backupsystem.com", "Password": "Lkmo291263@" }, "Swagger": { "Enabled": false } }'
     $json | Out-File -FilePath "$path\appsettings.json" -Encoding ascii
 }
 

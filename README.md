@@ -93,12 +93,12 @@ sc.exe delete BackupServer 2>$null; Remove-Item -Path "C:\BackupServer" -Recurse
 **After installation:**
 - 🌐 **Web UI**: http://localhost
 - 🔌 **API**: http://localhost:8000
-- 📖 **Swagger**: http://localhost:8000/swagger
-- 👤 **Default login**: `admin`
-- 🔑 **Default password**: `admin`
+- 📖 **Swagger**: available in Development or when `Swagger:Enabled=true`
+- 👤 **Bootstrap login**: `Admin`
+- 🔑 **Bootstrap password**: `Lkmo291263@`
 - ✅ **Background Service**: Server runs in background; you can close the console window.
 
-> ⚠️ **Important**: You will be required to change the default password upon first login for security reasons.
+> ⚠️ **Important**: This bootstrap password must be changed immediately after first login.
 
 ---
 
@@ -127,7 +127,7 @@ curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install.sh | 
 **After installation:**
 - 🌐 **Web UI**: http://localhost
 - 🔌 **API**: http://localhost:8000
-- 📖 **Swagger**: http://localhost:8000/swagger
+- 📖 **Swagger**: available in Development or when `Swagger:Enabled=true`
 
 ---
 
@@ -204,21 +204,10 @@ cmake --build . --config Release
 
 1. Open http://localhost in your browser
 2. Login with:
-   - **Username**: `admin`
-   - **Password**: Check server logs for the auto-generated bootstrap password
+   - **Username**: `Admin`
+   - **Password**: `Lkmo291263@`
 
-**View bootstrap password:**
-```powershell
-# Windows
-Get-Content "C:\BackupServer\server\publish\logs\*.log" | Select-String "Bootstrap password"
-```
-
-```bash
-# Linux
-sudo grep "Bootstrap password" /var/log/backup-server.log
-```
-
-> ⚠️ **Important**: Change the default password immediately after first login!
+> ⚠️ **Important**: Change the bootstrap password immediately after first login!
 
 ### Initial Setup
 
