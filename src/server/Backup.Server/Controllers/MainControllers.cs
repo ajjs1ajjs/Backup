@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Backup.Server.BackgroundServices;
 using Backup.Server.Database;
 using Backup.Server.Database.Entities;
+using Backup.Server.Services;
 
 namespace Backup.Server.Controllers;
 
@@ -141,10 +142,10 @@ public class JobDto
 [Authorize]
 public class AgentsController : ControllerBase
 {
-    private readonly IAgentService _agentService;
+    private readonly IAgentManagementService _agentService;
     private readonly ILogger<AgentsController> _logger;
 
-    public AgentsController(IAgentService agentService, ILogger<AgentsController> logger)
+    public AgentsController(IAgentManagementService agentService, ILogger<AgentsController> logger)
     {
         _agentService = agentService;
         _logger = logger;

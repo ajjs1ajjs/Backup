@@ -4,19 +4,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backup.Server.Services;
 
-public interface IAgentService
+public interface IAgentManagementService
 {
     Task<List<Agent>> GetAgentsAsync();
     Task<Agent?> GetAgentByIdAsync(long id);
     Task<bool> DeleteAgentAsync(long id);
 }
 
-public class AgentService : IAgentService
+public class AgentManagementService : IAgentManagementService
 {
     private readonly BackupDbContext _db;
-    private readonly ILogger<AgentService> _logger;
+    private readonly ILogger<AgentManagementService> _logger;
 
-    public AgentService(BackupDbContext db, ILogger<AgentService> logger)
+    public AgentManagementService(BackupDbContext db, ILogger<AgentManagementService> logger)
     {
         _db = db;
         _logger = logger;

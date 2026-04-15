@@ -133,6 +133,10 @@ public partial class Program
         }
         builder.Configuration["Agent:RegistrationToken"] = regToken;
 
+        var jwtKey = EnsureJwtKey(builder.Configuration);
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
+        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
+
         builder.Services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -236,7 +240,7 @@ public partial class Program
         builder.Services.AddSingleton<IAuthLockoutService, AuthLockoutService>();
         builder.Services.AddScoped<IEncryptionService, EncryptionService>();
         builder.Services.AddScoped<IJobService, JobService>();
-        builder.Services.AddScoped<IAgentService, AgentService>();
+        builder.Services.AddScoped<IAgentManagementService, AgentManagementService>();
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<SchedulerService>();
         builder.Services.AddScoped<IRepositoryService, RepositoryService>();
@@ -256,7 +260,6 @@ public partial class Program
         builder.Services.AddSingleton<INotificationService, NotificationServiceStub>();
 
         builder.Services.AddHealthChecks()
-            .AddSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=backup.db")
             .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
         var app = builder.Build();
