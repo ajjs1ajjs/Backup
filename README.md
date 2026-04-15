@@ -82,12 +82,23 @@
 
 ### Windows (PowerShell - Administrator)
 
-**🚀 Recommended: Full Automatic Installation**
-This command cleans up old installations, builds the latest version, configures SQLite, and runs the server in the background.
+**🚀 Recommended: One-Command Installation**
+Copy and paste this single command in an Administrator PowerShell window to clean up, install, and start the backup server:
 
 ```powershell
-# Copy and paste this single command to install everything:
-sc.exe delete BackupServer 2>$null; Remove-Item -Path "C:\BackupServer" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\Users\$env:USERNAME\AppData\Local\Temp\Backup-latest" -Recurse -Force -ErrorAction SilentlyContinue; cd C:\Users\andreichuk.y\AppData\Local; iwr -useb https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1 -OutFile install-server.ps1; .\install-server.ps1 -AutoStart
+& {
+    Write-Host "Cleaning up old installation..." -ForegroundColor Yellow
+    sc.exe delete BackupServer 2>$null
+    Remove-Item -Path "C:\BackupServer" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:TEMP\Backup-latest" -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host "Downloading latest installer..." -ForegroundColor Yellow
+    $installerUrl = "https://raw.githubusercontent.com/ajjs1ajjs/Backup/main/install-server.ps1"
+    Invoke-WebRequest -Uri $installerUrl -OutFile "$env:TEMP\install-server.ps1"
+
+    Write-Host "Running installation..." -ForegroundColor Yellow
+    & "$env:TEMP\install-server.ps1" -AutoStart
+}
 ```
 
 **After installation:**
