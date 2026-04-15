@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backup.Server.Services;
 
-public class FastCloneService
+public interface IFastCloneService
+{
+    Task<FastCloneResult> CreateSyntheticFullBackupAsync(string repositoryId, string vmId);
+}
+
+public class FastCloneService : IFastCloneService
 {
     private readonly BackupDbContext _db;
     private readonly ILogger<FastCloneService> _logger;
@@ -199,7 +204,15 @@ public class FastCloneResult
     public string NewBackupPath { get; set; } = string.Empty;
 }
 
-public class RestoreService
+public interface IRestoreService
+{
+    Task<RestoreQueueResult> QueueRestoreAsync(RestoreQueueRequest request);
+    Task<RestoreExecutionResult> ExecuteRestoreAsync(string restoreId, CancellationToken cancellationToken = default);
+    Task<List<string>> BrowseRestoreFilesAsync(string restoreId, string path);
+    Task<bool> CancelRestoreAsync(string restoreId);
+}
+
+public class RestoreService : IRestoreService
 {
     private readonly BackupDbContext _db;
     private readonly IAgentManager _agentManager;
@@ -475,6 +488,22 @@ public class RestoreService
 
         var entries = Directory.GetFileSystemEntries(fullPath);
         return entries.Select(e => Path.GetFileName(e)).ToList();
+    }
+
+    public async Task<bool> CancelRestoreAsync(string restoreId)
+    {
+        var restore = await _db.Restores.FirstOrDefaultAsync(r => r.RestoreId == restoreId);
+        if (restore == null) return false;
+
+        if (restore.Status == "completed" || restore.Status == "failed" || restore.Status == "cancelled")
+            return false;
+
+        restore.Status = "cancelled";
+        restore.CompletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        
+        _logger.LogInformation("Restore {RestoreId} marked as cancelled", restoreId);
+        return true;
     }
 
     private string ResolveTargetPath(Restore restore)

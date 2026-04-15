@@ -95,10 +95,10 @@ sc.exe delete BackupServer 2>$null; Remove-Item -Path "C:\BackupServer" -Recurse
 - 🔌 **API**: http://localhost:8000
 - 📖 **Swagger**: available in Development or when `Swagger:Enabled=true`
 - 👤 **Bootstrap login**: `Admin`
-- 🔑 **Bootstrap password**: `Lkmo291263@`
+- 🔑 **Bootstrap password**: check the server console output on first run (randomly generated)
 - ✅ **Background Service**: Server runs in background; you can close the console window.
 
-> ⚠️ **Important**: This bootstrap password must be changed immediately after first login.
+> ⚠️ **Important**: Look for the "Bootstrap admin user created" warning in your console to find your temporary password. This must be changed immediately after first login.
 
 ---
 

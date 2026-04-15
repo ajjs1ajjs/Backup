@@ -22,6 +22,19 @@ Authorization: Bearer <token>
   - `token: "<password-change-token>"`
 - Use password-change endpoint, then login again (or use returned token).
 
+#### POST /api/auth/login
+- Returns HTTP `200` with JWT on normal login.
+- Returns HTTP `200` with `mustChangePassword: true` and a password-change token on first bootstrap login.
+- Returns HTTP `429` after repeated failed attempts for the same username within the configured window.
+
+```json
+429 Response: {
+  "error": "Too many failed login attempts. Try again later.",
+  "retryAfterSeconds": 900,
+  "lockedUntil": "2026-04-15T10:15:00+00:00"
+}
+```
+
 #### POST /api/auth/change-password-first-login
 Change bootstrap password on first login.
 ```json
@@ -193,3 +206,4 @@ Agent status events
 ## Rate Limits
 - Anonymous auth endpoints are rate-limited by client IP.
 - Current default: 5 requests per minute for `register`, `login`, `login-2fa`, and `change-password-first-login`.
+- Login attempts are also subject to per-username lockout by default after 5 failed attempts within 15 minutes, with a 15-minute lockout duration.

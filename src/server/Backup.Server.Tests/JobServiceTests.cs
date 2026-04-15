@@ -78,7 +78,17 @@ public class BackupExecutionServiceTests
         await db.Database.EnsureCreatedAsync();
 
         var logger = new Mock<ILogger<BackupExecutionService>>();
-        var service = new BackupExecutionService(db, logger.Object);
+        var agentManager = new Mock<IAgentManager>();
+        var cloudStorage = new Mock<ICloudStorageService>();
+        var encryption = new Mock<IEncryptionService>();
+        var notifications = new Mock<INotificationService>();
+        var service = new BackupExecutionService(
+            db,
+            agentManager.Object,
+            cloudStorage.Object,
+            encryption.Object,
+            notifications.Object,
+            logger.Object);
 
         var tempRoot = Path.Combine(Path.GetTempPath(), "backup-tests", Guid.NewGuid().ToString("N"));
         var sourceFile = Path.Combine(tempRoot, "source.txt");
@@ -156,7 +166,17 @@ public class BackupExecutionServiceTests
         await db.Database.EnsureCreatedAsync();
 
         var logger = new Mock<ILogger<BackupExecutionService>>();
-        var service = new BackupExecutionService(db, logger.Object);
+        var agentManager = new Mock<IAgentManager>();
+        var cloudStorage = new Mock<ICloudStorageService>();
+        var encryption = new Mock<IEncryptionService>();
+        var notifications = new Mock<INotificationService>();
+        var service = new BackupExecutionService(
+            db,
+            agentManager.Object,
+            cloudStorage.Object,
+            encryption.Object,
+            notifications.Object,
+            logger.Object);
 
         db.JobRunHistory.Add(new JobRunHistory
         {

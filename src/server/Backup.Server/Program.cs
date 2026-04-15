@@ -108,6 +108,8 @@ public partial class Program
                 options.UseSqlite(connectionString);
             }
         });
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         builder.WebHost.ConfigureKestrel(options =>
         {
@@ -119,16 +121,17 @@ public partial class Program
 
         builder.Services.AddGrpc();
 
-        var agentManager = new AgentGrpcService(
-            builder.Services.BuildServiceProvider(),
-            builder.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>().CreateLogger<AgentGrpcService>()
-        );
-        builder.Services.AddSingleton<IAgentManager>(agentManager);
-        builder.Services.AddSingleton<AgentGrpcService>(agentManager);
+        builder.Services.AddSingleton<AgentGrpcService>();
+        builder.Services.AddSingleton<IAgentManager>(sp => sp.GetRequiredService<AgentGrpcService>());
 
-        var jwtKey = EnsureJwtKey(builder.Configuration);
-        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BackupServer";
-        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BackupClients";
+        // Generate registration token if missing
+        var regToken = builder.Configuration["Agent:RegistrationToken"];
+        if (string.IsNullOrEmpty(regToken))
+        {
+            regToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            Console.WriteLine($"[WARNING] No Agent RegistrationToken found. Generated: {regToken}");
+        }
+        builder.Configuration["Agent:RegistrationToken"] = regToken;
 
         builder.Services.AddAuthentication(options =>
         {
@@ -178,6 +181,9 @@ public partial class Program
 
         builder.Services.AddRateLimiter(options =>
         {
+            var authRateLimitPermitLimit = Math.Max(1, builder.Configuration.GetValue<int?>("Auth:RateLimiting:PermitLimitPerMinute") ?? 5);
+            var authRateLimitWindowMinutes = Math.Max(1, builder.Configuration.GetValue<int?>("Auth:RateLimiting:WindowMinutes") ?? 1);
+
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy("AuthPolicy", context =>
             {
@@ -187,8 +193,8 @@ public partial class Program
                     partitionKey,
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(1),
+                        PermitLimit = authRateLimitPermitLimit,
+                        Window = TimeSpan.FromMinutes(authRateLimitWindowMinutes),
                         QueueLimit = 0,
                         AutoReplenishment = true
                     });
@@ -227,14 +233,17 @@ public partial class Program
         ConfigureCors(builder);
 
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddSingleton<IAuthLockoutService, AuthLockoutService>();
         builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+        builder.Services.AddScoped<IJobService, JobService>();
+        builder.Services.AddScoped<IAgentService, AgentService>();
         builder.Services.AddScoped<IAuditService, AuditService>();
         builder.Services.AddScoped<SchedulerService>();
-        builder.Services.AddScoped<RepositoryService>();
+        builder.Services.AddScoped<IRepositoryService, RepositoryService>();
         builder.Services.AddScoped<ICloudStorageService, CloudStorageService>();
         builder.Services.AddScoped<BackupExecutionService>();
-        builder.Services.AddScoped<FastCloneService>();
-        builder.Services.AddScoped<RestoreService>();
+        builder.Services.AddScoped<IFastCloneService, FastCloneService>();
+        builder.Services.AddScoped<IRestoreService, RestoreService>();
         builder.Services.AddSingleton<IBackupQueue, BackupQueue>();
         builder.Services.AddSingleton<IRestoreQueue, RestoreQueue>();
         builder.Services.AddHostedService<BackupProcessingService>();
@@ -245,6 +254,10 @@ public partial class Program
         
         // Register notification service stub
         builder.Services.AddSingleton<INotificationService, NotificationServiceStub>();
+
+        builder.Services.AddHealthChecks()
+            .AddSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=backup.db")
+            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
         var app = builder.Build();
         ConfigureMiddleware(app);
@@ -339,8 +352,10 @@ public partial class Program
 
         app.MapGrpcService<AgentGrpcService>();
         app.MapControllers();
-        app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
-        app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+        
+        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/ready");
+
         app.MapGet("/api", () => Results.Ok(new { message = "Backup API" })).AllowAnonymous();
         app.MapFallbackToFile("index.html").AllowAnonymous();
     }

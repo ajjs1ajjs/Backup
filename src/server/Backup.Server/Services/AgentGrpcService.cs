@@ -17,20 +17,37 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AgentGrpcService> _logger;
+    private readonly IConfiguration _configuration;
     private static readonly ConcurrentDictionary<string, IServerStreamWriter<ServerCommand>> _activeAgents = new();
 
-    public AgentGrpcService(IServiceProvider serviceProvider, ILogger<AgentGrpcService> logger)
+    public AgentGrpcService(IServiceProvider serviceProvider, ILogger<AgentGrpcService> logger, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public override async Task<AgentRegistrationResponse> Register(AgentRegistrationRequest request, ServerCallContext context)
     {
+        var registrationToken = _configuration["Agent:RegistrationToken"];
+        var providedToken = context.RequestHeaders.GetValue("x-registration-token");
+
+        if (!string.IsNullOrEmpty(registrationToken) && providedToken != registrationToken)
+        {
+            _logger.LogWarning("Agent {AgentId} failed registration: invalid registration token", request.AgentId);
+            return new AgentRegistrationResponse
+            {
+                Success = false,
+                Message = "Invalid registration token"
+            };
+        }
+
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
 
         var agent = await db.Agents.FirstOrDefaultAsync(a => a.AgentId == request.AgentId);
+        var authToken = Guid.NewGuid().ToString("N");
+
         if (agent == null)
         {
             agent = new Agent
@@ -40,6 +57,7 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
                 OsType = request.OsType,
                 AgentType = request.AgentType.ToString(),
                 AgentVersion = request.AgentVersion,
+                AuthToken = authToken,
                 CreatedAt = DateTime.UtcNow
             };
             db.Agents.Add(agent);
@@ -49,6 +67,7 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
             agent.Hostname = request.Hostname;
             agent.OsType = request.OsType;
             agent.AgentVersion = request.AgentVersion;
+            agent.AuthToken = authToken;
             agent.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -58,6 +77,13 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
         agent.Capabilities = System.Text.Json.JsonSerializer.Serialize(request.Capabilities);
 
         await db.SaveChangesAsync();
+
+        // Audit the registration
+        var audit = _serviceProvider.GetRequiredService<IAuditService>();
+        await audit.LogAsync("SYSTEM", "AgentRegistration", "Agent", agent.AgentId, new { Hostname = agent.Hostname }, context.Peer);
+
+        // Send the auth token back in headers
+        await context.WriteResponseHeadersAsync(new Metadata { { "x-agent-token", authToken } });
 
         return new AgentRegistrationResponse
         {
@@ -71,12 +97,20 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
     public override async Task Heartbeat(IAsyncStreamReader<AgentHeartbeat> requestStream, IServerStreamWriter<ServerCommand> responseStream, ServerCallContext context)
     {
         string? agentId = null;
+        var agentToken = context.RequestHeaders.GetValue("x-agent-token");
+
+        if (string.IsNullOrEmpty(agentToken))
+        {
+            _logger.LogWarning("Heartbeat rejected: missing agent token");
+            return;
+        }
 
         try
         {
             while (await requestStream.MoveNext())
             {
                 var heartbeat = requestStream.Current;
+                _logger.LogInformation("Heartbeat received for AgentId {Id}", heartbeat.AgentId);
                 
                 using var scope = _serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<BackupDbContext>();
@@ -84,12 +118,24 @@ public class AgentGrpcService : AgentService.AgentServiceBase, IAgentManager
 
                 if (agent != null)
                 {
+                    _logger.LogInformation("Found agent {AgentId} in DB for heartbeat", agent.AgentId);
+                    if (agent.AuthToken != agentToken)
+                    {
+                        _logger.LogWarning("Heartbeat rejected for agent {Id}: invalid token. Expected: {Expected}, Provided: {Provided}", heartbeat.AgentId, agent.AuthToken, agentToken);
+                        break;
+                    }
+
                     agentId = agent.AgentId;
                     _activeAgents[agentId] = responseStream;
 
                     agent.LastHeartbeat = DateTime.UtcNow;
                     agent.Status = heartbeat.Status.ToString();
                     await db.SaveChangesAsync();
+                }
+                else
+                {
+                    _logger.LogWarning("Heartbeat received for unknown agent ID {Id}", heartbeat.AgentId);
+                    break;
                 }
 
                 _logger.LogDebug("Heartbeat received from agent {AgentId}", heartbeat.AgentId);

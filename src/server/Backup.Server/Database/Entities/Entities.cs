@@ -70,6 +70,9 @@ public class Agent
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public string Capabilities { get; set; } = "[]";
+
+    [MaxLength(128)]
+    public string? AuthToken { get; set; }
 }
 
 [Table("virtual_machines")]

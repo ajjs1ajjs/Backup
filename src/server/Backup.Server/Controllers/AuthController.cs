@@ -60,6 +60,8 @@ public class AuthController : ControllerBase
             if (result.MustChangePassword)
             {
                 var changePasswordToken = _authService.GeneratePasswordChangeToken(request.Username);
+                var user = await _authService.GetUserByUsernameAsync(request.Username);
+                await _auditService.LogAsync(user?.UserId, "LoginPasswordChangeRequired", "User", user?.UserId, null, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
                 return Ok(new { 
                     token = changePasswordToken,
                     mustChangePassword = true,
@@ -67,10 +69,22 @@ public class AuthController : ControllerBase
                 });
             }
 
-            var user = await _authService.GetUserByUsernameAsync(request.Username);
-            await _auditService.LogAsync(user?.UserId, "LoginSuccess", "User", user?.UserId, null, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
+            var authenticatedUser = await _authService.GetUserByUsernameAsync(request.Username);
+            await _auditService.LogAsync(authenticatedUser?.UserId, "LoginSuccess", "User", authenticatedUser?.UserId, null, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
 
             return Ok(new { token = result.Token });
+        }
+        catch (Services.AuthLockoutException ex)
+        {
+            var retryAfterSeconds = Math.Max(1, (int)Math.Ceiling((ex.LockedUntil - DateTimeOffset.UtcNow).TotalSeconds));
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+            await _auditService.LogAsync(null, "LoginLockedOut", "User", request.Username, new { lockedUntil = ex.LockedUntil }, Request.HttpContext.Connection.RemoteIpAddress?.ToString());
+            return StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                error = ex.Message,
+                retryAfterSeconds,
+                lockedUntil = ex.LockedUntil
+            });
         }
         catch (UnauthorizedAccessException ex)
         {

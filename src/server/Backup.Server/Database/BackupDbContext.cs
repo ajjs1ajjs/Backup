@@ -19,23 +19,66 @@ public class BackupDbContext : DbContext
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Hypervisor> Hypervisors => Set<Hypervisor>();
     public DbSet<Chunk> Chunks => Set<Chunk>();
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    // --- ENUM Converters ---
+    var enumConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.EnumToStringConverter<JobType>();
+
+    // --- Agent Configuration ---
+    modelBuilder.Entity<Agent>(entity =>
     {
-        base.OnModelCreating(modelBuilder);
+        entity.HasIndex(e => e.AgentId).IsUnique();
+        entity.HasIndex(e => e.Status);
+    });
 
-        modelBuilder.Entity<Agent>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.AgentId).IsUnique();
-        });
+    // --- Virtual Machine Configuration ---
+    modelBuilder.Entity<VirtualMachine>(entity =>
+    {
+        entity.HasIndex(e => e.VmId).IsUnique();
+        entity.HasIndex(e => new { e.HypervisorType, e.HypervisorHost });
+    });
 
-        modelBuilder.Entity<VirtualMachine>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.VmId).IsUnique();
-        });
+    // --- Repository Configuration ---
+    modelBuilder.Entity<Repository>(entity =>
+    {
+        entity.HasIndex(e => e.RepositoryId).IsUnique();
+    });
 
+    // --- Job Configuration ---
+    modelBuilder.Entity<Job>(entity =>
+    {
+        entity.HasIndex(e => e.JobId).IsUnique();
+        entity.HasIndex(e => e.Enabled);
+        entity.HasIndex(e => e.NextRun);
+    });
+
+    // --- Backup Point Configuration ---
+    modelBuilder.Entity<BackupPoint>(entity =>
+    {
+        entity.HasIndex(e => e.BackupId).IsUnique();
+        entity.HasIndex(e => e.JobId);
+        entity.HasIndex(e => e.VmId);
+        entity.HasIndex(e => e.RepositoryId);
+    });
+
+    // --- Restore Configuration ---
+    modelBuilder.Entity<Restore>(entity =>
+    {
+        entity.HasIndex(e => e.RestoreId).IsUnique();
+        entity.HasIndex(e => e.BackupId);
+    });
+
+    // --- User Configuration ---
+    modelBuilder.Entity<User>(entity =>
+    {
+        entity.HasIndex(e => e.UserId).IsUnique();
+        entity.HasIndex(e => e.Username).IsUnique();
+        entity.HasIndex(e => e.Email).IsUnique();
+    });
+}
+}
         modelBuilder.Entity<Repository>(entity =>
         {
             entity.HasKey(e => e.Id);

@@ -4,6 +4,7 @@ using Backup.Server.Database;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
@@ -16,6 +17,18 @@ public class IntegrationTestWebApplicationFactory : WebApplicationFactory<Progra
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Auth:RateLimiting:PermitLimitPerMinute"] = "30",
+                ["Auth:Lockout:MaxFailedAttempts"] = "3",
+                ["Auth:Lockout:DurationMinutes"] = "1",
+                ["Auth:Lockout:FailureWindowMinutes"] = "5",
+                ["Agent:RegistrationToken"] = "test-token-123"
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             _connection = new SqliteConnection("Data Source=:memory:");

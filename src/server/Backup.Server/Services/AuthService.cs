@@ -35,12 +35,18 @@ public class AuthService : IAuthService
     private readonly BackupDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly IEncryptionService _encryption;
+    private readonly IAuthLockoutService _lockoutService;
 
-    public AuthService(BackupDbContext context, IConfiguration configuration, IEncryptionService encryption)
+    public AuthService(
+        BackupDbContext context,
+        IConfiguration configuration,
+        IEncryptionService encryption,
+        IAuthLockoutService lockoutService)
     {
         _context = context;
         _configuration = configuration;
         _encryption = encryption;
+        _lockoutService = lockoutService;
     }
 
     public async Task UpdateTwoFactorSecretAsync(string userId, string secret)
@@ -91,13 +97,31 @@ public class AuthService : IAuthService
 
     public async Task<LoginResult> LoginAsync(string username, string password)
     {
+        var lockoutStatus = _lockoutService.GetStatus(username);
+        if (lockoutStatus.IsLockedOut && lockoutStatus.LockedUntil.HasValue)
+            throw new AuthLockoutException(lockoutStatus.LockedUntil.Value);
+
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
 
         if (user == null || !user.IsActive)
+        {
+            var failedStatus = _lockoutService.RegisterFailure(username);
+            if (failedStatus.IsLockedOut && failedStatus.LockedUntil.HasValue)
+                throw new AuthLockoutException(failedStatus.LockedUntil.Value);
+
             throw new UnauthorizedAccessException("Invalid credentials");
+        }
 
         if (!VerifyPassword(password, user.PasswordHash))
+        {
+            var failedStatus = _lockoutService.RegisterFailure(username);
+            if (failedStatus.IsLockedOut && failedStatus.LockedUntil.HasValue)
+                throw new AuthLockoutException(failedStatus.LockedUntil.Value);
+
             throw new UnauthorizedAccessException("Invalid credentials");
+        }
+
+        _lockoutService.Reset(user.Username);
 
         if (!string.IsNullOrEmpty(user.TwoFactorSecret))
         {
@@ -158,6 +182,7 @@ public class AuthService : IAuthService
         user.PasswordHash = HashPassword(newPassword);
         user.MustChangePassword = false;
         user.LastLoginAt = DateTime.UtcNow;
+        _lockoutService.Reset(user.Username);
         await _context.SaveChangesAsync();
     }
 
@@ -214,6 +239,7 @@ public class AuthService : IAuthService
         user.PasswordHash = HashPassword(newPassword);
         user.MustChangePassword = false;
         user.LastLoginAt = DateTime.UtcNow;
+        _lockoutService.Reset(user.Username);
         await _context.SaveChangesAsync();
     }
 
@@ -271,6 +297,7 @@ public class AuthService : IAuthService
         user.MustChangePassword = false;
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
+        _lockoutService.Reset(user.Username);
         await _context.SaveChangesAsync();
         return true;
     }

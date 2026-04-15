@@ -77,11 +77,20 @@ int main(int argc, char* argv[]) {
     }
 
     if (command.empty() || command == "daemon") {
-        std::cout << "Agent (" << agent_type << ") running in daemon mode..." << std::endl;
-        // Тут повинна бути логіка gRPC сервера та серцебиття
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
-            std::cout << "Heartbeat sent" << std::endl;
+        std::cout << "Agent (" << agent_type << ") starting in daemon mode..." << std::endl;
+        
+        std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+        AgentClient client(channel);
+
+        char hostname[256];
+        gethostname(hostname, sizeof(hostname));
+
+        if (client.RegisterAgent(hostname, "windows", "1.0.0", agent_type)) {
+            std::cout << "Agent registered successfully." << std::endl;
+            client.HeartbeatLoop();
+        } else {
+            std::cerr << "Failed to register agent." << std::endl;
+            return 1;
         }
         return 0;
     }

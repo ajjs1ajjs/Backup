@@ -205,6 +205,20 @@ public class BackupExecutionService
             CreatedAt = DateTime.UtcNow
         };
 
+        // Find parent backup for incremental/differential
+        if (job.JobType == JobType.Incremental || job.JobType == JobType.Differential)
+        {
+            var parentBackup = await _db.BackupPoints
+                .Where(b => b.JobId == job.JobId && b.Status == BackupStatus.Completed)
+                .OrderByDescending(b => b.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+            
+            if (parentBackup != null)
+            {
+                backupPoint.ParentBackupId = parentBackup.BackupId;
+            }
+        }
+
         _db.BackupPoints.Add(backupPoint);
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -361,8 +375,25 @@ public class BackupExecutionService
         }
     }
 
-    private static string? ResolveSourcePath(Job job)
+    private string? ResolveSourcePath(Job job)
     {
+        if (string.Equals(job.SourceType, "VirtualMachine", StringComparison.OrdinalIgnoreCase))
+        {
+            // For VMs, SourceId is the VmId. In a real scenario, we'd resolve this to a disk path or VM identifier.
+            // For now, we'll try to find the VM in our DB to validate it exists.
+            var vm = _db.VirtualMachines.FirstOrDefault(v => v.VmId == job.SourceId);
+            if (vm != null)
+            {
+                // In this MVP, we might be storing the path in Tags or Options, or it might be a managed path.
+                // Let's assume for now that if it's a VM, we need an agent to handle it, 
+                // OR if local, the SourceId might actually be a path to a VHDX/VMDK for testing.
+                if (File.Exists(job.SourceId) || Directory.Exists(job.SourceId))
+                    return job.SourceId;
+                
+                return $"vm://{vm.HypervisorType}/{vm.VmId}"; 
+            }
+        }
+
         if (File.Exists(job.SourceId) || Directory.Exists(job.SourceId))
         {
             return job.SourceId;

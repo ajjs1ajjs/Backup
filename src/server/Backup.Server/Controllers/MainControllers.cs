@@ -12,85 +12,38 @@ namespace Backup.Server.Controllers;
 [Authorize]
 public class JobsController : ControllerBase
 {
-    private readonly BackupDbContext _db;
+    private readonly IJobService _jobService;
     private readonly ILogger<JobsController> _logger;
     private readonly Backup.Server.Services.BackupExecutionService _backupExecutionService;
     private readonly IBackupQueue _backupQueue;
+    private readonly BackupDbContext _db; // Still needed for StopJob until moved to service
 
     public JobsController(
-        BackupDbContext db,
+        IJobService jobService,
         ILogger<JobsController> logger,
         Backup.Server.Services.BackupExecutionService backupExecutionService,
-        IBackupQueue backupQueue)
+        IBackupQueue backupQueue,
+        BackupDbContext db)
     {
-        _db = db;
+        _jobService = jobService;
         _logger = logger;
         _backupExecutionService = backupExecutionService;
         _backupQueue = backupQueue;
+        _db = db;
     }
 
     [HttpGet]
     [Authorize(Policy = "Viewer")]
     public async Task<ActionResult> GetJobs([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var jobsPage = await _db.Jobs
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        var jobIds = jobsPage.Select(job => job.JobId).ToList();
-        var latestRuns = await _db.JobRunHistory
-            .Where(run => jobIds.Contains(run.JobId))
-            .OrderByDescending(run => run.StartTime)
-            .ToListAsync();
-
-        var latestRunsByJobId = latestRuns
-            .GroupBy(run => run.JobId)
-            .ToDictionary(group => group.Key, group => group.First());
-
-        var jobs = jobsPage
-            .Select(job =>
-            {
-                latestRunsByJobId.TryGetValue(job.JobId, out var latestRun);
-
-                return new
-                {
-                    job.JobId,
-                    job.Name,
-                    job.JobType,
-                    job.SourceId,
-                    job.SourceType,
-                    job.DestinationId,
-                    job.Schedule,
-                    job.Options,
-                    job.Enabled,
-                    job.LastRun,
-                    job.NextRun,
-                    job.CreatedAt,
-                    LatestRun = latestRun == null ? null : new
-                    {
-                        latestRun.RunId,
-                        latestRun.Status,
-                        latestRun.StartTime,
-                        latestRun.EndTime,
-                        latestRun.BytesProcessed,
-                        latestRun.FilesProcessed,
-                        latestRun.SpeedMbps,
-                        latestRun.ErrorMessage
-                    }
-                };
-            })
-            .ToList();
-
-        var total = await _db.Jobs.CountAsync();
-
+        var (jobs, total) = await _jobService.GetJobsAsync(page, pageSize);
         return Ok(new { jobs, total, page, pageSize });
     }
 
     [HttpGet("{jobId}")]
     public async Task<ActionResult> GetJob(string jobId)
     {
-        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
+        var job = await _jobService.GetJobByIdAsync(jobId);
         if (job == null) return NotFound();
         return Ok(job);
     }
@@ -98,66 +51,29 @@ public class JobsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> CreateJob([FromBody] JobDto jobDto)
     {
-        var job = new Job
-        {
-            JobId = Guid.NewGuid().ToString(),
-            Name = jobDto.Name,
-            JobType = Enum.Parse<JobType>(jobDto.JobType, true),
-            SourceId = jobDto.SourceId,
-            SourceType = jobDto.SourceType,
-            DestinationId = jobDto.DestinationId,
-            Schedule = jobDto.Schedule,
-            Options = string.IsNullOrWhiteSpace(jobDto.Options) ? "{}" : jobDto.Options,
-            Enabled = jobDto.Enabled,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        
-        _db.Jobs.Add(job);
-        await _db.SaveChangesAsync();
-        
-        _logger.LogInformation("Created job {JobId}: {Name}", job.JobId, job.Name);
+        var job = await _jobService.CreateJobAsync(jobDto);
         return CreatedAtAction(nameof(GetJob), new { jobId = job.JobId }, job);
     }
 
     [HttpPut("{jobId}")]
     public async Task<ActionResult> UpdateJob(string jobId, [FromBody] JobDto jobDto)
     {
-        var existing = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
-        if (existing == null) return NotFound();
-        
-        existing.Name = jobDto.Name;
-        existing.JobType = Enum.Parse<JobType>(jobDto.JobType, true);
-        existing.SourceId = jobDto.SourceId;
-        existing.SourceType = jobDto.SourceType;
-        existing.DestinationId = jobDto.DestinationId;
-        existing.Schedule = jobDto.Schedule;
-        existing.Options = string.IsNullOrWhiteSpace(jobDto.Options) ? "{}" : jobDto.Options;
-        existing.Enabled = jobDto.Enabled;
-        existing.UpdatedAt = DateTime.UtcNow;
-        
-        await _db.SaveChangesAsync();
-        return Ok(existing);
+        var result = await _jobService.UpdateJobAsync(jobId, jobDto);
+        if (result == null) return NotFound();
+        return Ok(result);
     }
 
     [HttpDelete("{jobId}")]
     public async Task<ActionResult> DeleteJob(string jobId)
     {
-        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
-        if (job == null) return NotFound();
-        
-        _db.Jobs.Remove(job);
-        await _db.SaveChangesAsync();
-        
+        var success = await _jobService.DeleteJobAsync(jobId);
+        if (!success) return NotFound();
         return NoContent();
     }
 
     [HttpPost("{jobId}/run")]
     public async Task<ActionResult> RunJob(string jobId)
     {
-        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId);
-        if (job == null) return NotFound();
-
         var queueResult = await _backupExecutionService.QueueJobAsync(jobId);
         if (!queueResult.Success)
         {
@@ -173,6 +89,7 @@ public class JobsController : ControllerBase
     [HttpPost("{jobId}/stop")]
     public async Task<ActionResult> StopJob(string jobId)
     {
+        // Keeping this logic here for now as it involves complex state management better handled in ExecutionService later
         var activeRun = await _db.JobRunHistory
             .Where(r => r.JobId == jobId && (r.Status == "running" || r.Status == "queued"))
             .OrderByDescending(r => r.StartTime)
@@ -193,31 +110,7 @@ public class JobsController : ControllerBase
     [Authorize(Policy = "Viewer")]
     public async Task<ActionResult> GetJobRuns(string jobId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var jobExists = await _db.Jobs.AnyAsync(j => j.JobId == jobId);
-        if (!jobExists) return NotFound();
-
-        var query = _db.JobRunHistory
-            .Where(r => r.JobId == jobId)
-            .OrderByDescending(r => r.StartTime);
-
-        var total = await query.CountAsync();
-        var runs = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(r => new
-            {
-                r.RunId,
-                r.JobId,
-                r.StartTime,
-                r.EndTime,
-                r.Status,
-                r.BytesProcessed,
-                r.FilesProcessed,
-                r.SpeedMbps,
-                r.ErrorMessage
-            })
-            .ToListAsync();
-
+        var (runs, total) = await _jobService.GetJobRunsAsync(jobId, page, pageSize);
         return Ok(new { runs, total, page, pageSize });
     }
 
@@ -225,21 +118,7 @@ public class JobsController : ControllerBase
     [Authorize(Policy = "Viewer")]
     public async Task<ActionResult> GetRun(string runId)
     {
-        var run = await _db.JobRunHistory
-            .Select(r => new
-            {
-                r.RunId,
-                r.JobId,
-                r.StartTime,
-                r.EndTime,
-                r.Status,
-                r.BytesProcessed,
-                r.FilesProcessed,
-                r.SpeedMbps,
-                r.ErrorMessage
-            })
-            .FirstOrDefaultAsync(r => r.RunId == runId);
-
+        var run = await _jobService.GetRunByIdAsync(runId);
         if (run == null) return NotFound();
         return Ok(run);
     }
@@ -262,26 +141,26 @@ public class JobDto
 [Authorize]
 public class AgentsController : ControllerBase
 {
-    private readonly BackupDbContext _db;
+    private readonly IAgentService _agentService;
     private readonly ILogger<AgentsController> _logger;
 
-    public AgentsController(BackupDbContext db, ILogger<AgentsController> logger)
+    public AgentsController(IAgentService agentService, ILogger<AgentsController> logger)
     {
-        _db = db;
+        _agentService = agentService;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult> GetAgents()
     {
-        var agents = await _db.Agents.ToListAsync();
+        var agents = await _agentService.GetAgentsAsync();
         return Ok(agents);
     }
 
     [HttpGet("{agentId}")]
     public async Task<ActionResult> GetAgent(long agentId)
     {
-        var agent = await _db.Agents.FirstOrDefaultAsync(a => a.Id == agentId);
+        var agent = await _agentService.GetAgentByIdAsync(agentId);
         if (agent == null) return NotFound();
         return Ok(agent);
     }
@@ -289,12 +168,8 @@ public class AgentsController : ControllerBase
     [HttpDelete("{agentId}")]
     public async Task<ActionResult> DeleteAgent(long agentId)
     {
-        var agent = await _db.Agents.FirstOrDefaultAsync(a => a.Id == agentId);
-        if (agent == null) return NotFound();
-        
-        _db.Agents.Remove(agent);
-        await _db.SaveChangesAsync();
-        
+        var success = await _agentService.DeleteAgentAsync(agentId);
+        if (!success) return NotFound();
         return NoContent();
     }
 }
@@ -304,26 +179,26 @@ public class AgentsController : ControllerBase
 [Authorize]
 public class RepositoriesController : ControllerBase
 {
-    private readonly BackupDbContext _db;
+    private readonly IRepositoryService _repoService;
     private readonly ILogger<RepositoriesController> _logger;
 
-    public RepositoriesController(BackupDbContext db, ILogger<RepositoriesController> logger)
+    public RepositoriesController(IRepositoryService repoService, ILogger<RepositoriesController> logger)
     {
-        _db = db;
+        _repoService = repoService;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult> GetRepositories()
     {
-        var repos = await _db.Repositories.ToListAsync();
+        var repos = await _repoService.GetRepositoriesAsync();
         return Ok(repos);
     }
 
     [HttpGet("{repositoryId}")]
     public async Task<ActionResult> GetRepository(string repositoryId)
     {
-        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
+        var repo = await _repoService.GetRepositoryByIdAsync(repositoryId);
         if (repo == null) return NotFound();
         return Ok(repo);
     }
@@ -331,31 +206,14 @@ public class RepositoriesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> CreateRepository([FromBody] RepositoryDto repositoryDto)
     {
-        var repository = new Repository
-        {
-            RepositoryId = Guid.NewGuid().ToString(),
-            Name = repositoryDto.Name,
-            Type = Enum.Parse<RepositoryType>(repositoryDto.Type, true),
-            Path = repositoryDto.Path,
-            Status = string.IsNullOrWhiteSpace(repositoryDto.Status) ? "online" : repositoryDto.Status,
-            CapacityBytes = repositoryDto.CapacityBytes,
-            Credentials = repositoryDto.Credentials,
-            Options = string.IsNullOrWhiteSpace(repositoryDto.Options) ? "{}" : repositoryDto.Options,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        
-        _db.Repositories.Add(repository);
-        await _db.SaveChangesAsync();
-        
-        _logger.LogInformation("Created repository {RepoId}: {Name}", repository.RepositoryId, repository.Name);
+        var repository = await _repoService.CreateRepositoryAsync(repositoryDto);
         return CreatedAtAction(nameof(GetRepository), new { repositoryId = repository.RepositoryId }, repository);
     }
 
     [HttpPost("{repositoryId}/test")]
-    public async Task<ActionResult> TestRepository(string repositoryId, [FromServices] Services.RepositoryService repoService)
+    public async Task<ActionResult> TestRepository(string repositoryId)
     {
-        var success = await repoService.TestConnectionAsync(repositoryId);
+        var success = await _repoService.TestConnectionAsync(repositoryId);
         if (success)
             return Ok(new { success = true, message = "Connection successful" });
         else
@@ -365,12 +223,8 @@ public class RepositoriesController : ControllerBase
     [HttpDelete("{repositoryId}")]
     public async Task<ActionResult> DeleteRepository(string repositoryId)
     {
-        var repo = await _db.Repositories.FirstOrDefaultAsync(r => r.RepositoryId == repositoryId);
-        if (repo == null) return NotFound();
-        
-        _db.Repositories.Remove(repo);
-        await _db.SaveChangesAsync();
-        
+        var success = await _repoService.DeleteRepositoryAsync(repositoryId);
+        if (!success) return NotFound();
         return NoContent();
     }
 }

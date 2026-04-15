@@ -26,6 +26,7 @@ include_directories(
 
 set(AGENT_SOURCES
     main.cpp
+    agent_client.cpp
     hyperv/hyperv_agent.cpp
     vmware/vmware_agent.cpp
     kvm/kvm_agent.cpp

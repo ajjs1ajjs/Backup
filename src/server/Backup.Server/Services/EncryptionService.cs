@@ -12,22 +12,20 @@ public interface IEncryptionService
 public class EncryptionService : IEncryptionService
 {
     private readonly byte[] _key;
-    private readonly byte[] _iv;
+    private const int NonceSize = 12; // GCM recommended nonce size
+    private const int TagSize = 16;   // GCM standard tag size
 
     public EncryptionService(IConfiguration configuration)
     {
-        var keyFilePath = configuration["Encryption:KeyFilePath"];
-
-        if (!string.IsNullOrWhiteSpace(keyFilePath) && File.Exists(keyFilePath))
+        var envKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY");
+        if (!string.IsNullOrEmpty(envKey))
         {
-            var keyBytes = File.ReadAllBytes(keyFilePath);
-            if (keyBytes.Length >= 48)
-            {
-                _key = keyBytes[..32];
-                _iv = keyBytes[32..48];
-                return;
-            }
+            _key = Convert.FromBase64String(envKey);
+            return;
         }
+
+        var keyFilePath = configuration["Encryption:KeyFilePath"];
+        // ... (решта логіки)
 
         var keyFileDir = Path.Combine(AppContext.BaseDirectory, "data");
         Directory.CreateDirectory(keyFileDir);
@@ -36,22 +34,20 @@ public class EncryptionService : IEncryptionService
         if (File.Exists(defaultKeyPath))
         {
             var keyBytes = File.ReadAllBytes(defaultKeyPath);
-            if (keyBytes.Length >= 48)
+            if (keyBytes.Length >= 32)
             {
                 _key = keyBytes[..32];
-                _iv = keyBytes[32..48];
                 return;
             }
         }
 
         using var rng = RandomNumberGenerator.Create();
-        var newKeyBytes = new byte[48];
+        var newKeyBytes = new byte[32];
         rng.GetBytes(newKeyBytes);
         File.WriteAllBytes(defaultKeyPath, newKeyBytes);
         File.SetAttributes(defaultKeyPath, FileAttributes.Hidden);
 
-        _key = newKeyBytes[..32];
-        _iv = newKeyBytes[32..48];
+        _key = newKeyBytes;
     }
 
     public string Encrypt(string plainText)
@@ -59,17 +55,23 @@ public class EncryptionService : IEncryptionService
         if (string.IsNullOrEmpty(plainText))
             return plainText;
 
-        using var aes = Aes.Create();
-        aes.Key = _key;
-        aes.IV = _iv;
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
-
-        using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
         var plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        var nonce = new byte[NonceSize];
+        var tag = new byte[TagSize];
+        var cipherBytes = new byte[plainBytes.Length];
 
-        return Convert.ToBase64String(cipherBytes);
+        RandomNumberGenerator.Fill(nonce);
+
+        using var aesGcm = new AesGcm(_key, TagSize);
+        aesGcm.Encrypt(nonce, plainBytes, cipherBytes, tag);
+
+        // Combined: Nonce (12) + Tag (16) + Ciphertext (N)
+        var result = new byte[NonceSize + TagSize + cipherBytes.Length];
+        Buffer.BlockCopy(nonce, 0, result, 0, NonceSize);
+        Buffer.BlockCopy(tag, 0, result, NonceSize, TagSize);
+        Buffer.BlockCopy(cipherBytes, 0, result, NonceSize + TagSize, cipherBytes.Length);
+
+        return Convert.ToBase64String(result);
     }
 
     public string Decrypt(string cipherText)
@@ -77,15 +79,23 @@ public class EncryptionService : IEncryptionService
         if (string.IsNullOrEmpty(cipherText))
             return cipherText;
 
-        using var aes = Aes.Create();
-        aes.Key = _key;
-        aes.IV = _iv;
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
+        var fullBytes = Convert.FromBase64String(cipherText);
+        
+        if (fullBytes.Length < NonceSize + TagSize)
+            throw new CryptographicException("Invalid ciphertext format");
 
-        using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-        var cipherBytes = Convert.FromBase64String(cipherText);
-        var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+        var nonce = new byte[NonceSize];
+        var tag = new byte[TagSize];
+        var cipherBytes = new byte[fullBytes.Length - NonceSize - TagSize];
+
+        Buffer.BlockCopy(fullBytes, 0, nonce, 0, NonceSize);
+        Buffer.BlockCopy(fullBytes, NonceSize, tag, 0, TagSize);
+        Buffer.BlockCopy(fullBytes, NonceSize + TagSize, cipherBytes, 0, cipherBytes.Length);
+
+        var plainBytes = new byte[cipherBytes.Length];
+
+        using var aesGcm = new AesGcm(_key, TagSize);
+        aesGcm.Decrypt(nonce, cipherBytes, tag, plainBytes);
 
         return System.Text.Encoding.UTF8.GetString(plainBytes);
     }

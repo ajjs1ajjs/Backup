@@ -55,7 +55,7 @@ const navSections = [
     items: [
       { text: 'Backup Jobs', icon: <BackupIcon />, path: '/jobs' },
       { text: 'Restore', icon: <RestoreIcon />, path: '/restore' },
-      { text: 'Replication', icon: <CloudIcon />, path: '/replication' }
+      { text: 'Replication (Coming Soon)', icon: <CloudIcon />, path: '/replication' }
     ]
   },
   {
@@ -63,7 +63,7 @@ const navSections = [
     items: [
       { text: 'Hypervisors', icon: <DnsIcon />, path: '/hypervisors' },
       { text: 'Virtual Machines', icon: <VMIcon />, path: '/virtual-machines' },
-      { text: 'Inventory', icon: <StorageIcon />, path: '/inventory' },
+      { text: 'Inventory (Experimental)', icon: <StorageIcon />, path: '/inventory' },
       { text: 'Repositories', icon: <StorageIcon />, path: '/repositories' },
       { text: 'Agents', icon: <ComputerIcon />, path: '/agents' }
     ]
@@ -72,7 +72,7 @@ const navSections = [
     label: 'MONITORING',
     items: [
       { text: 'Alerts', icon: <WarningIcon />, path: '/alerts' },
-      { text: 'Reports', icon: <ReportIcon />, path: '/reports' }
+      { text: 'Reports (Coming Soon)', icon: <ReportIcon />, path: '/reports' }
     ]
   },
   {
